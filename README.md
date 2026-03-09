@@ -92,7 +92,7 @@ Compose** (the migration runs automatically in the container).
 
 ```sh
 git clone <your-repo-url>
-cd remix-of-family-command-center
+cd family-command-center
 ```
 
 ### 7. Install project dependencies
