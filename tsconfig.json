@@ -6,16 +6,17 @@
     "noUnusedParameters": false,
     "paths": {
       "@/*": [
-        "./src/*"
+        "./app/*"
       ]
     },
+    "baseUrl": ".",
     "skipLibCheck": true,
     "strictNullChecks": false
   },
   "files": [],
   "references": [
     {
-      "path": "./tsconfig.app.json"
+      "path": "./app/tsconfig.json"
     },
     {
       "path": "./tsconfig.node.json"

@@ -14,9 +14,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "server": "tsx server/index.ts",
-    "server:dev": "tsx watch server/index.ts",
-    "db:migrate": "psql $DATABASE_URL -f server/migrations/001_initial_schema.sql",
+    "server": "tsx api/index.ts",
+    "server:dev": "tsx watch api/index.ts",
+    "db:migrate": "psql $DATABASE_URL -f api/migrations/001_initial_schema.sql",
     "prepare": "husky"
   },
   "dependencies": {

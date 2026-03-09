@@ -5,13 +5,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY index.html vite.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json postcss.config.js components.json ./
-COPY src/ ./src/
-COPY public/ ./public/
-COPY server/static.ts ./server/
+COPY vite.config.ts tsconfig.json tsconfig.node.json postcss.config.js ./
+COPY app/ ./app/
+COPY api/static.ts ./api/
 
 RUN npm run build
 
 EXPOSE 8080
 
-CMD ["npx", "tsx", "server/static.ts"]
+CMD ["npx", "tsx", "api/static.ts"]

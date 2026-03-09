@@ -4,6 +4,12 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  root: "app",
+  publicDir: "public",
+  build: {
+    outDir: "../dist",
+    emptyOutDir: true,
+  },
   server: {
     host: "::",
     port: 8080,
@@ -21,7 +27,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname!, "./src"),
+      "@": path.resolve(import.meta.dirname!, "./app"),
     },
   },
 }));

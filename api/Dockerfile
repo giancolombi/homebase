@@ -5,9 +5,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY server/ ./server/
+COPY api/ ./api/
 COPY tsconfig.json tsconfig.node.json ./
 
 EXPOSE 3001
 
-CMD ["npx", "tsx", "server/index.ts"]
+CMD ["npx", "tsx", "api/index.ts"]
