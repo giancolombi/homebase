@@ -8,6 +8,7 @@ import {
   parseISO,
 } from "date-fns";
 import { useFamilyStore } from "@/store/familyStore";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -26,6 +27,8 @@ const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6 AM to 9 PM
 
 export default function CalendarPage() {
   const { members, events, tasks } = useFamilyStore();
+  const isMobile = useIsMobile();
+  const slotHeight = isMobile ? 64 : 80; // matches h-16 / md:h-20
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week">("day");
   const [showAddEvent, setShowAddEvent] = useState(false);
@@ -148,6 +151,7 @@ export default function CalendarPage() {
             events={dayEvents(selectedDate)}
             getMemberColor={getMemberColor}
             onSlotClick={handleSlotClick}
+            slotHeight={slotHeight}
           />
         ) : (
           <WeekView
@@ -175,12 +179,14 @@ function DayView({
   events,
   getMemberColor,
   onSlotClick,
+  slotHeight,
 }: {
   date: Date;
   members: any[];
   events: CalendarEvent[];
   getMemberColor: (id: string) => number;
   onSlotClick: (hour: number) => void;
+  slotHeight: number;
 }) {
   if (members.length === 0) {
     return (
@@ -255,8 +261,8 @@ function DayView({
                 const [eh, em] = event.endTime.split(":").map(Number);
                 const startMin = (sh - 6) * 60 + sm;
                 const duration = (eh - sh) * 60 + (em - sm);
-                const top = (startMin / 60) * 64;
-                const height = Math.max((duration / 60) * 64, 24);
+                const top = (startMin / 60) * slotHeight;
+                const height = Math.max((duration / 60) * slotHeight, 24);
 
                 return (
                   <div
@@ -328,12 +334,12 @@ function WeekView({
                 isToday(day) && "text-primary",
               )}
             >
-              <span className="text-xs font-semibold w-8">
+              <span className="text-xs md:text-sm font-semibold w-8 md:w-10">
                 {format(day, "EEE")}
               </span>
               <span
                 className={cn(
-                  "text-xs font-bold h-6 w-6 flex items-center justify-center rounded-full",
+                  "text-xs md:text-sm font-bold h-6 w-6 md:h-7 md:w-7 flex items-center justify-center rounded-full",
                   isToday(day)
                     ? "bg-primary text-primary-foreground"
                     : "text-foreground",
@@ -343,30 +349,30 @@ function WeekView({
               </span>
             </div>
             {dayEvts.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground ml-10">
+              <p className="text-[10px] md:text-sm text-muted-foreground ml-10 md:ml-14">
                 No events
               </p>
             ) : (
-              <div className="ml-10 space-y-1">
+              <div className="ml-10 md:ml-14 space-y-1 md:space-y-1.5">
                 {dayEvts.map((e) => (
                   <div
                     key={e.id}
                     className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 rounded-md",
+                      "flex items-center gap-2 md:gap-3 px-2 md:px-3 py-1.5 md:py-2 rounded-md",
                       MEMBER_BG_LIGHT[getMemberColor(e.memberId)],
                     )}
                   >
                     <div
                       className={cn(
-                        "h-2 w-2 rounded-full flex-shrink-0",
+                        "h-2 w-2 md:h-2.5 md:w-2.5 rounded-full flex-shrink-0",
                         MEMBER_COLORS[getMemberColor(e.memberId)],
                       )}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-foreground truncate">
+                      <p className="text-xs md:text-sm font-medium text-foreground truncate">
                         {e.title}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[10px] md:text-xs text-muted-foreground">
                         {e.startTime}–{e.endTime}
                       </p>
                     </div>
