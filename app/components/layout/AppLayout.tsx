@@ -25,9 +25,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { familyName, members } = useFamilyStore();
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar — hidden on mobile */}
-      <aside className="hidden md:flex md:flex-col md:w-60 lg:w-64 border-r border-border bg-card">
+      <aside className="hidden md:flex md:flex-col md:w-60 lg:w-64 border-r border-border bg-card shrink-0">
         {/* Sidebar header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <div>
@@ -102,7 +102,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main column */}
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
         {/* Mobile header — hidden on desktop */}
         <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-card/95 backdrop-blur-sm border-b border-border md:hidden">
           <div>
