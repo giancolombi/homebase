@@ -20,7 +20,7 @@ app.use(
 );
 
 // Serve static frontend files
-const distPath = path.resolve(__dirname, "../dist");
+const distPath = path.resolve(__dirname, "dist");
 app.use(express.static(distPath));
 
 // SPA fallback -- serve index.html for all non-file routes

@@ -9,10 +9,10 @@ RUN pnpm install --frozen-lockfile
 
 COPY vite.config.ts tsconfig.json tsconfig.node.json postcss.config.js ./
 COPY app/ ./app/
-COPY api/static.ts ./api/
+COPY serve.ts ./
 
 RUN pnpm run build
 
 EXPOSE 8080
 
-CMD ["pnpm", "exec", "tsx", "api/static.ts"]
+CMD ["pnpm", "exec", "tsx", "serve.ts"]
