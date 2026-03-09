@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFamilyStore } from "@/store/familyStore";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { onboarding } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import StepFamilyName from "./StepFamilyName";
 import StepYourProfile from "./StepYourProfile";
@@ -21,108 +21,50 @@ export default function OnboardingFlow() {
     setSaving(true);
 
     try {
-      // 1. Update profile
       const currentMember = store.members.find((m) => m.id === store.currentUserId);
-      if (currentMember) {
-        await supabase.from("profiles").upsert({
-          id: user.id,
-          display_name: currentMember.name,
-          color_index: currentMember.colorIndex,
-        });
-      }
 
-      // 2. Create family
-      const { data: family, error: familyErr } = await supabase
-        .from("families")
-        .insert({ name: store.familyName, owner_id: user.id })
-        .select()
-        .single();
-
-      if (familyErr || !family) throw familyErr || new Error("Failed to create family");
-
-      // 3. Create family members (owner first, then others)
-      const ownerMember = {
-        family_id: family.id,
-        user_id: user.id,
+      // Build the members array for the API
+      const ownerPayload = {
+        local_id: store.currentUserId || "",
         name: currentMember?.name || user.email || "Me",
-        role: "adult" as const,
+        role: "adult",
         email: currentMember?.email || user.email || "",
-        color_index: currentMember?.colorIndex || 1,
+        color_index: currentMember?.colorIndex ?? 1,
         is_owner: true,
-        invite_status: "accepted" as const,
       };
 
-      const { data: ownerRow, error: ownerErr } = await supabase
-        .from("family_members")
-        .insert(ownerMember)
-        .select()
-        .single();
-
-      if (ownerErr || !ownerRow) throw ownerErr || new Error("Failed to create owner member");
-
-      // Map old local IDs to new DB IDs
-      const idMap = new Map<string, string>();
-      if (store.currentUserId) {
-        idMap.set(store.currentUserId, ownerRow.id);
-      }
-
-      // Other members
-      const otherMembers = store.members.filter((m) => m.id !== store.currentUserId);
-      if (otherMembers.length > 0) {
-        const memberRows = otherMembers.map((m) => ({
-          family_id: family.id,
+      const otherMembers = store.members
+        .filter((m) => m.id !== store.currentUserId)
+        .map((m) => ({
+          local_id: m.id,
           name: m.name,
           role: m.role,
-          email: m.email || null,
+          email: m.email || undefined,
           color_index: m.colorIndex,
-          invite_status: m.role === "adult" ? ("pending" as const) : null,
           is_owner: false,
         }));
 
-        const { data: insertedMembers, error: membersErr } = await supabase
-          .from("family_members")
-          .insert(memberRows)
-          .select();
-
-        if (membersErr) throw membersErr;
-
-        // Map old IDs to new IDs by position
-        insertedMembers?.forEach((dbMember, i) => {
-          idMap.set(otherMembers[i].id, dbMember.id);
-        });
-      }
-
-      // 4. Create calendar connections
+      // Build calendar connections
       const calConnections = store.calendarConnections
         .filter((c) => c.connected)
         .map((c) => ({
-          family_id: family.id,
-          member_id: idMap.get(c.memberId) || "",
+          member_id: c.memberId,
           provider: c.provider,
           email: c.email || "",
           connected: true,
-        }))
-        .filter((c) => c.member_id);
+        }));
 
-      if (calConnections.length > 0) {
-        const { error: calErr } = await supabase
-          .from("calendar_connections")
-          .insert(calConnections);
-        if (calErr) console.error("Calendar connections error:", calErr);
-      }
+      await onboarding.complete({
+        profile: {
+          display_name: currentMember?.name || user.full_name || "",
+          color_index: currentMember?.colorIndex ?? 0,
+        },
+        familyName: store.familyName,
+        members: [ownerPayload, ...otherMembers],
+        calendarConnections: calConnections,
+      });
 
-      // 5. Create default task categories
-      const defaultCategories = [
-        { family_id: family.id, name: "Home" },
-        { family_id: family.id, name: "School" },
-        { family_id: family.id, name: "Work" },
-        { family_id: family.id, name: "Health" },
-        { family_id: family.id, name: "Errands" },
-      ];
-
-      await supabase.from("task_categories").insert(defaultCategories);
-
-      // 6. Mark onboarding complete locally
+      // Mark onboarding complete locally
       store.completeOnboarding();
       navigate("/calendar");
     } catch (err: any) {

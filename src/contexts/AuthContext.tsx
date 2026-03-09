@@ -1,52 +1,62 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import { auth, type AuthUser } from "@/lib/api";
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  session: null,
   loading: true,
   signOut: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // Check for an existing session on mount
+    auth.getSession().then((session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for storage events (login/logout in other tabs)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "homebase-auth-token") {
+        if (e.newValue) {
+          auth.getSession().then((session) => {
+            setUser(session?.user ?? null);
+          });
+        } else {
+          setUser(null);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await auth.signOut();
+    setUser(null);
   };
 
+  // Expose a way for sign-in/sign-up to update the user in context
+  // We attach it to window so the auth pages can call it after login
+  useEffect(() => {
+    (window as any).__setAuthUser = setUser;
+    return () => {
+      delete (window as any).__setAuthUser;
+    };
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
