@@ -84,7 +84,14 @@ function AppRoutes() {
           </AppLayout>
         }
       />
-      <Route path="/settings" element={<SettingsPage />} />
+      <Route
+        path="/settings"
+        element={
+          <AppLayout>
+            <SettingsPage />
+          </AppLayout>
+        }
+      />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
