@@ -23,7 +23,11 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
-      toast({ title: "Password too short", description: "Must be at least 8 characters", variant: "destructive" });
+      toast({
+        title: "Password too short",
+        description: "Must be at least 8 characters",
+        variant: "destructive",
+      });
       return;
     }
     if (password !== confirmPassword) {
@@ -34,10 +38,17 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       await auth.resetPassword(resetToken, password);
-      toast({ title: "Password updated", description: "You can now sign in with your new password." });
+      toast({
+        title: "Password updated",
+        description: "You can now sign in with your new password.",
+      });
       navigate("/");
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
@@ -47,8 +58,12 @@ export default function ResetPasswordPage() {
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <Card className="w-full max-w-sm">
           <CardContent className="pt-6 text-center space-y-4">
-            <p className="text-muted-foreground">Invalid or expired reset link.</p>
-            <Button onClick={() => navigate("/")} variant="outline">Go to Sign In</Button>
+            <p className="text-muted-foreground">
+              Invalid or expired reset link.
+            </p>
+            <Button onClick={() => navigate("/")} variant="outline">
+              Go to Sign In
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -62,7 +77,9 @@ export default function ResetPasswordPage() {
           <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Home className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Set New Password</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            Set New Password
+          </h1>
         </div>
 
         <Card>
@@ -84,7 +101,11 @@ export default function ResetPasswordPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -100,9 +121,17 @@ export default function ResetPasswordPage() {
                   required
                 />
                 {confirmPassword && (
-                  <p className={`text-xs flex items-center gap-1 ${password === confirmPassword ? "text-green-500" : "text-destructive"}`}>
-                    {password === confirmPassword ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                    {password === confirmPassword ? "Passwords match" : "Passwords don't match"}
+                  <p
+                    className={`text-xs flex items-center gap-1 ${password === confirmPassword ? "text-green-500" : "text-destructive"}`}
+                  >
+                    {password === confirmPassword ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <X className="h-3 w-3" />
+                    )}
+                    {password === confirmPassword
+                      ? "Passwords match"
+                      : "Passwords don't match"}
                   </p>
                 )}
               </div>

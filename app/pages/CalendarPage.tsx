@@ -1,9 +1,22 @@
 import { useState, useMemo } from "react";
-import { format, addDays, startOfWeek, isToday, isSameDay, parseISO } from "date-fns";
+import {
+  format,
+  addDays,
+  startOfWeek,
+  isToday,
+  isSameDay,
+  parseISO,
+} from "date-fns";
 import { useFamilyStore } from "@/store/familyStore";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MEMBER_COLORS, MEMBER_BG_LIGHT, MEMBER_BORDER_COLORS, getMemberInitials, generateId } from "@/lib/memberColors";
+import {
+  MEMBER_COLORS,
+  MEMBER_BG_LIGHT,
+  MEMBER_BORDER_COLORS,
+  getMemberInitials,
+  generateId,
+} from "@/lib/memberColors";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import AddEventDialog from "@/components/calendar/AddEventDialog";
@@ -31,7 +44,10 @@ export default function CalendarPage() {
         date: t.deadline!,
         startTime: t.deadlineTime || "09:00",
         endTime: t.deadlineTime
-          ? format(new Date(`2000-01-01T${t.deadlineTime}`).getTime() + 3600000, "HH:mm")
+          ? format(
+              new Date(`2000-01-01T${t.deadlineTime}`).getTime() + 3600000,
+              "HH:mm",
+            )
           : "10:00",
         memberId: t.assignedTo[0] || "",
         recurrence: "none" as const,
@@ -59,7 +75,12 @@ export default function CalendarPage() {
       {/* Date nav */}
       <div className="px-4 py-3 bg-card border-b border-border space-y-3">
         <div className="flex items-center justify-between">
-          <button onClick={() => setSelectedDate(addDays(selectedDate, view === "day" ? -1 : -7))} className="p-1.5 rounded-md hover:bg-muted">
+          <button
+            onClick={() =>
+              setSelectedDate(addDays(selectedDate, view === "day" ? -1 : -7))
+            }
+            className="p-1.5 rounded-md hover:bg-muted"
+          >
             <ChevronLeft className="h-5 w-5 text-muted-foreground" />
           </button>
           <div className="text-center">
@@ -72,7 +93,12 @@ export default function CalendarPage() {
               <span className="text-xs text-primary font-medium">Today</span>
             )}
           </div>
-          <button onClick={() => setSelectedDate(addDays(selectedDate, view === "day" ? 1 : 7))} className="p-1.5 rounded-md hover:bg-muted">
+          <button
+            onClick={() =>
+              setSelectedDate(addDays(selectedDate, view === "day" ? 1 : 7))
+            }
+            className="p-1.5 rounded-md hover:bg-muted"
+          >
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
@@ -80,18 +106,34 @@ export default function CalendarPage() {
           <div className="flex gap-1 bg-muted rounded-lg p-0.5">
             <button
               onClick={() => setView("day")}
-              className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", view === "day" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-medium transition-colors",
+                view === "day"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground",
+              )}
             >
               Day
             </button>
             <button
               onClick={() => setView("week")}
-              className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", view === "week" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-medium transition-colors",
+                view === "week"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground",
+              )}
             >
               Week
             </button>
           </div>
-          <Button size="sm" onClick={() => { setPreselectedTime(undefined); setShowAddEvent(true); }}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setPreselectedTime(undefined);
+              setShowAddEvent(true);
+            }}
+          >
             <Plus className="h-4 w-4 mr-1" /> Event
           </Button>
         </div>
@@ -153,9 +195,18 @@ function DayView({
       {/* Time column */}
       <div className="w-12 flex-shrink-0 border-r border-border">
         {HOURS.map((h) => (
-          <div key={h} className="h-16 flex items-start justify-end pr-2 pt-0.5">
+          <div
+            key={h}
+            className="h-16 flex items-start justify-end pr-2 pt-0.5"
+          >
             <span className="text-[10px] text-muted-foreground">
-              {h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`}
+              {h === 0
+                ? "12a"
+                : h < 12
+                  ? `${h}a`
+                  : h === 12
+                    ? "12p"
+                    : `${h - 12}p`}
             </span>
           </div>
         ))}
@@ -167,15 +218,25 @@ function DayView({
         const colorIdx = member.colorIndex;
 
         return (
-          <div key={member.id} className="flex-1 min-w-0 border-r border-border last:border-r-0">
+          <div
+            key={member.id}
+            className="flex-1 min-w-0 border-r border-border last:border-r-0"
+          >
             {/* Member header */}
             <div className="sticky top-0 z-10 bg-card border-b border-border px-1 py-1.5 text-center">
               <Avatar className="h-6 w-6 mx-auto mb-0.5">
-                <AvatarFallback className={cn("text-[8px] font-bold text-primary-foreground", MEMBER_COLORS[colorIdx])}>
+                <AvatarFallback
+                  className={cn(
+                    "text-[8px] font-bold text-primary-foreground",
+                    MEMBER_COLORS[colorIdx],
+                  )}
+                >
                   {getMemberInitials(member.name)}
                 </AvatarFallback>
               </Avatar>
-              <p className="text-[10px] font-medium text-foreground truncate">{member.name.split(" ")[0]}</p>
+              <p className="text-[10px] font-medium text-foreground truncate">
+                {member.name.split(" ")[0]}
+              </p>
             </div>
 
             {/* Time slots */}
@@ -204,11 +265,13 @@ function DayView({
                       "absolute left-0.5 right-0.5 rounded-md px-1 py-0.5 overflow-hidden",
                       MEMBER_BG_LIGHT[colorIdx],
                       MEMBER_BORDER_COLORS[colorIdx],
-                      "border-l-2"
+                      "border-l-2",
                     )}
                     style={{ top: `${top}px`, height: `${height}px` }}
                   >
-                    <p className="text-[10px] font-semibold text-foreground truncate">{event.title}</p>
+                    <p className="text-[10px] font-semibold text-foreground truncate">
+                      {event.title}
+                    </p>
                     <p className="text-[9px] text-muted-foreground">
                       {event.startTime}–{event.endTime}
                     </p>
@@ -240,27 +303,49 @@ function WeekView({
       <div className="flex flex-wrap gap-2 mb-3">
         {members.map((m) => (
           <div key={m.id} className="flex items-center gap-1.5">
-            <div className={cn("h-2.5 w-2.5 rounded-full", MEMBER_COLORS[m.colorIndex])} />
-            <span className="text-[10px] text-muted-foreground">{m.name.split(" ")[0]}</span>
+            <div
+              className={cn(
+                "h-2.5 w-2.5 rounded-full",
+                MEMBER_COLORS[m.colorIndex],
+              )}
+            />
+            <span className="text-[10px] text-muted-foreground">
+              {m.name.split(" ")[0]}
+            </span>
           </div>
         ))}
       </div>
 
       {weekDays.map((day) => {
-        const dayEvts = allEvents.filter((e) => isSameDay(parseISO(e.date), day));
+        const dayEvts = allEvents.filter((e) =>
+          isSameDay(parseISO(e.date), day),
+        );
         return (
           <div key={day.toISOString()} className="space-y-1">
-            <div className={cn("flex items-center gap-2 py-1", isToday(day) && "text-primary")}>
-              <span className="text-xs font-semibold w-8">{format(day, "EEE")}</span>
-              <span className={cn(
-                "text-xs font-bold h-6 w-6 flex items-center justify-center rounded-full",
-                isToday(day) ? "bg-primary text-primary-foreground" : "text-foreground"
-              )}>
+            <div
+              className={cn(
+                "flex items-center gap-2 py-1",
+                isToday(day) && "text-primary",
+              )}
+            >
+              <span className="text-xs font-semibold w-8">
+                {format(day, "EEE")}
+              </span>
+              <span
+                className={cn(
+                  "text-xs font-bold h-6 w-6 flex items-center justify-center rounded-full",
+                  isToday(day)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground",
+                )}
+              >
                 {format(day, "d")}
               </span>
             </div>
             {dayEvts.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground ml-10">No events</p>
+              <p className="text-[10px] text-muted-foreground ml-10">
+                No events
+              </p>
             ) : (
               <div className="ml-10 space-y-1">
                 {dayEvts.map((e) => (
@@ -268,13 +353,22 @@ function WeekView({
                     key={e.id}
                     className={cn(
                       "flex items-center gap-2 px-2 py-1.5 rounded-md",
-                      MEMBER_BG_LIGHT[getMemberColor(e.memberId)]
+                      MEMBER_BG_LIGHT[getMemberColor(e.memberId)],
                     )}
                   >
-                    <div className={cn("h-2 w-2 rounded-full flex-shrink-0", MEMBER_COLORS[getMemberColor(e.memberId)])} />
+                    <div
+                      className={cn(
+                        "h-2 w-2 rounded-full flex-shrink-0",
+                        MEMBER_COLORS[getMemberColor(e.memberId)],
+                      )}
+                    />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-foreground truncate">{e.title}</p>
-                      <p className="text-[10px] text-muted-foreground">{e.startTime}–{e.endTime}</p>
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {e.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {e.startTime}–{e.endTime}
+                      </p>
                     </div>
                   </div>
                 ))}

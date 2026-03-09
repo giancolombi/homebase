@@ -11,12 +11,7 @@ router.post(
   requireAuth as any,
   async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
-    const {
-      profile,
-      familyName,
-      members,
-      calendarConnections,
-    } = req.body;
+    const { profile, familyName, members, calendarConnections } = req.body;
 
     const client = await pool.connect();
 
@@ -32,7 +27,7 @@ router.post(
              display_name = EXCLUDED.display_name,
              color_index = EXCLUDED.color_index,
              updated_at = now()`,
-          [userId, profile.display_name, profile.color_index ?? 0]
+          [userId, profile.display_name, profile.color_index ?? 0],
         );
       }
 
@@ -41,7 +36,7 @@ router.post(
         `INSERT INTO families (name, owner_id)
          VALUES ($1, $2)
          RETURNING id`,
-        [familyName, userId]
+        [familyName, userId],
       );
       const familyId = familyResult.rows[0].id;
 
@@ -58,7 +53,7 @@ router.post(
           ownerMember?.role || "adult",
           ownerMember?.email || req.user!.email,
           ownerMember?.color_index ?? 1,
-        ]
+        ],
       );
       const ownerDbId = ownerResult.rows[0].id;
 
@@ -82,7 +77,7 @@ router.post(
             m.email || null,
             m.color_index ?? 0,
             m.role === "adult" ? "pending" : null,
-          ]
+          ],
         );
         if (m.local_id) {
           idMap[m.local_id] = result.rows[0].id;
@@ -97,7 +92,13 @@ router.post(
           await client.query(
             `INSERT INTO calendar_connections (family_id, member_id, provider, email, connected)
              VALUES ($1, $2, $3, $4, $5)`,
-            [familyId, memberId, c.provider, c.email || "", c.connected ?? true]
+            [
+              familyId,
+              memberId,
+              c.provider,
+              c.email || "",
+              c.connected ?? true,
+            ],
           );
         }
       }
@@ -107,7 +108,7 @@ router.post(
       for (const name of defaultCategories) {
         await client.query(
           `INSERT INTO task_categories (family_id, name) VALUES ($1, $2)`,
-          [familyId, name]
+          [familyId, name],
         );
       }
 
@@ -125,7 +126,7 @@ router.post(
     } finally {
       client.release();
     }
-  }
+  },
 );
 
 export default router;

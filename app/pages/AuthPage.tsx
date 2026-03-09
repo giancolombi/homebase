@@ -3,7 +3,13 @@ import { auth } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Home, ArrowLeft } from "lucide-react";
@@ -23,7 +29,11 @@ export default function AuthPage() {
       // Update the AuthContext
       (window as any).__setAuthUser?.(user);
     } catch (error: any) {
-      toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
+      toast({
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
@@ -31,7 +41,11 @@ export default function AuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
-      toast({ title: "Password too short", description: "Password must be at least 8 characters", variant: "destructive" });
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 8 characters",
+        variant: "destructive",
+      });
       return;
     }
     setLoading(true);
@@ -41,7 +55,11 @@ export default function AuthPage() {
       (window as any).__setAuthUser?.(user);
       toast({ title: "Account created", description: "Welcome to Homebase!" });
     } catch (error: any) {
-      toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+      toast({
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
@@ -51,9 +69,16 @@ export default function AuthPage() {
     setLoading(true);
     try {
       await auth.requestPasswordReset(email);
-      toast({ title: "Check your email", description: "If that email is registered, we sent a reset link." });
+      toast({
+        title: "Check your email",
+        description: "If that email is registered, we sent a reset link.",
+      });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
@@ -65,24 +90,40 @@ export default function AuthPage() {
           <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Home className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Homebase</h1>
-          <p className="text-sm text-muted-foreground">Your family's command center</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Homebase
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Your family's command center
+          </p>
         </div>
 
         {tab === "forgot" ? (
           <Card>
             <CardHeader className="pb-3">
-              <button onClick={() => setTab("signin")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2 w-fit">
+              <button
+                onClick={() => setTab("signin")}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2 w-fit"
+              >
                 <ArrowLeft className="h-4 w-4" /> Back to sign in
               </button>
               <CardTitle className="text-lg">Reset Password</CardTitle>
-              <CardDescription>Enter your email to receive a reset link</CardDescription>
+              <CardDescription>
+                Enter your email to receive a reset link
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="forgot-email">Email</Label>
-                  <Input id="forgot-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Sending..." : "Send Reset Link"}
@@ -92,7 +133,10 @@ export default function AuthPage() {
           </Card>
         ) : (
           <Card>
-            <Tabs value={tab} onValueChange={(v) => setTab(v as "signin" | "signup")}>
+            <Tabs
+              value={tab}
+              onValueChange={(v) => setTab(v as "signin" | "signup")}
+            >
               <CardHeader className="pb-2">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -104,16 +148,34 @@ export default function AuthPage() {
                   <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="signin-email">Email</Label>
-                      <Input id="signin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signin-password">Password</Label>
-                      <Input id="signin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="********" required />
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="********"
+                        required
+                      />
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? "Signing in..." : "Sign In"}
                     </Button>
-                    <button type="button" onClick={() => setTab("forgot")} className="text-xs text-primary hover:underline w-full text-center block">
+                    <button
+                      type="button"
+                      onClick={() => setTab("forgot")}
+                      className="text-xs text-primary hover:underline w-full text-center block"
+                    >
                       Forgot password?
                     </button>
                   </form>
@@ -122,15 +184,35 @@ export default function AuthPage() {
                   <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="signup-name">Full Name</Label>
-                      <Input id="signup-name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
+                      <Input
+                        id="signup-name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Your name"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-email">Email</Label>
-                      <Input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">Password</Label>
-                      <Input id="signup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="At least 8 characters"
+                        required
+                      />
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? "Creating account..." : "Create Account"}

@@ -1,4 +1,9 @@
-import { Router, type Request, type Response, type NextFunction } from "express";
+import {
+  Router,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import pool from "./db.js";
@@ -21,7 +26,7 @@ export interface AuthRequest extends Request {
 export async function requireAuth(
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
@@ -47,11 +52,15 @@ export async function requireAuth(
   }
 }
 
-function signToken(user: { id: string; email: string; full_name: string | null }) {
+function signToken(user: {
+  id: string;
+  email: string;
+  full_name: string | null;
+}) {
   return jwt.sign(
     { sub: user.id, email: user.email, full_name: user.full_name },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
+    { expiresIn: JWT_EXPIRES_IN },
   );
 }
 
@@ -73,7 +82,9 @@ router.post("/signup", async (req: Request, res: Response) => {
       email,
     ]);
     if (existing.rows.length > 0) {
-      res.status(409).json({ error: "An account with this email already exists" });
+      res
+        .status(409)
+        .json({ error: "An account with this email already exists" });
       return;
     }
 
@@ -82,7 +93,7 @@ router.post("/signup", async (req: Request, res: Response) => {
       `INSERT INTO users (email, password_hash, full_name)
        VALUES ($1, $2, $3)
        RETURNING id, email, full_name`,
-      [email, passwordHash, full_name || null]
+      [email, passwordHash, full_name || null],
     );
 
     const user = result.rows[0];
@@ -90,7 +101,7 @@ router.post("/signup", async (req: Request, res: Response) => {
     // Auto-create profile
     await pool.query(
       `INSERT INTO profiles (id, display_name) VALUES ($1, $2)`,
-      [user.id, user.full_name]
+      [user.id, user.full_name],
     );
 
     const token = signToken(user);
@@ -115,7 +126,7 @@ router.post("/signin", async (req: Request, res: Response) => {
   try {
     const result = await pool.query(
       "SELECT id, email, full_name, password_hash FROM users WHERE email = $1",
-      [email]
+      [email],
     );
     if (result.rows.length === 0) {
       res.status(401).json({ error: "Invalid email or password" });
@@ -159,7 +170,7 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
     // Verify user still exists in the database
     const result = await pool.query(
       "SELECT id, email, full_name FROM users WHERE id = $1",
-      [payload.sub]
+      [payload.sub],
     );
     if (result.rows.length === 0) {
       res.status(401).json({ error: "User no longer exists" });
@@ -176,25 +187,29 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/auth/update-password
-router.post("/update-password", requireAuth as any, async (req: AuthRequest, res: Response) => {
-  const { password } = req.body;
-  if (!password || password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
-    return;
-  }
+router.post(
+  "/update-password",
+  requireAuth as any,
+  async (req: AuthRequest, res: Response) => {
+    const { password } = req.body;
+    if (!password || password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters" });
+      return;
+    }
 
-  try {
-    const passwordHash = await argon2.hash(password);
-    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
-      passwordHash,
-      req.user!.id,
-    ]);
-    res.json({ message: "Password updated" });
-  } catch (err: any) {
-    console.error("Update password error:", err);
-    res.status(500).json({ error: "Failed to update password" });
-  }
-});
+    try {
+      const passwordHash = await argon2.hash(password);
+      await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
+        passwordHash,
+        req.user!.id,
+      ]);
+      res.json({ message: "Password updated" });
+    } catch (err: any) {
+      console.error("Update password error:", err);
+      res.status(500).json({ error: "Failed to update password" });
+    }
+  },
+);
 
 // POST /api/auth/request-reset
 // In a real app this would send an email with a reset token.
@@ -209,19 +224,26 @@ router.post("/request-reset", async (req: Request, res: Response) => {
   try {
     const result = await pool.query(
       "SELECT id, email, full_name FROM users WHERE email = $1",
-      [email]
+      [email],
     );
     // Always return success to prevent email enumeration
     if (result.rows.length === 0) {
-      res.json({ message: "If that email is registered, a reset link has been sent." });
+      res.json({
+        message: "If that email is registered, a reset link has been sent.",
+      });
       return;
     }
 
     const user = result.rows[0];
     const resetToken = jwt.sign(
-      { sub: user.id, email: user.email, full_name: user.full_name, purpose: "reset" },
+      {
+        sub: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        purpose: "reset",
+      },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1h" },
     );
 
     // In production, send this token via email.

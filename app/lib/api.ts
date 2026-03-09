@@ -23,7 +23,7 @@ function clearToken() {
 
 async function request<T = any>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -58,7 +58,7 @@ export const auth = {
       {
         method: "POST",
         body: JSON.stringify({ email, password, full_name: fullName }),
-      }
+      },
     );
     setToken(data.token);
     return data;
@@ -70,7 +70,7 @@ export const auth = {
       {
         method: "POST",
         body: JSON.stringify({ email, password }),
-      }
+      },
     );
     setToken(data.token);
     return data;
@@ -97,7 +97,7 @@ export const auth = {
       {
         method: "POST",
         body: JSON.stringify({ email }),
-      }
+      },
     );
   },
 

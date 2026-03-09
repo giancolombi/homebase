@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,16 +66,25 @@ export function AddMemberDialog() {
 
           <div className="space-y-2">
             <Label>Role</Label>
-            <RadioGroup value={role} onValueChange={(v) => setRole(v as MemberRole)}>
+            <RadioGroup
+              value={role}
+              onValueChange={(v) => setRole(v as MemberRole)}
+            >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="adult" id="role-adult" />
-                <Label htmlFor="role-adult" className="font-normal cursor-pointer">
+                <Label
+                  htmlFor="role-adult"
+                  className="font-normal cursor-pointer"
+                >
                   Adult (will receive invite)
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="child" id="role-child" />
-                <Label htmlFor="role-child" className="font-normal cursor-pointer">
+                <Label
+                  htmlFor="role-child"
+                  className="font-normal cursor-pointer"
+                >
                   Child (managed account)
                 </Label>
               </div>
@@ -91,10 +106,18 @@ export function AddMemberDialog() {
           )}
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setOpen(false)}>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
-            <Button className="flex-1" onClick={handleAdd} disabled={!name.trim()}>
+            <Button
+              className="flex-1"
+              onClick={handleAdd}
+              disabled={!name.trim()}
+            >
               Add Member
             </Button>
           </div>

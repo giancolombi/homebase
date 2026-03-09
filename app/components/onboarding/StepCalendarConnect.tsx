@@ -19,16 +19,26 @@ export default function StepCalendarConnect({
   onBack: () => void;
   saving?: boolean;
 }) {
-  const { currentUserId, members, calendarConnections, addCalendarConnection, toggleCalendarConnection } =
-    useFamilyStore();
+  const {
+    currentUserId,
+    members,
+    calendarConnections,
+    addCalendarConnection,
+    toggleCalendarConnection,
+  } = useFamilyStore();
 
   const currentUser = members.find((m) => m.id === currentUserId);
   const childMembers = members.filter((m) => m.role === "child");
-  const adultMembers = members.filter((m) => m.role === "adult" && m.id !== currentUserId);
+  const adultMembers = members.filter(
+    (m) => m.role === "adult" && m.id !== currentUserId,
+  );
 
-  const handleConnect = (memberId: string, provider: "google" | "outlook" | "apple") => {
+  const handleConnect = (
+    memberId: string,
+    provider: "google" | "outlook" | "apple",
+  ) => {
     const existing = calendarConnections.find(
-      (c) => c.memberId === memberId && c.provider === provider
+      (c) => c.memberId === memberId && c.provider === provider,
     );
     if (existing) {
       toggleCalendarConnection(existing.id);
@@ -45,7 +55,7 @@ export default function StepCalendarConnect({
 
   const isConnected = (memberId: string, provider: string) =>
     calendarConnections.some(
-      (c) => c.memberId === memberId && c.provider === provider && c.connected
+      (c) => c.memberId === memberId && c.provider === provider && c.connected,
     );
 
   const renderProviderList = (memberId: string) => (
@@ -60,11 +70,13 @@ export default function StepCalendarConnect({
               "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
               connected
                 ? "bg-primary/5 border-primary/25"
-                : "bg-card border-border hover:border-primary/15"
+                : "bg-card border-border hover:border-primary/15",
             )}
           >
             <span className="text-sm">{p.icon}</span>
-            <span className="flex-1 text-sm font-medium text-foreground">{p.name}</span>
+            <span className="flex-1 text-sm font-medium text-foreground">
+              {p.name}
+            </span>
             {connected && (
               <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
                 <Check className="h-3 w-3 text-primary-foreground" />
@@ -79,12 +91,19 @@ export default function StepCalendarConnect({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+        <button
+          onClick={onBack}
+          className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+        >
           <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Connect Your Calendars</h2>
-          <p className="text-sm text-muted-foreground">Link your own calendars to share availability</p>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            Connect Your Calendars
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Link your own calendars to share availability
+          </p>
         </div>
       </div>
 
@@ -93,7 +112,9 @@ export default function StepCalendarConnect({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary" />
-            <p className="text-sm font-semibold text-foreground">Your calendars</p>
+            <p className="text-sm font-semibold text-foreground">
+              Your calendars
+            </p>
           </div>
           {renderProviderList(currentUser.id)}
         </div>
@@ -104,7 +125,9 @@ export default function StepCalendarConnect({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-semibold text-foreground">Children's calendars</p>
+            <p className="text-sm font-semibold text-foreground">
+              Children's calendars
+            </p>
           </div>
           <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-3">
             {childMembers.map((child) => {
@@ -112,7 +135,9 @@ export default function StepCalendarConnect({
               return (
                 <div key={child.id} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-foreground">{child.name}</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {child.name}
+                    </p>
                     <div className="flex items-center gap-1.5 text-xs text-primary">
                       <Home className="h-3 w-3" />
                       <span className="font-medium">Homebase calendar</span>
@@ -120,7 +145,8 @@ export default function StepCalendarConnect({
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Managed through Homebase. You can also link an external calendar below.
+                    Managed through Homebase. You can also link an external
+                    calendar below.
                   </p>
                   {renderProviderList(child.id)}
                 </div>
@@ -134,14 +160,22 @@ export default function StepCalendarConnect({
       {adultMembers.length > 0 && (
         <div className="p-3 rounded-lg bg-muted/50 border border-border">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong className="text-foreground">{adultMembers.map((m) => m.name).join(", ")}</strong>
-            {" "}will connect their own calendars when they accept their invite and complete their own setup.
+            <strong className="text-foreground">
+              {adultMembers.map((m) => m.name).join(", ")}
+            </strong>{" "}
+            will connect their own calendars when they accept their invite and
+            complete their own setup.
           </p>
         </div>
       )}
 
       <div className="space-y-2 pt-2">
-        <Button onClick={onComplete} className="w-full" size="lg" disabled={saving}>
+        <Button
+          onClick={onComplete}
+          className="w-full"
+          size="lg"
+          disabled={saving}
+        >
           {saving ? "Setting up..." : "Get Started"}
         </Button>
         {!saving && (

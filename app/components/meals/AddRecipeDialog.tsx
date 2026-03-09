@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useFamilyStore } from "@/store/familyStore";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +25,9 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
   const [servings, setServings] = useState("");
-  const [ingredients, setIngredients] = useState<RecipeIngredient[]>([{ name: "", amount: "", unit: "", category: "Produce" }]);
+  const [ingredients, setIngredients] = useState<RecipeIngredient[]>([
+    { name: "", amount: "", unit: "", category: "Produce" },
+  ]);
   const [steps, setSteps] = useState<string[]>([""]);
   const [sourceUrl, setSourceUrl] = useState("");
 
@@ -41,9 +48,18 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
     onOpenChange(false);
   };
 
-  const addIngredient = () => setIngredients([...ingredients, { name: "", amount: "", unit: "", category: "Other" }]);
-  const removeIngredient = (i: number) => setIngredients(ingredients.filter((_, idx) => idx !== i));
-  const updateIngredient = (i: number, field: keyof RecipeIngredient, value: string) => {
+  const addIngredient = () =>
+    setIngredients([
+      ...ingredients,
+      { name: "", amount: "", unit: "", category: "Other" },
+    ]);
+  const removeIngredient = (i: number) =>
+    setIngredients(ingredients.filter((_, idx) => idx !== i));
+  const updateIngredient = (
+    i: number,
+    field: keyof RecipeIngredient,
+    value: string,
+  ) => {
     const updated = [...ingredients];
     updated[i] = { ...updated[i], [field]: value };
     setIngredients(updated);
@@ -76,31 +92,57 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
           <div className="space-y-1.5">
             <Label>Recipe URL (optional)</Label>
             <div className="flex gap-2">
-              <Input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." className="flex-1" />
+              <Input
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://..."
+                className="flex-1"
+              />
               <Button size="sm" variant="outline" disabled>
                 <Link className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground">AI recipe scanning coming soon!</p>
+            <p className="text-[10px] text-muted-foreground">
+              AI recipe scanning coming soon!
+            </p>
           </div>
 
           <div className="space-y-1.5">
             <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Recipe name" />
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Recipe name"
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Prep (min)</Label>
-              <Input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)} className="h-8 text-xs" />
+              <Input
+                type="number"
+                value={prepTime}
+                onChange={(e) => setPrepTime(e.target.value)}
+                className="h-8 text-xs"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Cook (min)</Label>
-              <Input type="number" value={cookTime} onChange={(e) => setCookTime(e.target.value)} className="h-8 text-xs" />
+              <Input
+                type="number"
+                value={cookTime}
+                onChange={(e) => setCookTime(e.target.value)}
+                className="h-8 text-xs"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Servings</Label>
-              <Input type="number" value={servings} onChange={(e) => setServings(e.target.value)} className="h-8 text-xs" />
+              <Input
+                type="number"
+                value={servings}
+                onChange={(e) => setServings(e.target.value)}
+                className="h-8 text-xs"
+              />
             </div>
           </div>
 
@@ -108,15 +150,40 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
             <Label>Ingredients</Label>
             {ingredients.map((ing, i) => (
               <div key={i} className="flex gap-1.5">
-                <Input value={ing.amount} onChange={(e) => updateIngredient(i, "amount", e.target.value)} placeholder="Amt" className="h-8 text-xs w-14" />
-                <Input value={ing.unit} onChange={(e) => updateIngredient(i, "unit", e.target.value)} placeholder="Unit" className="h-8 text-xs w-14" />
-                <Input value={ing.name} onChange={(e) => updateIngredient(i, "name", e.target.value)} placeholder="Ingredient" className="h-8 text-xs flex-1" />
-                <button onClick={() => removeIngredient(i)} className="p-1 hover:bg-destructive/10 rounded">
+                <Input
+                  value={ing.amount}
+                  onChange={(e) =>
+                    updateIngredient(i, "amount", e.target.value)
+                  }
+                  placeholder="Amt"
+                  className="h-8 text-xs w-14"
+                />
+                <Input
+                  value={ing.unit}
+                  onChange={(e) => updateIngredient(i, "unit", e.target.value)}
+                  placeholder="Unit"
+                  className="h-8 text-xs w-14"
+                />
+                <Input
+                  value={ing.name}
+                  onChange={(e) => updateIngredient(i, "name", e.target.value)}
+                  placeholder="Ingredient"
+                  className="h-8 text-xs flex-1"
+                />
+                <button
+                  onClick={() => removeIngredient(i)}
+                  className="p-1 hover:bg-destructive/10 rounded"
+                >
                   <Trash2 className="h-3 w-3 text-destructive" />
                 </button>
               </div>
             ))}
-            <Button size="sm" variant="outline" onClick={addIngredient} className="w-full">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={addIngredient}
+              className="w-full"
+            >
               <Plus className="h-3 w-3 mr-1" /> Ingredient
             </Button>
           </div>
@@ -125,16 +192,33 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
             <Label>Steps</Label>
             {steps.map((step, i) => (
               <div key={i} className="flex gap-2 items-start">
-                <span className="text-xs text-muted-foreground mt-2 w-4">{i + 1}.</span>
-                <Textarea value={step} onChange={(e) => updateStep(i, e.target.value)} placeholder="Step..." rows={2} className="flex-1 text-xs" />
+                <span className="text-xs text-muted-foreground mt-2 w-4">
+                  {i + 1}.
+                </span>
+                <Textarea
+                  value={step}
+                  onChange={(e) => updateStep(i, e.target.value)}
+                  placeholder="Step..."
+                  rows={2}
+                  className="flex-1 text-xs"
+                />
               </div>
             ))}
-            <Button size="sm" variant="outline" onClick={addStep} className="w-full">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={addStep}
+              className="w-full"
+            >
               <Plus className="h-3 w-3 mr-1" /> Step
             </Button>
           </div>
 
-          <Button onClick={handleSave} className="w-full" disabled={!title.trim()}>
+          <Button
+            onClick={handleSave}
+            className="w-full"
+            disabled={!title.trim()}
+          >
             Save Recipe
           </Button>
         </div>

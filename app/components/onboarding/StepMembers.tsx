@@ -5,7 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MEMBER_COLORS, getMemberInitials, generateId } from "@/lib/memberColors";
+import {
+  MEMBER_COLORS,
+  getMemberInitials,
+  generateId,
+} from "@/lib/memberColors";
 import type { MemberRole } from "@/types/family";
 import { Plus, Trash2, ArrowLeft, Users, Mail, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,35 +53,53 @@ export default function StepMembers({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+        <button
+          onClick={onBack}
+          className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+        >
           <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Family Members</h2>
-          <p className="text-sm text-muted-foreground">Add your partner, kids, and other household members</p>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            Family Members
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Add your partner, kids, and other household members
+          </p>
         </div>
       </div>
 
       {/* Current user shown as "You" */}
-      {members.filter((m) => m.id === currentUserId).map((m) => (
-        <div
-          key={m.id}
-          className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20"
-        >
-          <Avatar className="h-9 w-9">
-            <AvatarFallback className={cn("text-xs font-semibold text-primary-foreground", MEMBER_COLORS[m.colorIndex])}>
-              {getMemberInitials(m.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">You</Badge>
+      {members
+        .filter((m) => m.id === currentUserId)
+        .map((m) => (
+          <div
+            key={m.id}
+            className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20"
+          >
+            <Avatar className="h-9 w-9">
+              <AvatarFallback
+                className={cn(
+                  "text-xs font-semibold text-primary-foreground",
+                  MEMBER_COLORS[m.colorIndex],
+                )}
+              >
+                {getMemberInitials(m.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {m.name}
+                </p>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  You
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">Admin</p>
             </div>
-            <p className="text-xs text-muted-foreground">Admin</p>
           </div>
-        </div>
-      ))}
+        ))}
 
       {/* Other members list */}
       {otherMembers.length > 0 && (
@@ -88,25 +110,41 @@ export default function StepMembers({
               className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border"
             >
               <Avatar className="h-9 w-9">
-                <AvatarFallback className={cn("text-xs font-semibold text-primary-foreground", MEMBER_COLORS[m.colorIndex])}>
+                <AvatarFallback
+                  className={cn(
+                    "text-xs font-semibold text-primary-foreground",
+                    MEMBER_COLORS[m.colorIndex],
+                  )}
+                >
                   {getMemberInitials(m.name)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {m.name}
+                  </p>
                   {m.role === "adult" && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 gap-0.5"
+                    >
                       <Mail className="h-2.5 w-2.5" /> Invite pending
                     </Badge>
                   )}
                   {m.role === "child" && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 gap-0.5"
+                    >
                       <Shield className="h-2.5 w-2.5" /> Managed
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground capitalize">{m.role}{m.email ? ` · ${m.email}` : ""}</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {m.role}
+                  {m.email ? ` · ${m.email}` : ""}
+                </p>
               </div>
               <button
                 onClick={() => removeMember(m.id)}
@@ -157,12 +195,14 @@ export default function StepMembers({
           </div>
           {role === "adult" && (
             <p className="text-[11px] text-muted-foreground">
-              Adults will receive an email invite to connect their own calendars and collaborate.
+              Adults will receive an email invite to connect their own calendars
+              and collaborate.
             </p>
           )}
           {role === "child" && (
             <p className="text-[11px] text-muted-foreground">
-              Children's profiles are managed by you — you can add their calendars and activities.
+              Children's profiles are managed by you — you can add their
+              calendars and activities.
             </p>
           )}
         </div>

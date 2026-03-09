@@ -13,7 +13,8 @@ export default function StepYourProfile({
   onNext: () => void;
   onBack: () => void;
 }) {
-  const { members, addMember, setCurrentUserId, currentUserId } = useFamilyStore();
+  const { members, addMember, setCurrentUserId, currentUserId } =
+    useFamilyStore();
 
   // If current user already exists, pre-populate
   const existingUser = members.find((m) => m.id === currentUserId);
@@ -45,12 +46,19 @@ export default function StepYourProfile({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+        <button
+          onClick={onBack}
+          className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+        >
           <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Your Profile</h2>
-          <p className="text-sm text-muted-foreground">Set up your account first</p>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            Your Profile
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Set up your account first
+          </p>
         </div>
       </div>
 
@@ -78,11 +86,18 @@ export default function StepYourProfile({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <p className="text-xs text-muted-foreground">Used for your account and notifications</p>
+          <p className="text-xs text-muted-foreground">
+            Used for your account and notifications
+          </p>
         </div>
       </div>
 
-      <Button onClick={handleNext} disabled={!name.trim()} className="w-full" size="lg">
+      <Button
+        onClick={handleNext}
+        disabled={!name.trim()}
+        className="w-full"
+        size="lg"
+      >
         Continue
       </Button>
     </div>

@@ -21,9 +21,12 @@ export default function StepFamilyName({ onNext }: { onNext: () => void }) {
         <Home className="h-7 w-7 text-primary" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Welcome to Homebase</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+          Welcome to Homebase
+        </h2>
         <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-          Your family's command center for calendars, tasks, meals, and finances.
+          Your family's command center for calendars, tasks, meals, and
+          finances.
         </p>
       </div>
       <div className="w-full space-y-2">
@@ -38,7 +41,12 @@ export default function StepFamilyName({ onNext }: { onNext: () => void }) {
           autoFocus
         />
       </div>
-      <Button onClick={handleNext} disabled={!name.trim()} className="w-full" size="lg">
+      <Button
+        onClick={handleNext}
+        disabled={!name.trim()}
+        className="w-full"
+        size="lg"
+      >
         Continue
       </Button>
     </div>

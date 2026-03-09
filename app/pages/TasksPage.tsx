@@ -3,16 +3,32 @@ import { useFamilyStore } from "@/store/familyStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MEMBER_COLORS, MEMBER_BG_LIGHT, getMemberInitials, generateId } from "@/lib/memberColors";
+import {
+  MEMBER_COLORS,
+  MEMBER_BG_LIGHT,
+  getMemberInitials,
+  generateId,
+} from "@/lib/memberColors";
 import { cn } from "@/lib/utils";
 import { Plus, Filter, Calendar as CalIcon, Tag } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import AddTaskDialog from "@/components/tasks/AddTaskDialog";
 
 export default function TasksPage() {
-  const { tasks, taskCategories, members, updateTask, addTaskCategory } = useFamilyStore();
+  const { tasks, taskCategories, members, updateTask, addTaskCategory } =
+    useFamilyStore();
   const [showAdd, setShowAdd] = useState(false);
   const [filterMember, setFilterMember] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -29,8 +45,10 @@ export default function TasksPage() {
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
-      if (filterMember !== "all" && !t.assignedTo.includes(filterMember)) return false;
-      if (filterCategory !== "all" && t.categoryId !== filterCategory) return false;
+      if (filterMember !== "all" && !t.assignedTo.includes(filterMember))
+        return false;
+      if (filterCategory !== "all" && t.categoryId !== filterCategory)
+        return false;
       return true;
     });
   }, [tasks, filterMember, filterCategory]);
@@ -38,7 +56,9 @@ export default function TasksPage() {
   const grouped = useMemo(() => {
     const map: Record<string, typeof filtered> = {};
     for (const t of filtered) {
-      const cat = taskCategories.find((c) => c.id === t.categoryId)?.name || "Uncategorized";
+      const cat =
+        taskCategories.find((c) => c.id === t.categoryId)?.name ||
+        "Uncategorized";
       if (!map[cat]) map[cat] = [];
       map[cat].push(t);
     }
@@ -61,7 +81,9 @@ export default function TasksPage() {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-56 p-3" align="end">
-              <p className="text-xs font-medium text-muted-foreground mb-2">New Category</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                New Category
+              </p>
               <div className="flex gap-2">
                 <Input
                   value={newCatName}
@@ -70,20 +92,35 @@ export default function TasksPage() {
                   className="h-8 text-xs"
                   onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
                 />
-                <Button size="sm" onClick={handleAddCategory} disabled={!newCatName.trim()}>Add</Button>
+                <Button
+                  size="sm"
+                  onClick={handleAddCategory}
+                  disabled={!newCatName.trim()}
+                >
+                  Add
+                </Button>
               </div>
               {taskCategories.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-border">
                   <div className="flex flex-wrap gap-1">
                     {taskCategories.map((c) => (
-                      <span key={c.id} className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{c.name}</span>
+                      <span
+                        key={c.id}
+                        className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground"
+                      >
+                        {c.name}
+                      </span>
                     ))}
                   </div>
                 </div>
               )}
             </PopoverContent>
           </Popover>
-          <Button size="sm" variant="outline" onClick={() => setShowFilters(!showFilters)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+          >
             <Filter className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={() => setShowAdd(true)}>
@@ -95,20 +132,28 @@ export default function TasksPage() {
       {showFilters && (
         <div className="px-4 py-2 bg-muted/30 border-b border-border flex gap-2">
           <Select value={filterMember} onValueChange={setFilterMember}>
-            <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Member" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs flex-1">
+              <SelectValue placeholder="Member" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Members</SelectItem>
               {members.map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs flex-1">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {taskCategories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -123,16 +168,21 @@ export default function TasksPage() {
         )}
         {Object.entries(grouped).map(([cat, catTasks]) => (
           <div key={cat} className="space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{cat}</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {cat}
+            </h3>
             {catTasks.map((task) => {
               const isDone = task.status === "done";
-              const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !isDone;
+              const isOverdue =
+                task.deadline &&
+                new Date(task.deadline) < new Date() &&
+                !isDone;
               return (
                 <div
                   key={task.id}
                   className={cn(
                     "flex items-start gap-3 p-3 rounded-lg bg-card border border-border transition-opacity",
-                    isDone && "opacity-60"
+                    isDone && "opacity-60",
                   )}
                 >
                   <Checkbox
@@ -141,10 +191,24 @@ export default function TasksPage() {
                     className="mt-0.5"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className={cn("text-sm font-medium text-foreground", isDone && "line-through")}>{task.title}</p>
+                    <p
+                      className={cn(
+                        "text-sm font-medium text-foreground",
+                        isDone && "line-through",
+                      )}
+                    >
+                      {task.title}
+                    </p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {task.deadline && (
-                        <span className={cn("text-[10px] flex items-center gap-0.5", isOverdue ? "text-destructive" : "text-muted-foreground")}>
+                        <span
+                          className={cn(
+                            "text-[10px] flex items-center gap-0.5",
+                            isOverdue
+                              ? "text-destructive"
+                              : "text-muted-foreground",
+                          )}
+                        >
                           <CalIcon className="h-3 w-3" />
                           {task.deadline}
                         </span>
@@ -161,8 +225,16 @@ export default function TasksPage() {
                       const m = members.find((m) => m.id === mId);
                       if (!m) return null;
                       return (
-                        <Avatar key={m.id} className="h-6 w-6 border border-card">
-                          <AvatarFallback className={cn("text-[8px] font-bold text-primary-foreground", MEMBER_COLORS[m.colorIndex])}>
+                        <Avatar
+                          key={m.id}
+                          className="h-6 w-6 border border-card"
+                        >
+                          <AvatarFallback
+                            className={cn(
+                              "text-[8px] font-bold text-primary-foreground",
+                              MEMBER_COLORS[m.colorIndex],
+                            )}
+                          >
                             {getMemberInitials(m.name)}
                           </AvatarFallback>
                         </Avatar>

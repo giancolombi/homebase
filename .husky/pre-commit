@@ -1,15 +1,15 @@
 echo "Running pre-commit checks..."
 
 echo "→ Type checking..."
-npm run typecheck || exit 1
+pnpm run typecheck || exit 1
 
 echo "→ Linting..."
-npm run lint || exit 1
+pnpm run lint || exit 1
 
 echo "→ Format check..."
-npm run format:check || exit 1
+pnpm run format:check || exit 1
 
 echo "→ Running tests..."
-npm run test || exit 1
+pnpm run test || exit 1
 
 echo "All pre-commit checks passed!"

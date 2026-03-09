@@ -1,6 +1,12 @@
 import { useState, useRef } from "react";
 import { useFamilyStore } from "@/store/familyStore";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,19 +20,19 @@ export function EditProfileDialog() {
   const { members, currentUserId, updateMember } = useFamilyStore();
   const currentUser = members.find((m) => m.id === currentUserId);
   const [open, setOpen] = useState(false);
-  
+
   const [name, setName] = useState(currentUser?.name || "");
   const [email, setEmail] = useState(currentUser?.email || "");
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatar || "");
-  
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!currentUser) return null;
@@ -35,7 +41,7 @@ export function EditProfileDialog() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith("image/")) {
       toast({
         title: "Invalid file type",
         description: "Please upload an image file",
@@ -61,9 +67,11 @@ export function EditProfileDialog() {
     reader.readAsDataURL(file);
   };
 
-  const getPasswordStrength = (password: string): { strength: number; label: string; color: string } => {
+  const getPasswordStrength = (
+    password: string,
+  ): { strength: number; label: string; color: string } => {
     if (!password) return { strength: 0, label: "", color: "" };
-    
+
     let strength = 0;
     if (password.length >= 8) strength++;
     if (password.length >= 12) strength++;
@@ -71,9 +79,12 @@ export function EditProfileDialog() {
     if (/\d/.test(password)) strength++;
     if (/[^a-zA-Z0-9]/.test(password)) strength++;
 
-    if (strength <= 2) return { strength, label: "Weak", color: "text-destructive" };
-    if (strength <= 3) return { strength, label: "Fair", color: "text-yellow-500" };
-    if (strength <= 4) return { strength, label: "Good", color: "text-blue-500" };
+    if (strength <= 2)
+      return { strength, label: "Weak", color: "text-destructive" };
+    if (strength <= 3)
+      return { strength, label: "Fair", color: "text-yellow-500" };
+    if (strength <= 4)
+      return { strength, label: "Good", color: "text-blue-500" };
     return { strength, label: "Strong", color: "text-green-500" };
   };
 
@@ -121,7 +132,9 @@ export function EditProfileDialog() {
 
     toast({
       title: "Profile updated",
-      description: currentPassword ? "Your profile and password have been updated" : "Your profile has been updated",
+      description: currentPassword
+        ? "Your profile and password have been updated"
+        : "Your profile has been updated",
     });
 
     // Reset password fields
@@ -142,7 +155,7 @@ export function EditProfileDialog() {
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-6 py-4">
           {/* Avatar Section */}
           <div className="space-y-3">
@@ -152,7 +165,12 @@ export function EditProfileDialog() {
                 {avatarUrl ? (
                   <AvatarImage src={avatarUrl} alt={name} />
                 ) : (
-                  <AvatarFallback className={cn("text-lg font-bold text-primary-foreground", MEMBER_COLORS[currentUser.colorIndex])}>
+                  <AvatarFallback
+                    className={cn(
+                      "text-lg font-bold text-primary-foreground",
+                      MEMBER_COLORS[currentUser.colorIndex],
+                    )}
+                  >
                     {getMemberInitials(name)}
                   </AvatarFallback>
                 )}
@@ -200,7 +218,7 @@ export function EditProfileDialog() {
                 placeholder="Your name"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -237,7 +255,11 @@ export function EditProfileDialog() {
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showCurrentPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -257,7 +279,11 @@ export function EditProfileDialog() {
                   onClick={() => setShowNewPassword(!showNewPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showNewPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {newPassword && (
@@ -271,10 +297,17 @@ export function EditProfileDialog() {
                           "bg-blue-500": passwordStrength.strength === 4,
                           "bg-green-500": passwordStrength.strength === 5,
                         })}
-                        style={{ width: `${(passwordStrength.strength / 5) * 100}%` }}
+                        style={{
+                          width: `${(passwordStrength.strength / 5) * 100}%`,
+                        }}
                       />
                     </div>
-                    <span className={cn("text-xs font-medium", passwordStrength.color)}>
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        passwordStrength.color,
+                      )}
+                    >
                       {passwordStrength.label}
                     </span>
                   </div>
@@ -288,7 +321,8 @@ export function EditProfileDialog() {
                       At least 8 characters
                     </li>
                     <li className="flex items-center gap-1">
-                      {/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) ? (
+                      {/[A-Z]/.test(newPassword) &&
+                      /[a-z]/.test(newPassword) ? (
                         <Check className="h-3 w-3 text-green-500" />
                       ) : (
                         <X className="h-3 w-3 text-muted-foreground" />
@@ -323,7 +357,11 @@ export function EditProfileDialog() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {confirmPassword && newPassword !== confirmPassword && (

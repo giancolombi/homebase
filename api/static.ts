@@ -16,7 +16,7 @@ app.use(
     target: API_URL,
     changeOrigin: true,
     pathFilter: "/api",
-  })
+  }),
 );
 
 // Serve static frontend files

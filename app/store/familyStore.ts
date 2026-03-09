@@ -97,7 +97,10 @@ export const useFamilyStore = create<FamilyStore>()(
               connected: true,
               memberId: member.id,
             };
-            return { members: newMembers, calendarConnections: [...s.calendarConnections, homebaseCal] };
+            return {
+              members: newMembers,
+              calendarConnections: [...s.calendarConnections, homebaseCal],
+            };
           }
           return { members: newMembers };
         }),
@@ -107,7 +110,9 @@ export const useFamilyStore = create<FamilyStore>()(
 
       updateMember: (id, updates) =>
         set((s) => ({
-          members: s.members.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+          members: s.members.map((m) =>
+            m.id === id ? { ...m, ...updates } : m,
+          ),
         })),
 
       addCalendarConnection: (conn) =>
@@ -116,15 +121,15 @@ export const useFamilyStore = create<FamilyStore>()(
       toggleCalendarConnection: (id) =>
         set((s) => ({
           calendarConnections: s.calendarConnections.map((c) =>
-            c.id === id ? { ...c, connected: !c.connected } : c
+            c.id === id ? { ...c, connected: !c.connected } : c,
           ),
         })),
 
       completeOnboarding: () => set({ onboardingComplete: true }),
-      resetOnboarding: () => set({ ...initialState, onboardingComplete: false }),
+      resetOnboarding: () =>
+        set({ ...initialState, onboardingComplete: false }),
 
-      addEvent: (event) =>
-        set((s) => ({ events: [...s.events, event] })),
+      addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
 
       updateEvent: (id, updates) =>
         set((s) => ({
@@ -137,8 +142,7 @@ export const useFamilyStore = create<FamilyStore>()(
       addTaskCategory: (cat) =>
         set((s) => ({ taskCategories: [...s.taskCategories, cat] })),
 
-      addTask: (task) =>
-        set((s) => ({ tasks: [...s.tasks, task] })),
+      addTask: (task) => set((s) => ({ tasks: [...s.tasks, task] })),
 
       updateTask: (id, updates) =>
         set((s) => ({
@@ -148,12 +152,13 @@ export const useFamilyStore = create<FamilyStore>()(
       deleteTask: (id) =>
         set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
 
-      addRecipe: (recipe) =>
-        set((s) => ({ recipes: [...s.recipes, recipe] })),
+      addRecipe: (recipe) => set((s) => ({ recipes: [...s.recipes, recipe] })),
 
       updateRecipe: (id, updates) =>
         set((s) => ({
-          recipes: s.recipes.map((r) => (r.id === id ? { ...r, ...updates } : r)),
+          recipes: s.recipes.map((r) =>
+            r.id === id ? { ...r, ...updates } : r,
+          ),
         })),
 
       deleteRecipe: (id) =>
@@ -170,14 +175,14 @@ export const useFamilyStore = create<FamilyStore>()(
       toggleShoppingItem: (id) =>
         set((s) => ({
           shoppingList: s.shoppingList.map((i) =>
-            i.id === id ? { ...i, checked: !i.checked } : i
+            i.id === id ? { ...i, checked: !i.checked } : i,
           ),
         })),
 
       updateBankAccount: (id, updates) =>
         set((s) => ({
           bankAccounts: s.bankAccounts.map((a) =>
-            a.id === id ? { ...a, ...updates } : a
+            a.id === id ? { ...a, ...updates } : a,
           ),
         })),
 
@@ -185,12 +190,14 @@ export const useFamilyStore = create<FamilyStore>()(
         set((s) => ({ bankAccounts: [...s.bankAccounts, account] })),
 
       removeBankAccount: (id) =>
-        set((s) => ({ bankAccounts: s.bankAccounts.filter((a) => a.id !== id) })),
+        set((s) => ({
+          bankAccounts: s.bankAccounts.filter((a) => a.id !== id),
+        })),
 
       updateTransaction: (id, updates) =>
         set((s) => ({
           transactions: s.transactions.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
+            t.id === id ? { ...t, ...updates } : t,
           ),
         })),
 
@@ -203,6 +210,6 @@ export const useFamilyStore = create<FamilyStore>()(
         return get().members.filter((m) => m.role === "child");
       },
     }),
-    { name: "homebase-family-data" }
-  )
+    { name: "homebase-family-data" },
+  ),
 );

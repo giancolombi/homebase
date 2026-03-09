@@ -21,7 +21,9 @@ export default function OnboardingFlow() {
     setSaving(true);
 
     try {
-      const currentMember = store.members.find((m) => m.id === store.currentUserId);
+      const currentMember = store.members.find(
+        (m) => m.id === store.currentUserId,
+      );
 
       // Build the members array for the API
       const ownerPayload = {
@@ -89,7 +91,11 @@ export default function OnboardingFlow() {
           <div key={i} className="flex-1 flex items-center">
             <div
               className={`h-1 w-full rounded-full transition-all duration-300 ${
-                i < step ? "bg-primary" : i === step ? "bg-primary/70" : "bg-border"
+                i < step
+                  ? "bg-primary"
+                  : i === step
+                    ? "bg-primary/70"
+                    : "bg-border"
               }`}
             />
           </div>
@@ -99,13 +105,20 @@ export default function OnboardingFlow() {
       <div className="flex-1 animate-fade-in" key={step}>
         {step === 0 && <StepFamilyName onNext={() => setStep(1)} />}
         {step === 1 && (
-          <StepYourProfile onNext={() => setStep(2)} onBack={() => setStep(0)} />
+          <StepYourProfile
+            onNext={() => setStep(2)}
+            onBack={() => setStep(0)}
+          />
         )}
         {step === 2 && (
           <StepMembers onNext={() => setStep(3)} onBack={() => setStep(1)} />
         )}
         {step === 3 && (
-          <StepCalendarConnect onComplete={handleComplete} onBack={() => setStep(2)} saving={saving} />
+          <StepCalendarConnect
+            onComplete={handleComplete}
+            onBack={() => setStep(2)}
+            saving={saving}
+          />
         )}
       </div>
 

@@ -1,6 +1,12 @@
 import { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Calendar, CheckSquare, UtensilsCrossed, Wallet, Settings } from "lucide-react";
+import {
+  Calendar,
+  CheckSquare,
+  UtensilsCrossed,
+  Wallet,
+  Settings,
+} from "lucide-react";
 import { useFamilyStore } from "@/store/familyStore";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getMemberInitials, MEMBER_COLORS } from "@/lib/memberColors";
@@ -23,8 +29,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Header */}
       <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-card/95 backdrop-blur-sm border-b border-border">
         <div>
-          <h1 className="text-base font-semibold tracking-tight text-foreground">{familyName || "Homebase"}</h1>
-          <p className="text-[11px] text-muted-foreground">Family Command Center</p>
+          <h1 className="text-base font-semibold tracking-tight text-foreground">
+            {familyName || "Homebase"}
+          </h1>
+          <p className="text-[11px] text-muted-foreground">
+            Family Command Center
+          </p>
         </div>
         <div className="flex items-center gap-2.5">
           <div className="flex -space-x-1.5">
@@ -33,7 +43,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <AvatarFallback
                   className={cn(
                     "text-[10px] font-semibold text-primary-foreground",
-                    MEMBER_COLORS[m.colorIndex] || "bg-muted"
+                    MEMBER_COLORS[m.colorIndex] || "bg-muted",
                   )}
                 >
                   {getMemberInitials(m.name)}
@@ -64,7 +74,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-card/95 backdrop-blur-sm border-t border-border z-30 safe-area-bottom">
         <div className="flex items-center justify-around py-1.5 px-2">
           {tabs.map((tab) => {
-            const isActive = location.pathname === tab.path || location.pathname.startsWith(tab.path + "/");
+            const isActive =
+              location.pathname === tab.path ||
+              location.pathname.startsWith(tab.path + "/");
             return (
               <button
                 key={tab.path}
@@ -73,11 +85,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all min-w-[56px]",
                   isActive
                     ? "text-primary bg-primary/8"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <tab.icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
-                <span className={cn("text-[10px]", isActive ? "font-semibold" : "font-medium")}>{tab.label}</span>
+                <tab.icon
+                  className={cn("h-5 w-5", isActive && "stroke-[2.5]")}
+                />
+                <span
+                  className={cn(
+                    "text-[10px]",
+                    isActive ? "font-semibold" : "font-medium",
+                  )}
+                >
+                  {tab.label}
+                </span>
               </button>
             );
           })}
