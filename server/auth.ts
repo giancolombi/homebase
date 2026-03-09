@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import bcrypt from "bcryptjs";
+import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import pool from "./db.js";
 
@@ -77,7 +77,7 @@ router.post("/signup", async (req: Request, res: Response) => {
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await argon2.hash(password);
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, full_name)
        VALUES ($1, $2, $3)
@@ -123,7 +123,7 @@ router.post("/signin", async (req: Request, res: Response) => {
     }
 
     const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
+    const valid = await argon2.verify(user.password_hash, password);
     if (!valid) {
       res.status(401).json({ error: "Invalid email or password" });
       return;
@@ -184,7 +184,7 @@ router.post("/update-password", requireAuth as any, async (req: AuthRequest, res
   }
 
   try {
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await argon2.hash(password);
     await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
       passwordHash,
       req.user!.id,
@@ -260,7 +260,7 @@ router.post("/reset-password", async (req: Request, res: Response) => {
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await argon2.hash(password);
     await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
       passwordHash,
       payload.sub,
