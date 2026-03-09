@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useFamilyStore } from "@/store/familyStore";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,11 +16,12 @@ export default function StepYourProfile({
 }) {
   const { members, addMember, setCurrentUserId, currentUserId } =
     useFamilyStore();
+  const { user } = useAuth();
 
-  // If current user already exists, pre-populate
+  // If current user already exists, pre-populate from store; otherwise use auth data
   const existingUser = members.find((m) => m.id === currentUserId);
-  const [name, setName] = useState(existingUser?.name || "");
-  const [email, setEmail] = useState(existingUser?.email || "");
+  const [name, setName] = useState(existingUser?.name || user?.full_name || "");
+  const [email, setEmail] = useState(existingUser?.email || user?.email || "");
 
   const handleNext = () => {
     if (!name.trim()) return;
@@ -57,7 +59,7 @@ export default function StepYourProfile({
             Your Profile
           </h2>
           <p className="text-sm text-muted-foreground">
-            Set up your account first
+            Confirm your display name
           </p>
         </div>
       </div>
