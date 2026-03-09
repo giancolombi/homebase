@@ -105,12 +105,14 @@ export default function MealsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 bg-card border-b border-border">
-        <h2 className="text-lg font-bold text-foreground">Meal Planning</h2>
+      <div className="px-4 py-3 md:px-6 md:py-4 bg-card border-b border-border">
+        <h2 className="text-lg md:text-xl font-bold text-foreground">
+          Meal Planning
+        </h2>
       </div>
 
       <Tabs defaultValue="plan" className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-3 grid grid-cols-3">
+        <TabsList className="mx-4 md:mx-6 mt-3 grid grid-cols-3 md:w-fit md:grid-cols-3">
           <TabsTrigger value="plan">Weekly Plan</TabsTrigger>
           <TabsTrigger value="recipes">Recipes</TabsTrigger>
           <TabsTrigger value="shopping">Shopping</TabsTrigger>
@@ -118,7 +120,7 @@ export default function MealsPage() {
 
         <TabsContent
           value="plan"
-          className="flex-1 overflow-y-auto p-4 space-y-3"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4 max-w-4xl"
         >
           <div className="flex items-center justify-between">
             <div className="flex gap-1 bg-muted rounded-lg p-0.5">
@@ -153,8 +155,8 @@ export default function MealsPage() {
           {weekDays.map((day) => {
             const dateStr = format(day, "yyyy-MM-dd");
             return (
-              <div key={dateStr} className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground">
+              <div key={dateStr} className="space-y-1.5 md:space-y-2">
+                <p className="text-xs md:text-sm font-semibold text-muted-foreground">
                   {format(day, "EEE, MMM d")}
                 </p>
                 {MEAL_TYPES.map((mt) => {
@@ -162,9 +164,9 @@ export default function MealsPage() {
                   return (
                     <div
                       key={mt}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-card border border-border"
+                      className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg bg-card border border-border"
                     >
-                      <span className="text-xs w-24 text-muted-foreground">
+                      <span className="text-xs md:text-sm w-24 md:w-28 text-muted-foreground">
                         {MEAL_LABELS[mt]}
                       </span>
                       {data?.recipe ? (
@@ -206,35 +208,38 @@ export default function MealsPage() {
 
         <TabsContent
           value="recipes"
-          className="flex-1 overflow-y-auto p-4 space-y-3"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3"
         >
-          <Button onClick={() => setShowAddRecipe(true)} className="w-full">
+          <Button
+            onClick={() => setShowAddRecipe(true)}
+            className="w-full md:w-auto"
+          >
             <Plus className="h-4 w-4 mr-1" /> Add Recipe
           </Button>
           {recipes.length === 0 && (
-            <div className="text-center text-muted-foreground text-sm py-12">
-              <BookOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+            <div className="text-center text-muted-foreground text-sm md:text-base py-12">
+              <BookOpen className="h-8 w-8 md:h-10 md:w-10 mx-auto mb-2 text-muted-foreground/50" />
               No recipes yet. Add your first recipe!
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {recipes.map((r) => (
               <Card key={r.id} className="overflow-hidden">
-                <div className="h-24 bg-muted flex items-center justify-center text-2xl">
+                <div className="h-24 md:h-32 bg-muted flex items-center justify-center text-2xl md:text-3xl">
                   🍽️
                 </div>
-                <CardContent className="p-3 space-y-1">
-                  <p className="text-sm font-semibold text-foreground truncate">
+                <CardContent className="p-3 md:p-4 space-y-1">
+                  <p className="text-sm md:text-base font-semibold text-foreground truncate">
                     {r.title}
                   </p>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground">
                     {r.prepTime && <span>⏱ {r.prepTime}m prep</span>}
                     {r.servings && <span>👥 {r.servings}</span>}
                   </div>
                   <div className="flex gap-1 pt-1">
                     <button
                       onClick={() => deleteRecipe(r.id)}
-                      className="text-[10px] text-destructive hover:underline"
+                      className="text-[10px] md:text-xs text-destructive hover:underline"
                     >
                       Delete
                     </button>
@@ -247,7 +252,7 @@ export default function MealsPage() {
 
         <TabsContent
           value="shopping"
-          className="flex-1 overflow-y-auto p-4 space-y-3"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 max-w-4xl"
         >
           {shoppingList.length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-12">

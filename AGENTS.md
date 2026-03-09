@@ -37,12 +37,13 @@ pnpm vitest run app/components/                    # Run all tests under a direc
 pnpm run server         # Start API server (tsx api/index.ts)
 pnpm run server:dev     # Start API server with watch mode
 pnpm run db:migrate     # Run SQL migrations against $DATABASE_URL
+pnpm seed               # Generate sample data JSON for localStorage
 ```
 
 ### Docker (full stack)
 
 ```bash
-docker compose up       # Starts db (Postgres 16), api (:3001), frontend (:8080)
+docker compose up       # Starts db (Postgres 17), api (:3001), frontend (:8080)
 ```
 
 ### Pre-commit Hook (Husky)

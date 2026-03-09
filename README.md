@@ -7,7 +7,7 @@ A full-stack web app for families to manage calendars, tasks, meals, and finance
 | Layer    | Tech                                                                                 |
 | -------- | ------------------------------------------------------------------------------------ |
 | Frontend | React 19, Vite 7, Tailwind CSS 4, shadcn/ui, Zustand, React Router 7, TanStack Query |
-| Backend  | Express 5, PostgreSQL 16, Argon2, JWT                                                |
+| Backend  | Express 5, PostgreSQL 17, Argon2, JWT                                                |
 | Tooling  | TypeScript 5.9, pnpm, ESLint, Prettier, Husky, Vitest 4                              |
 | Infra    | Docker Compose (3 services)                                                          |
 
@@ -206,6 +206,7 @@ pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test
 | `pnpm server:dev`   | API server with auto-reload |
 | `pnpm server`       | API server (no reload)      |
 | `pnpm db:migrate`   | Run SQL migrations          |
+| `pnpm seed`         | Generate sample data JSON   |
 | `pnpm test`         | Run tests (Vitest)          |
 | `pnpm test:watch`   | Run tests in watch mode     |
 | `pnpm typecheck`    | TypeScript type checking    |
@@ -254,11 +255,14 @@ vitest.config.ts        Test configuration
 If you're working on UI/styling changes, this is the fastest way to see your
 updates live in the browser.
 
+**You do NOT need Docker, a database, or the backend API.** All page data
+(family members, events, tasks, meals, finance) is stored in the browser's
+localStorage via Zustand. The database is only used for authentication,
+which you can skip entirely with the demo mode below.
+
 ### Quick start (frontend only)
 
-You only need **Node.js 24+** installed. You don't need Docker or a database
-to work on the frontend — the app runs fine without the API (it uses local
-state).
+You only need **Node.js 24+** installed.
 
 ```sh
 # 1. Enable pnpm (one-time)
@@ -271,9 +275,30 @@ pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:8080](http://localhost:8080). Any change you save to a
-file under `app/` will instantly update in the browser — no manual refresh
-needed.
+Open [http://localhost:8080](http://localhost:8080).
+
+### Loading sample data
+
+On the login page, click **"Load sample data (skip sign-in)"**. This
+populates every page with a demo family (4 members, calendar events, tasks,
+recipes, meal plans, shopping list, bank accounts, and transactions) — no
+account or backend required.
+
+You can also seed from the terminal:
+
+```sh
+pnpm seed | pbcopy    # copies the JSON to your clipboard (macOS)
+```
+
+Then open DevTools (F12) and run:
+
+```js
+localStorage.setItem("homebase-family-data", "<paste here>");
+location.reload();
+```
+
+Any change you save to a file under `app/` will instantly update in the
+browser — no manual refresh needed.
 
 ### What to edit
 

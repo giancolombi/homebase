@@ -73,7 +73,7 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Date nav */}
-      <div className="px-4 py-3 bg-card border-b border-border space-y-3">
+      <div className="px-4 py-3 md:px-6 md:py-4 bg-card border-b border-border space-y-3">
         <div className="flex items-center justify-between">
           <button
             onClick={() =>
@@ -84,7 +84,7 @@ export default function CalendarPage() {
             <ChevronLeft className="h-5 w-5 text-muted-foreground" />
           </button>
           <div className="text-center">
-            <p className="text-sm font-semibold text-foreground">
+            <p className="text-sm md:text-base font-semibold text-foreground">
               {view === "day"
                 ? format(selectedDate, "EEEE, MMM d")
                 : `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d")}`}
@@ -193,13 +193,13 @@ function DayView({
   return (
     <div className="flex">
       {/* Time column */}
-      <div className="w-12 flex-shrink-0 border-r border-border">
+      <div className="w-12 md:w-16 flex-shrink-0 border-r border-border">
         {HOURS.map((h) => (
           <div
             key={h}
-            className="h-16 flex items-start justify-end pr-2 pt-0.5"
+            className="h-16 md:h-20 flex items-start justify-end pr-2 pt-0.5"
           >
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] md:text-xs text-muted-foreground">
               {h === 0
                 ? "12a"
                 : h < 12
@@ -223,18 +223,18 @@ function DayView({
             className="flex-1 min-w-0 border-r border-border last:border-r-0"
           >
             {/* Member header */}
-            <div className="sticky top-0 z-10 bg-card border-b border-border px-1 py-1.5 text-center">
-              <Avatar className="h-6 w-6 mx-auto mb-0.5">
+            <div className="sticky top-0 z-10 bg-card border-b border-border px-1 py-1.5 md:py-2 text-center">
+              <Avatar className="h-6 w-6 md:h-8 md:w-8 mx-auto mb-0.5">
                 <AvatarFallback
                   className={cn(
-                    "text-[8px] font-bold text-primary-foreground",
+                    "text-[8px] md:text-xs font-bold text-primary-foreground",
                     MEMBER_COLORS[colorIdx],
                   )}
                 >
                   {getMemberInitials(member.name)}
                 </AvatarFallback>
               </Avatar>
-              <p className="text-[10px] font-medium text-foreground truncate">
+              <p className="text-[10px] md:text-xs font-medium text-foreground truncate">
                 {member.name.split(" ")[0]}
               </p>
             </div>
@@ -244,7 +244,7 @@ function DayView({
               {HOURS.map((h) => (
                 <div
                   key={h}
-                  className="h-16 border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-colors"
+                  className="h-16 md:h-20 border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => onSlotClick(h)}
                 />
               ))}
@@ -269,10 +269,10 @@ function DayView({
                     )}
                     style={{ top: `${top}px`, height: `${height}px` }}
                   >
-                    <p className="text-[10px] font-semibold text-foreground truncate">
+                    <p className="text-[10px] md:text-xs font-semibold text-foreground truncate">
                       {event.title}
                     </p>
-                    <p className="text-[9px] text-muted-foreground">
+                    <p className="text-[9px] md:text-[11px] text-muted-foreground">
                       {event.startTime}–{event.endTime}
                     </p>
                   </div>
@@ -298,18 +298,18 @@ function WeekView({
   getMemberColor: (id: string) => number;
 }) {
   return (
-    <div className="p-3 space-y-2">
+    <div className="p-3 md:p-6 space-y-2 md:space-y-3">
       {/* Legend */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-2 md:gap-3 mb-3">
         {members.map((m) => (
           <div key={m.id} className="flex items-center gap-1.5">
             <div
               className={cn(
-                "h-2.5 w-2.5 rounded-full",
+                "h-2.5 w-2.5 md:h-3 md:w-3 rounded-full",
                 MEMBER_COLORS[m.colorIndex],
               )}
             />
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] md:text-sm text-muted-foreground">
               {m.name.split(" ")[0]}
             </span>
           </div>

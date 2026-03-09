@@ -76,20 +76,20 @@ export default function SettingsPage() {
     );
 
   return (
-    <div className="flex flex-col min-h-screen bg-background max-w-lg mx-auto">
-      <header className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-card/95 backdrop-blur-sm border-b border-border">
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 md:px-6 md:py-4 bg-card/95 backdrop-blur-sm border-b border-border">
         <button
           onClick={() => navigate(-1)}
           className="p-1.5 hover:bg-muted rounded-lg transition-colors"
         >
           <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>
-        <h1 className="text-base font-semibold tracking-tight text-foreground">
+        <h1 className="text-base md:text-lg font-semibold tracking-tight text-foreground">
           Settings
         </h1>
       </header>
 
-      <div className="flex-1 p-4 space-y-4">
+      <div className="flex-1 p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 max-w-4xl mx-auto w-full">
         {/* Family members */}
         <Card>
           <CardHeader className="pb-2">

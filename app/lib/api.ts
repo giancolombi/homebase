@@ -79,6 +79,16 @@ export const auth = {
   async getSession(): Promise<{ user: AuthUser } | null> {
     const token = getToken();
     if (!token) return null;
+    // Demo mode — skip the API call and return a fake user
+    if (token === "demo-token") {
+      return {
+        user: {
+          id: "demo-user",
+          email: "alex@example.com",
+          full_name: "Alex Johnson",
+        },
+      };
+    }
     try {
       return await request<{ user: AuthUser }>("/api/auth/me");
     } catch {

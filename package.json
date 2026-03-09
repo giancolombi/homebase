@@ -18,6 +18,7 @@
     "server": "tsx api/index.ts",
     "server:dev": "tsx watch api/index.ts",
     "db:migrate": "psql $DATABASE_URL -f api/migrations/001_initial_schema.sql",
+    "seed": "tsx scripts/seed-local.ts",
     "prepare": "husky"
   },
   "dependencies": {

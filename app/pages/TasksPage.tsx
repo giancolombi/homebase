@@ -71,8 +71,8 @@ export default function TasksPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 bg-card border-b border-border flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Tasks</h2>
+      <div className="px-4 py-3 md:px-6 md:py-4 bg-card border-b border-border flex items-center justify-between">
+        <h2 className="text-lg md:text-xl font-bold text-foreground">Tasks</h2>
         <div className="flex gap-2">
           <Popover open={catPopoverOpen} onOpenChange={setCatPopoverOpen}>
             <PopoverTrigger asChild>
@@ -160,15 +160,15 @@ export default function TasksPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-4xl">
         {Object.keys(grouped).length === 0 && (
-          <div className="text-center text-muted-foreground text-sm py-12">
+          <div className="text-center text-muted-foreground text-sm md:text-base py-12">
             No tasks yet. Add your first task!
           </div>
         )}
         {Object.entries(grouped).map(([cat, catTasks]) => (
-          <div key={cat} className="space-y-2">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <div key={cat} className="space-y-2 md:space-y-3">
+            <h3 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               {cat}
             </h3>
             {catTasks.map((task) => {
@@ -203,18 +203,18 @@ export default function TasksPage() {
                       {task.deadline && (
                         <span
                           className={cn(
-                            "text-[10px] flex items-center gap-0.5",
+                            "text-[10px] md:text-xs flex items-center gap-0.5",
                             isOverdue
                               ? "text-destructive"
                               : "text-muted-foreground",
                           )}
                         >
-                          <CalIcon className="h-3 w-3" />
+                          <CalIcon className="h-3 w-3 md:h-3.5 md:w-3.5" />
                           {task.deadline}
                         </span>
                       )}
                       {task.recurrence !== "none" && (
-                        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] md:text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                           🔄 {task.recurrence}
                         </span>
                       )}
@@ -227,11 +227,11 @@ export default function TasksPage() {
                       return (
                         <Avatar
                           key={m.id}
-                          className="h-6 w-6 border border-card"
+                          className="h-6 w-6 md:h-7 md:w-7 border border-card"
                         >
                           <AvatarFallback
                             className={cn(
-                              "text-[8px] font-bold text-primary-foreground",
+                              "text-[8px] md:text-[10px] font-bold text-primary-foreground",
                               MEMBER_COLORS[m.colorIndex],
                             )}
                           >

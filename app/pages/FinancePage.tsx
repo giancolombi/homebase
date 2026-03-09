@@ -86,11 +86,13 @@ export default function FinancePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 bg-card border-b border-border">
+      <div className="px-4 py-3 md:px-6 md:py-4 bg-card border-b border-border">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-foreground">Finance</h2>
-            <p className="text-xs text-muted-foreground">
+            <h2 className="text-lg md:text-xl font-bold text-foreground">
+              Finance
+            </h2>
+            <p className="text-xs md:text-sm text-muted-foreground">
               Monthly cashflow overview
             </p>
           </div>
@@ -98,7 +100,7 @@ export default function FinancePage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-5xl">
         {/* Featured accounts */}
         {featured.map((account) => {
           const balances = account.monthlyBalances;
@@ -141,7 +143,7 @@ export default function FinancePage() {
                 </div>
 
                 {/* Chart */}
-                <div className="h-32">
+                <div className="h-32 md:h-48">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={balances}>
                       <XAxis
@@ -224,7 +226,7 @@ export default function FinancePage() {
                   {account.savingsGoal &&
                     monthsToGoal &&
                     monthsToGoal !== Infinity && (
-                      <div className="h-24">
+                      <div className="h-24 md:h-36">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart
                             data={Array.from(
@@ -277,14 +279,14 @@ export default function FinancePage() {
 
         {/* Other accounts */}
         {others.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">
+          <div className="space-y-2 md:space-y-3">
+            <p className="text-xs md:text-sm font-semibold text-muted-foreground uppercase">
               Other Accounts
             </p>
             {others.map((a) => (
               <Card
                 key={a.id}
-                className="p-3 flex items-center justify-between"
+                className="p-3 md:p-4 flex items-center justify-between"
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">
@@ -308,7 +310,7 @@ export default function FinancePage() {
             <CardTitle className="text-base">Expenses by Category</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="h-48">
+            <div className="h-48 md:h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -317,8 +319,8 @@ export default function FinancePage() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={70}
-                    innerRadius={40}
+                    outerRadius={90}
+                    innerRadius={50}
                     label={({ name, percent }) =>
                       `${name} ${(percent * 100).toFixed(0)}%`
                     }
@@ -352,10 +354,10 @@ export default function FinancePage() {
                         backgroundColor: PIE_COLORS[i % PIE_COLORS.length],
                       }}
                     />
-                    <span className="text-xs font-medium text-foreground flex-1 text-left">
+                    <span className="text-xs md:text-sm font-medium text-foreground flex-1 text-left">
                       {cat}
                     </span>
-                    <span className="text-xs font-semibold text-foreground">
+                    <span className="text-xs md:text-sm font-semibold text-foreground">
                       ${data.total.toFixed(2)}
                     </span>
                     {expandedCategory === cat ? (
@@ -377,7 +379,7 @@ export default function FinancePage() {
                           <span className="text-foreground font-medium">
                             ${Math.abs(tx.amount).toFixed(2)}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-[10px] md:text-xs text-muted-foreground">
                             {tx.date.split("-").slice(1).join("/")}
                           </span>
                         </div>
