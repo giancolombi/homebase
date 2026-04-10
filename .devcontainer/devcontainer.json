@@ -1,0 +1,22 @@
+{
+  "name": "Homebase",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "postCreateCommand": "corepack enable && pnpm install",
+  "postStartCommand": "pnpm dev",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Homebase App",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}

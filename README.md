@@ -11,190 +11,153 @@ A full-stack web app for families to manage calendars, tasks, meals, and finance
 | Tooling  | TypeScript 5.9, pnpm, ESLint, Prettier, Husky, Vitest 4                              |
 | Infra    | Docker Compose (3 services)                                                          |
 
-## First-time laptop setup
+---
 
-Follow these steps on a brand-new machine. If you already have a tool
-installed, skip that step.
+## Designer quick start (Mac)
 
-### 1. Install Git
+### One-time prerequisite
 
-Git is required to clone the repo and commit changes.
-
-**macOS** — install the Xcode command-line tools (includes Git):
+Open **Terminal** (Spotlight → type "Terminal" → press Enter) and paste:
 
 ```sh
 xcode-select --install
 ```
 
-**Windows** — download from [git-scm.com](https://git-scm.com/download/win)
-and run the installer. Use the defaults. After installing, open **Git Bash**
-for all commands below.
+A popup appears — click **Install** and wait for it to finish (5–10 min).
+You only do this once ever.
 
-**Linux (Debian/Ubuntu):**
+### First time — clone and setup
+
+Paste these one at a time:
 
 ```sh
-sudo apt update && sudo apt install -y git
+git clone https://github.com/giancolombi/homebase.git ~/homebase
 ```
 
-Verify: `git --version` should print `2.x` or newer.
-
-### 2. Install Node.js 24+
-
-**macOS (Homebrew):**
-
 ```sh
-# Install Homebrew first if you don't have it
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-brew install node@24
+cd ~/homebase
 ```
 
-**macOS / Windows / Linux (installer):** download from
-[nodejs.org](https://nodejs.org/) (use the LTS or Current release, 24+).
-
-Verify: `node --version` should print `v24.x` or newer.
-
-### 3. Enable pnpm
-
-Node 24 ships with Corepack. Enable it so pnpm is available:
-
 ```sh
-corepack enable
+make setup
 ```
 
-Verify: `pnpm --version` should print `10.23.0` (the version pinned by
-the repo).
+This installs Homebrew, Node.js, pnpm, and project dependencies. Takes
+about 5 minutes the first time.
 
-### 4. Install Docker Desktop (engineers & full-stack only)
-
-Required for running the database and full-stack Docker setup. **Designers
-and PMs doing frontend-only work can skip this.**
-
-Download from
-[docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)
-and follow the installer. Make sure Docker Desktop is **running** before
-using any `docker` commands.
-
-Verify: `docker --version` and `docker compose version` should both print
-a version number.
-
-### 5. Install PostgreSQL client tools (engineers only)
-
-The `db:migrate` script uses `psql`. **Skip this if you only use Docker
-Compose** (the migration runs automatically in the container).
-
-**macOS:** `brew install libpq && brew link --force libpq`
-**Ubuntu/Debian:** `sudo apt install -y postgresql-client`
-**Windows:** included in the
-[PostgreSQL installer](https://www.postgresql.org/download/windows/).
-
-### 6. Clone the repo
+### Start the app
 
 ```sh
-git clone <your-repo-url>
+cd ~/homebase
+```
+
+```sh
+make up
+```
+
+Open [http://localhost:8080](http://localhost:8080) and click **"Try Demo"**.
+
+Every file change shows up in the browser instantly. To stop: **Ctrl+C**.
+
+### Making changes with Cursor
+
+Download [Cursor](https://cursor.com) and open the `homebase` folder
+(**File → Open Folder**). Use **Cmd+L** (chat) or **Cmd+K** (inline edit)
+to describe changes in plain English:
+
+> "Make the sidebar darker"
+
+> "Add a welcome banner to the dashboard"
+
+Cursor saves the file, the browser updates automatically.
+
+### What to edit
+
+| What you want to change             | Where to look               |
+| ----------------------------------- | --------------------------- |
+| Page layouts                        | `app/pages/`                |
+| Feature UI (calendar, tasks, etc.)  | `app/components/<feature>/` |
+| App shell (header, sidebar, nav)    | `app/components/layout/`    |
+| Colors, spacing, theme              | `app/index.css`             |
+| Buttons, dialogs, shared components | `app/components/ui/`        |
+
+---
+
+## Engineer setup
+
+### Prerequisites
+
+- **Node.js 24+** — `brew install node@24` or [nodejs.org](https://nodejs.org/)
+- **pnpm** — `corepack enable`
+- **Docker Desktop** — [docker.com](https://www.docker.com/products/docker-desktop/) (for database)
+
+### Clone and install
+
+```sh
+git clone https://github.com/giancolombi/homebase.git
+```
+
+```sh
 cd homebase
 ```
-
-### 7. Install project dependencies
 
 ```sh
 pnpm install
 ```
 
-This also sets up the Husky pre-commit hooks automatically.
-
-### 8. Create your `.env` file
-
-Copy the example and adjust if needed:
+### Frontend only (demo mode)
 
 ```sh
-cp .env .env.local
+make up
 ```
 
-The defaults in `.env` work out of the box for local development:
+Open [http://localhost:8080](http://localhost:8080) and click **"Try Demo"**.
+All data lives in localStorage — no database needed.
 
-```
-DATABASE_URL="postgresql://localhost:5432/homebase"
-JWT_SECRET="change-me-to-a-random-secret-in-production"
-API_PORT=3001
+### Full stack
+
+```sh
+docker compose up
 ```
 
-You should not need to change anything for local dev.
+Or run each service natively:
+
+```sh
+docker compose up db -d
+```
+
+```sh
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/homebase
+```
+
+```sh
+pnpm db:migrate
+```
+
+```sh
+pnpm server:dev
+```
+
+In a second terminal:
+
+```sh
+pnpm dev
+```
+
+| Service  | URL              | Description                           |
+| -------- | ---------------- | ------------------------------------- |
+| Frontend | `localhost:8080` | React app (proxies `/api` to backend) |
+| API      | `localhost:3001` | Express API server                    |
+| Database | `localhost:5432` | PostgreSQL                            |
 
 ---
 
-## Quick start by role
+## Make commands
 
-Pick the path that matches your role. All paths assume you completed the
-setup steps above.
-
-### Designers — frontend only (no Docker needed)
-
-```sh
-pnpm dev
-```
-
-Open [http://localhost:8080](http://localhost:8080). Edit any file under
-`app/` and the browser updates instantly. See the
-[designer section below](#for-designers-frontend-hot-reload-setup) for
-details on what to edit.
-
-### PMs — run the full app to test features
-
-The easiest way to see the full app with a working backend:
-
-```sh
-docker compose up --build -d
-```
-
-Open [http://localhost:8080](http://localhost:8080). To stop:
-`docker compose down`. To stop and reset the database:
-`docker compose down -v`.
-
-### Engineers — full-stack native development
-
-Native mode gives you Vite hot-reload for the frontend and auto-reloading
-for the API server.
-
-```sh
-# 1. Start Postgres (via Docker)
-docker compose up db -d
-
-# 2. Run the database migration
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/homebase
-pnpm db:migrate
-
-# 3. Start the API server (port 3001, auto-reloads on changes)
-pnpm server:dev
-
-# 4. In a second terminal — start the frontend (port 8080, proxies /api to 3001)
-pnpm dev
-```
-
-Open [http://localhost:8080](http://localhost:8080).
-
-Alternatively, run the entire stack in Docker:
-
-```sh
-docker compose up --build -d
-```
-
-| Service  | URL              | Description                                       |
-| -------- | ---------------- | ------------------------------------------------- |
-| Frontend | `localhost:8080` | React app (proxies `/api` to backend)             |
-| API      | `localhost:3001` | Express API server                                |
-| Database | `localhost:5432` | PostgreSQL (`homebase` / `postgres` / `postgres`) |
-
-To stop: `docker compose down`. To stop and wipe the database volume:
-`docker compose down -v`.
-
-### Verify everything works
-
-Run the full check suite (same checks that run on every commit):
-
-```sh
-pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test
-```
+| Command      | What it does                                    |
+| ------------ | ----------------------------------------------- |
+| `make setup` | Install Node, pnpm, and project dependencies    |
+| `make up`    | Start the app with hot-reload on localhost:8080 |
 
 ## Scripts
 
@@ -213,6 +176,17 @@ pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test
 | `pnpm lint`         | ESLint                      |
 | `pnpm format`       | Prettier (write)            |
 | `pnpm format:check` | Prettier (check only)       |
+
+## Pre-commit hook
+
+Every `git commit` automatically runs:
+
+1. `pnpm typecheck`
+2. `pnpm lint`
+3. `pnpm format:check`
+4. `pnpm test`
+
+The commit is rejected if any check fails.
 
 ## Project structure
 
@@ -236,150 +210,29 @@ app/                    Frontend (React SPA)
   types/                TypeScript type definitions
 
 api/                    Backend (Express API)
-  index.ts              API server entry point
-  auth.ts               Auth routes (signup, signin, password reset)
+  index.ts              Server entry point
+  auth.ts               Auth routes
   onboarding.ts         Onboarding endpoint
   db.ts                 PostgreSQL connection pool
   migrations/           SQL migration files
-  Dockerfile            API Docker image
 
-serve.ts                Production frontend server (static files + API proxy)
-Dockerfile              Frontend Docker image (builds app, runs serve.ts)
-docker-compose.yml      3-service orchestration (db, api, frontend)
-vite.config.ts          Vite configuration
-vitest.config.ts        Test configuration
+Makefile                make setup / make up
+docker-compose.yml      Full stack (db, api, frontend)
 ```
 
-## For designers: frontend hot-reload setup
+## Using AI coding agents
 
-If you're working on UI/styling changes, this is the fastest way to see your
-updates live in the browser.
+This repo includes `CLAUDE.md` which gives AI agents full context about
+the project. Works with:
 
-**You do NOT need Docker, a database, or the backend API.** All page data
-(family members, events, tasks, meals, finance) is stored in the browser's
-localStorage via Zustand. The database is only used for authentication,
-which you can skip entirely with the demo mode below.
-
-### Quick start (frontend only)
-
-You only need **Node.js 24+** installed.
-
-```sh
-# 1. Enable pnpm (one-time)
-corepack enable
-
-# 2. Install dependencies
-pnpm install
-
-# 3. Start the dev server with hot-reload
-pnpm dev
-```
-
-Open [http://localhost:8080](http://localhost:8080).
-
-### Loading sample data
-
-On the login page, click **"Load sample data (skip sign-in)"**. This
-populates every page with a demo family (4 members, calendar events, tasks,
-recipes, meal plans, shopping list, bank accounts, and transactions) — no
-account or backend required.
-
-You can also seed from the terminal:
-
-```sh
-pnpm seed | pbcopy    # copies the JSON to your clipboard (macOS)
-```
-
-Then open DevTools (F12) and run:
-
-```js
-localStorage.setItem("homebase-family-data", "<paste here>");
-location.reload();
-```
-
-Any change you save to a file under `app/` will instantly update in the
-browser — no manual refresh needed.
-
-### What to edit
-
-| What you want to change                       | Where to look                                                                                                                                          |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Page layouts / routes                         | `app/pages/` — one file per page                                                                                                                       |
-| Feature UI (calendar, tasks, etc.)            | `app/components/<feature>/`                                                                                                                            |
-| App shell (header, sidebar, nav)              | `app/components/layout/`                                                                                                                               |
-| Colors, spacing, theme tokens                 | `app/index.css` (CSS custom properties)                                                                                                                |
-| Tailwind utility classes                      | Inline in any `.tsx` component file                                                                                                                    |
-| Shared UI primitives (buttons, dialogs, etc.) | `app/components/ui/` — these are shadcn/ui components; prefer adding new ones via `pnpm dlx shadcn@latest add <component>` rather than editing by hand |
-
-### Tips
-
-- **Tailwind CSS v4** is used for all styling — apply classes directly in JSX
-  (`className="flex gap-4 p-6"`). No CSS modules.
-- Use the `cn()` helper from `@/lib/utils` to combine conditional classes:
-  ```tsx
-  <div className={cn("p-4 rounded", isActive && "bg-primary text-white")} />
-  ```
-- Component imports use the `@/` alias (maps to `app/`), e.g.
-  `import { Button } from "@/components/ui/button"`.
-
-## Using coding agents for frontend changes
-
-This repo includes an `AGENTS.md` file (also symlinked as `CLAUDE.md`) that
-gives AI coding agents full context about the project's structure, commands,
-and conventions. The agents listed below can read that file and make changes
-on your behalf.
-
-### Claude Code (CLI)
-
-```sh
-# Install (one-time)
-npm install -g @anthropic-ai/claude-code
-
-# Start an interactive session in the project directory
-claude
-```
-
-Once running, describe the change you want in plain language:
-
-> "Change the sidebar background to slate-900 and make the nav links bold"
-
-> "Add a new card to the dashboard showing upcoming birthdays"
-
-Claude Code will read `AGENTS.md`, edit the right files, and can run
-`pnpm dev` to verify the result.
-
-### Cursor
-
-Open this project folder in [Cursor](https://cursor.com). The editor
-automatically picks up `AGENTS.md` for context. Use **Cmd+K** (inline edit)
-or **Cmd+L** (chat) to describe UI changes and Cursor will apply them to the
-correct files.
-
-### GitHub Copilot
-
-If you use VS Code with
-[GitHub Copilot](https://github.com/features/copilot), open Copilot Chat
-and describe the change. Copilot will use `AGENTS.md` for project context
-when it is present in the repo root.
-
-### Verifying agent changes
-
-After any agent makes edits, run the pre-commit checks to make sure nothing
-is broken:
-
-```sh
-pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test
-```
-
-Or let the agent run these — they will execute automatically on `git commit`
-via the Husky pre-commit hook.
+- **Cursor** — open the project, use Cmd+K or Cmd+L
+- **Claude Code** — run `claude` in the project directory
+- **GitHub Copilot** — works automatically in VS Code
 
 ## Environment variables
 
-| Variable       | Default                                | Description                            |
-| -------------- | -------------------------------------- | -------------------------------------- |
-| `DATABASE_URL` | `postgresql://localhost:5432/homebase` | Postgres connection string             |
-| `JWT_SECRET`   | `dev-secret`                           | Secret for signing JWTs                |
-| `API_PORT`     | `3001`                                 | Port for the API server                |
-| `API_URL`      | `http://api:3001`                      | API URL (used by `serve.ts` in Docker) |
-| `PORT`         | `8080`                                 | Port for the frontend server (Docker)  |
+| Variable       | Default                                | Description                |
+| -------------- | -------------------------------------- | -------------------------- |
+| `DATABASE_URL` | `postgresql://localhost:5432/homebase` | Postgres connection string |
+| `JWT_SECRET`   | `dev-secret`                           | Secret for signing JWTs    |
+| `API_PORT`     | `3001`                                 | API server port            |
