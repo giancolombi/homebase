@@ -93,7 +93,7 @@ echo "  Click 'Try Demo' on the login page."
 echo ""
 echo "  To stop: press Ctrl+C"
 echo "  To restart later:"
-echo "    cd $PROJECT_DIR && pnpm dev"
+echo "    cd $PROJECT_DIR && make up"
 echo ""
 
 pnpm dev

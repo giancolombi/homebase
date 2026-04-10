@@ -9,6 +9,37 @@ Despite the repo name, this is **not** a Remix project. It uses React Router DOM
 
 **Module system:** ESM (`"type": "module"` in package.json).
 
+## Live Development Workflow
+
+A designer is actively using Cursor or Claude Code to make frontend changes while the Vite dev server is running (`pnpm dev` / `make up` on port 8080). Vite HMR picks up saved files instantly — **the designer sees every change in real time**.
+
+### How to apply frontend changes
+
+1. **Just edit and save.** The dev server is already running. Do not stop it, restart it, or run build commands. Vite HMR handles everything automatically.
+2. **Do not run `pnpm dev`, `pnpm build`, or `make up`** — the designer already has the server running. Running it again will fail with a port conflict.
+3. **Do not ask the user to refresh the browser.** HMR updates the page automatically when a file is saved.
+4. **Save files frequently.** Small, incremental saves let the designer see progress in real time rather than one big change at the end.
+5. **Run `pnpm run format` after making changes** to keep formatting consistent. Prettier is configured with default settings.
+6. **Frontend-only changes do not need the backend.** The app runs in demo mode with all data in localStorage. Do not start the API server or database for UI work.
+
+### What you can safely change for UI/design work
+
+| Change type                      | Where to edit                           |
+| -------------------------------- | --------------------------------------- |
+| Page layouts and content         | `app/pages/*.tsx`                       |
+| Feature components               | `app/components/<feature>/*.tsx`        |
+| App shell (header, sidebar, nav) | `app/components/layout/*.tsx`           |
+| Colors, spacing, theme tokens    | `app/index.css` (CSS custom properties) |
+| Tailwind classes                 | Inline `className` in any `.tsx` file   |
+| Shared UI primitives             | `app/components/ui/*.tsx` (shadcn/ui)   |
+
+### Styling rules
+
+- Use **Tailwind CSS v4** classes inline. No CSS modules, no styled-components, no inline `style` props.
+- Use `cn()` from `@/lib/utils` for conditional classes: `cn("p-4", isActive && "bg-primary")`.
+- Theme colors and spacing tokens are defined as CSS custom properties in `app/index.css`.
+- To add a new shadcn/ui component: `pnpm dlx shadcn@latest add <component>`. Do not create UI primitives from scratch.
+
 ## Build / Lint / Test Commands
 
 ```bash
