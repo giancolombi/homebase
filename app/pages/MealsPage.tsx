@@ -13,8 +13,11 @@ import {
   ShoppingCart,
   ExternalLink,
   BookOpen,
+  UtensilsCrossed,
 } from "lucide-react";
 import AddRecipeDialog from "@/components/meals/AddRecipeDialog";
+import FoodLabPanel from "@/components/foodlab/FoodLabPanel";
+import { demoFoodlabRecipes } from "@/data/foodlabDemo";
 import type { MealType, Recipe } from "@/types/family";
 import { generateId } from "@/lib/memberColors";
 
@@ -35,7 +38,16 @@ export default function MealsPage() {
     updateShoppingList,
     toggleShoppingItem,
     deleteRecipe,
+    foodlabRecipes,
+    setFoodlabRecipes,
+    setFoodlabLastSynced,
   } = useFamilyStore();
+
+  // Load demo FoodLab recipes if none loaded yet
+  if (foodlabRecipes.length === 0) {
+    setFoodlabRecipes(demoFoodlabRecipes);
+    setFoodlabLastSynced(new Date().toISOString().split("T")[0]);
+  }
   const [showAddRecipe, setShowAddRecipe] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showShopping, setShowShopping] = useState(false);
@@ -112,8 +124,9 @@ export default function MealsPage() {
       </div>
 
       <Tabs defaultValue="plan" className="flex-1 flex flex-col">
-        <TabsList className="mx-4 md:mx-6 mt-3 grid grid-cols-3 md:w-fit md:grid-cols-3">
+        <TabsList className="mx-4 md:mx-6 mt-3 grid grid-cols-4 md:w-fit md:grid-cols-4">
           <TabsTrigger value="plan">Weekly Plan</TabsTrigger>
+          <TabsTrigger value="foodlab">FoodLab</TabsTrigger>
           <TabsTrigger value="recipes">Recipes</TabsTrigger>
           <TabsTrigger value="shopping">Shopping</TabsTrigger>
         </TabsList>
@@ -204,6 +217,13 @@ export default function MealsPage() {
               </div>
             );
           })}
+        </TabsContent>
+
+        <TabsContent
+          value="foodlab"
+          className="flex-1 overflow-y-auto p-4 md:p-6"
+        >
+          <FoodLabPanel />
         </TabsContent>
 
         <TabsContent

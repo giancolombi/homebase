@@ -13,6 +13,14 @@ import type {
   BankAccount,
   Transaction,
 } from "@/types/family";
+import type {
+  FoodLabRecipe,
+  FoodLabRating,
+  DietaryRestrictions,
+  MemberDietaryMap,
+} from "@/types/foodlab";
+import { DEFAULT_DIETARY_RESTRICTIONS } from "@/types/foodlab";
+import { foodlabToHomebaseRecipe } from "@/lib/foodlabParser";
 import { mockBankAccounts, mockTransactions } from "@/data/mockFinance";
 
 const initialState: FamilyData = {
@@ -35,6 +43,11 @@ const initialState: FamilyData = {
   bankAccounts: mockBankAccounts,
   transactions: mockTransactions,
   onboardingComplete: false,
+  // FoodLab state
+  foodlabRecipes: [] as FoodLabRecipe[],
+  foodlabRatings: [] as FoodLabRating[],
+  memberDietary: {} as MemberDietaryMap,
+  foodlabLastSynced: null as string | null,
 };
 
 interface FamilyStore extends FamilyData {
@@ -71,6 +84,20 @@ interface FamilyStore extends FamilyData {
   addBankAccount: (account: BankAccount) => void;
   removeBankAccount: (id: string) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
+
+  // FoodLab
+  setFoodlabRecipes: (recipes: FoodLabRecipe[]) => void;
+  addFoodlabRating: (rating: FoodLabRating) => void;
+  setMemberDietary: (
+    memberId: string,
+    restrictions: DietaryRestrictions,
+  ) => void;
+  setFoodlabLastSynced: (date: string) => void;
+  importFoodlabToMeals: (recipe: FoodLabRecipe, memberId: string) => void;
+  getRecipeVersionForMember: (
+    recipe: FoodLabRecipe,
+    memberId: string,
+  ) => "veg" | "meat";
 
   // Helpers
   getCurrentUser: () => FamilyMember | undefined;
@@ -200,6 +227,40 @@ export const useFamilyStore = create<FamilyStore>()(
             t.id === id ? { ...t, ...updates } : t,
           ),
         })),
+
+      // FoodLab actions
+      setFoodlabRecipes: (recipes) => set({ foodlabRecipes: recipes }),
+
+      addFoodlabRating: (rating) =>
+        set((s) => ({ foodlabRatings: [...s.foodlabRatings, rating] })),
+
+      setMemberDietary: (memberId, restrictions) =>
+        set((s) => ({
+          memberDietary: { ...s.memberDietary, [memberId]: restrictions },
+        })),
+
+      setFoodlabLastSynced: (date) => set({ foodlabLastSynced: date }),
+
+      importFoodlabToMeals: (recipe, memberId) => {
+        const state = get();
+        const version = state.getRecipeVersionForMember(recipe, memberId);
+        const homebaseRecipe = foodlabToHomebaseRecipe(recipe, version);
+        // Only add if not already imported
+        const exists = state.recipes.some((r) => r.id === homebaseRecipe.id);
+        if (!exists) {
+          set((s) => ({ recipes: [...s.recipes, homebaseRecipe] }));
+        }
+      },
+
+      getRecipeVersionForMember: (recipe, memberId) => {
+        const state = get();
+        const restrictions =
+          state.memberDietary[memberId] || DEFAULT_DIETARY_RESTRICTIONS;
+        // If member is vegetarian (noMeat), use veg version
+        if (restrictions.noMeat) return "veg";
+        // Otherwise use meat version
+        return "meat";
+      },
 
       getCurrentUser: () => {
         const state = get();

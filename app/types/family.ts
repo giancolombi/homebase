@@ -9,6 +9,7 @@ export interface FamilyMember {
   avatar?: string;
   isCurrentUser?: boolean; // true for the person doing onboarding
   inviteStatus?: "pending" | "accepted"; // for other adults
+  dietaryRestrictions?: import("./foodlab").DietaryRestrictions;
 }
 
 export interface CalendarConnection {

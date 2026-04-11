@@ -194,19 +194,55 @@ app/                    # Frontend SPA (React 19)
     ui/                 # shadcn/ui primitives (do not edit manually)
     calendar/           # Calendar feature components
     finance/            # Finance feature components
+    foodlab/            # FoodLab integration (recipe browser, dietary editor, ratings)
     layout/             # Layout components (AppLayout, etc.)
     meals/              # Meal planning components
     onboarding/         # Onboarding flow components
     settings/           # Settings components
     tasks/              # Task management components
   contexts/             # React contexts (AuthContext)
-  data/                 # Mock data
+  data/                 # Mock data (includes foodlabDemo.ts)
   hooks/                # Custom hooks
-  lib/                  # Utilities (api client, cn(), colors)
+  lib/                  # Utilities (api client, cn(), colors, foodlabParser)
   pages/                # Route pages (one file per route)
   store/                # Zustand stores
   test/                 # Test setup and test files
-  types/                # TypeScript type definitions
+  types/                # TypeScript type definitions (includes foodlab.ts)
 api/                    # Backend (Express 5 + PostgreSQL)
   migrations/           # SQL migration files
 ```
+
+## FoodLab Integration
+
+The Meals page includes a **FoodLab** tab that integrates with the [FoodLab recipe repository](https://github.com/giancolombi/foodlab). This provides:
+
+### Features
+
+- **Browse recipes** — search and filter FoodLab recipes by cuisine, ingredients, or name
+- **Ingredient matching** — enter what you have at home, get matching recipes ranked by coverage
+- **Per-member dietary restrictions** — each family member can have their own restrictions (no soy, no dairy, vegetarian, no gluten, etc.), and the correct recipe version is shown automatically
+- **Star ratings** — rate recipes 1-5 stars; ratings influence future meal plan suggestions
+- **Import to meal planner** — add any FoodLab recipe to your weekly plan with one click
+- **Auto-generated shopping lists** — when you build a weekly plan, ingredients are consolidated across all dishes
+
+### Key Files
+
+| File                                           | Purpose                                                  |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `app/types/foodlab.ts`                         | Types: FoodLabRecipe, DietaryRestrictions, FoodLabRating |
+| `app/lib/foodlabParser.ts`                     | Parse FoodLab markdown recipes into structured data      |
+| `app/data/foodlabDemo.ts`                      | Demo recipe data (loaded when FoodLab repo isn't cloned) |
+| `app/components/foodlab/FoodLabPanel.tsx`      | Main FoodLab UI (browse + ingredient matcher tabs)       |
+| `app/components/foodlab/FoodLabRecipeCard.tsx` | Recipe card with expand, rate, and import                |
+| `app/components/foodlab/StarRating.tsx`        | Interactive 1-5 star rating component                    |
+| `app/components/foodlab/DietaryEditor.tsx`     | Per-member dietary restriction editor dialog             |
+| `app/components/foodlab/IngredientMatcher.tsx` | "What can I make?" ingredient search                     |
+
+### Dietary Restrictions
+
+Dietary restrictions are per family member (stored in `memberDietary` in the Zustand store). Each member can have:
+
+- Toggles: noMeat, noSoy, noDairy, noGluten, noNuts, noEggs, noFish, noPork
+- Custom free-form restrictions
+
+When a member has `noMeat: true`, they see the vegetarian recipe version. Otherwise they see the meat version. The system uses the current user's restrictions to determine which version to display and import.
