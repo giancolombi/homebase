@@ -147,19 +147,23 @@ test.describe("Forgot Password (QA: specs/qa/qa-forgot-password.md)", () => {
   test("TC-FP-10: Use a regular auth token as a reset token", async ({
     request,
   }) => {
-    // Get a regular auth token by signing in
-    const signInResponse = await request.post("/api/auth/signin", {
-      data: { email, password: TEST_PASSWORD },
+    // Create a fresh user so we don't depend on other tests' state
+    const freshEmail = uniqueEmail();
+    await request.post("/api/auth/signup", {
+      data: {
+        email: freshEmail,
+        password: TEST_PASSWORD,
+        full_name: "Reset Test",
+      },
     });
 
-    if (!signInResponse.ok()) {
-      test.skip(true, "Could not sign in — password may have changed");
-      return;
-    }
-
+    const signInResponse = await request.post("/api/auth/signin", {
+      data: { email: freshEmail, password: TEST_PASSWORD },
+    });
+    expect(signInResponse.ok()).toBeTruthy();
     const { token } = await signInResponse.json();
 
-    // Try to use it as a reset token
+    // Try to use an auth token as a reset token
     const response = await request.post("/api/auth/reset-password", {
       data: { token, password: "hackedpassword1" },
     });
