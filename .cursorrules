@@ -1,0 +1,24 @@
+# Cursor Rules for Homebase
+
+Read CLAUDE.md for full project context, conventions, and architecture.
+
+## Regression Testing (REQUIRED)
+
+After making any code changes, you MUST run the relevant tests before considering the work done:
+
+1. **Always run unit tests:** `pnpm test`
+2. **Run E2E tests when touching auth, navigation, forms, or API code:** `pnpm test:e2e`
+3. **If any test fails, fix the regression before moving on.** Do not leave broken tests.
+4. **When in doubt, run both:** `pnpm test && pnpm test:e2e`
+
+## QA Specs
+
+Manual QA test plans live in `specs/qa/`. E2E tests in `e2e/` map 1:1 to these specs. When adding new features that affect auth flows, add corresponding test cases to both the QA spec and the E2E test file.
+
+## Quick Reference
+
+- Package manager: `pnpm` (never npm or yarn)
+- Dev server: already running on port 8080 — do not start it
+- Styling: Tailwind CSS v4 inline classes only
+- Format after changes: `pnpm run format`
+- Pre-commit hook runs: typecheck, lint, format:check, test

@@ -8,7 +8,8 @@ A full-stack web app for families to manage calendars, tasks, meals, and finance
 | -------- | ------------------------------------------------------------------------------------ |
 | Frontend | React 19, Vite 7, Tailwind CSS 4, shadcn/ui, Zustand, React Router 7, TanStack Query |
 | Backend  | Express 5, PostgreSQL 17, Argon2, JWT                                                |
-| Tooling  | TypeScript 5.9, pnpm, ESLint, Prettier, Husky, Vitest 4                              |
+| Testing  | Vitest 4 (unit), Playwright (E2E)                                                    |
+| Tooling  | TypeScript 5.9, pnpm, ESLint, Prettier, Husky                                        |
 | Infra    | Docker Compose (3 services)                                                          |
 
 ---
@@ -161,21 +162,24 @@ pnpm dev
 
 ## Scripts
 
-| Command             | Description                 |
-| ------------------- | --------------------------- |
-| `pnpm dev`          | Vite dev server with HMR    |
-| `pnpm build`        | Production build            |
-| `pnpm preview`      | Preview production build    |
-| `pnpm server:dev`   | API server with auto-reload |
-| `pnpm server`       | API server (no reload)      |
-| `pnpm db:migrate`   | Run SQL migrations          |
-| `pnpm seed`         | Generate sample data JSON   |
-| `pnpm test`         | Run tests (Vitest)          |
-| `pnpm test:watch`   | Run tests in watch mode     |
-| `pnpm typecheck`    | TypeScript type checking    |
-| `pnpm lint`         | ESLint                      |
-| `pnpm format`       | Prettier (write)            |
-| `pnpm format:check` | Prettier (check only)       |
+| Command                | Description                 |
+| ---------------------- | --------------------------- |
+| `pnpm dev`             | Vite dev server with HMR    |
+| `pnpm build`           | Production build            |
+| `pnpm preview`         | Preview production build    |
+| `pnpm server:dev`      | API server with auto-reload |
+| `pnpm server`          | API server (no reload)      |
+| `pnpm db:migrate`      | Run SQL migrations          |
+| `pnpm seed`            | Generate sample data JSON   |
+| `pnpm test`            | Run unit tests (Vitest)     |
+| `pnpm test:watch`      | Unit tests in watch mode    |
+| `pnpm test:e2e`        | Run E2E tests (Playwright)  |
+| `pnpm test:e2e:headed` | E2E with visible browser    |
+| `pnpm test:e2e:ui`     | Playwright interactive UI   |
+| `pnpm typecheck`       | TypeScript type checking    |
+| `pnpm lint`            | ESLint                      |
+| `pnpm format`          | Prettier (write)            |
+| `pnpm format:check`    | Prettier (check only)       |
 
 ## Pre-commit hook
 
@@ -187,6 +191,63 @@ Every `git commit` automatically runs:
 4. `pnpm test`
 
 The commit is rejected if any check fails.
+
+## Testing
+
+### Unit tests
+
+```sh
+pnpm test              # Single run
+pnpm test:watch        # Watch mode
+```
+
+Unit tests use Vitest with jsdom. Test files live in `app/test/` or co-located with source files.
+
+### E2E tests
+
+```sh
+pnpm test:e2e          # Headless (Chromium)
+pnpm test:e2e:headed   # Visible browser
+pnpm test:e2e:ui       # Interactive Playwright UI
+```
+
+E2E tests use Playwright and run against `localhost:8080` by default. To run against production:
+
+```sh
+E2E_BASE_URL=https://homebase.up.railway.app pnpm test:e2e
+```
+
+### QA test plans
+
+Manual QA checklists are in `specs/qa/`. Each E2E test maps to a QA spec with matching test case IDs:
+
+| QA Spec                              | E2E Test                          | Test Cases                |
+| ------------------------------------ | --------------------------------- | ------------------------- |
+| `specs/qa/qa-sign-up.md`             | `e2e/sign-up.spec.ts`             | TC-SU-01 through TC-SU-08 |
+| `specs/qa/qa-sign-in.md`             | `e2e/sign-in.spec.ts`             | TC-SI-01 through TC-SI-09 |
+| `specs/qa/qa-forgot-password.md`     | `e2e/forgot-password.spec.ts`     | TC-FP-01 through TC-FP-10 |
+| `specs/qa/qa-session-persistence.md` | `e2e/session-persistence.spec.ts` | TC-SP-01 through TC-SP-08 |
+| `specs/qa/qa-sign-out.md`            | `e2e/sign-out.spec.ts`            | TC-SO-01 through TC-SO-05 |
+
+### Regression testing
+
+After making any code changes, run both test suites to catch regressions:
+
+```sh
+pnpm test && pnpm test:e2e
+```
+
+## Hosting
+
+The app is deployed on **Railway** with 3 services:
+
+| Service    | URL                              | Type    |
+| ---------- | -------------------------------- | ------- |
+| Frontend   | `homebase.up.railway.app`        | Public  |
+| API        | `homebase.railway.internal:3001` | Private |
+| PostgreSQL | `postgres.railway.internal`      | Private |
+
+Pushes to `main` auto-deploy to Railway.
 
 ## Project structure
 
@@ -215,6 +276,9 @@ api/                    Backend (Express API)
   onboarding.ts         Onboarding endpoint
   db.ts                 PostgreSQL connection pool
   migrations/           SQL migration files
+
+e2e/                    Playwright E2E tests
+specs/qa/               Manual QA test plans
 
 Makefile                make setup / make up
 docker-compose.yml      Full stack (db, api, frontend)

@@ -77,6 +77,22 @@ pnpm seed               # Generate sample data JSON for localStorage
 docker compose up       # Starts db (Postgres 17), api (:3001), frontend (:8080)
 ```
 
+### E2E Tests (Playwright)
+
+```bash
+pnpm run test:e2e              # Run all E2E tests headless (Chromium)
+pnpm run test:e2e:headed       # Run with visible browser
+pnpm run test:e2e:ui           # Playwright interactive UI mode
+```
+
+Run against a different environment:
+
+```bash
+E2E_BASE_URL=https://homebase.up.railway.app pnpm test:e2e
+```
+
+E2E test files live in `e2e/` and map 1:1 to QA specs in `specs/qa/`.
+
 ### Pre-commit Hook (Husky)
 
 The pre-commit hook runs all four checks in sequence — a commit will be rejected if any fail:
@@ -85,6 +101,15 @@ The pre-commit hook runs all four checks in sequence — a commit will be reject
 2. `pnpm run lint`
 3. `pnpm run format:check`
 4. `pnpm run test`
+
+### Regression testing after changes
+
+**Every time you modify frontend or backend code, you MUST run the relevant tests before considering the work done:**
+
+1. **Unit tests** — always run `pnpm test` after any code change.
+2. **E2E tests** — run `pnpm test:e2e` after changes that touch auth, navigation, forms, or API integration. When in doubt, run them.
+3. **If any test fails, fix the regression before moving on.** Do not leave broken tests for later.
+4. **QA specs** — the `specs/qa/` directory contains manual QA test plans. Reference these when writing or updating E2E tests to ensure coverage stays aligned.
 
 ## Code Style Guidelines
 
@@ -171,10 +196,12 @@ Organize imports in this order (separated by blank lines where practical):
 
 ### Testing
 
-- **Framework:** Vitest 4 with jsdom environment.
-- **Globals:** `describe`, `it`, `expect` are available globally (vitest `globals: true`), but explicit imports from `vitest` are also acceptable.
+- **Unit tests:** Vitest 4 with jsdom environment. `describe`, `it`, `expect` are available globally (`globals: true`).
 - **DOM testing:** `@testing-library/jest-dom` matchers are available via `app/test/setup.ts`.
-- **Test file location:** Co-locate with source or place in `app/test/`. Pattern: `app/**/*.{test,spec}.{ts,tsx}`.
+- **Unit test location:** Co-locate with source or place in `app/test/`. Pattern: `app/**/*.{test,spec}.{ts,tsx}`.
+- **E2E tests:** Playwright with Chromium. Tests live in `e2e/*.spec.ts`.
+- **QA specs:** Manual test plans in `specs/qa/`. Each E2E test file maps to a QA spec and references its test case IDs (e.g. `TC-SU-01`).
+- **Regression rule:** Run `pnpm test` and `pnpm test:e2e` after any code change that could affect auth, navigation, or API behavior. Fix failures before committing.
 
 ### Formatting (Prettier)
 
@@ -210,6 +237,19 @@ app/                    # Frontend SPA (React 19)
   types/                # TypeScript type definitions (includes foodlab.ts)
 api/                    # Backend (Express 5 + PostgreSQL)
   migrations/           # SQL migration files
+e2e/                    # Playwright E2E tests
+  helpers.ts            # Shared test utilities (signUp, signIn, clearAuth)
+  sign-up.spec.ts       # Sign up flow tests
+  sign-in.spec.ts       # Sign in flow tests
+  forgot-password.spec.ts # Password reset flow tests
+  session-persistence.spec.ts # Session persistence tests
+  sign-out.spec.ts      # Sign out flow tests
+specs/qa/               # Manual QA test plans
+  qa-sign-up.md         # Sign up QA checklist
+  qa-sign-in.md         # Sign in QA checklist
+  qa-forgot-password.md # Forgot password QA checklist
+  qa-session-persistence.md # Session persistence QA checklist
+  qa-sign-out.md        # Sign out QA checklist
 ```
 
 ## FoodLab Integration
