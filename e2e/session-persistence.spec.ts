@@ -19,7 +19,9 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Refresh
     await page.reload();
@@ -45,7 +47,9 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Watch for /api/auth/me request on reload
     const meRequestPromise = page.waitForResponse(
@@ -69,7 +73,9 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Replace token with invalid value
     await page.evaluate(() => {
@@ -101,11 +107,15 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
     await pageA.getByLabel("Email").fill(email);
     await pageA.getByLabel("Password").fill(TEST_PASSWORD);
     await pageA.getByRole("button", { name: "Sign In" }).click();
-    await pageA.waitForURL((url) => url.pathname !== "/");
+    await pageA.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Page B should share the same localStorage (same context)
     await pageB.goto("/");
-    await pageB.waitForURL((url) => url.pathname !== "/");
+    await pageB.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Clear token from page A (simulates sign out)
     await pageA.evaluate(() => {

@@ -32,7 +32,9 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
       page.getByRole("button", { name: "Signing in..." }),
     ).toBeVisible();
 
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     const token = await page.evaluate(() =>
       localStorage.getItem("homebase-auth-token"),
@@ -45,7 +47,9 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
     await page.getByLabel("Password").fill("wrongpassword123");
     await page.getByRole("button", { name: "Sign In" }).click();
 
-    await expect(page.getByText("Invalid email or password")).toBeVisible();
+    await expect(
+      page.getByText("Invalid email or password").first(),
+    ).toBeVisible();
     await expect(page).toHaveURL("/");
   });
 
@@ -55,7 +59,9 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
     await page.getByRole("button", { name: "Sign In" }).click();
 
     // Same error message as wrong password — no email enumeration
-    await expect(page.getByText("Invalid email or password")).toBeVisible();
+    await expect(
+      page.getByText("Invalid email or password").first(),
+    ).toBeVisible();
   });
 
   test("TC-SI-04: Sign in with missing email", async ({ page }) => {
@@ -90,9 +96,7 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
     await page.context().setOffline(true);
     await page.getByRole("button", { name: "Sign In" }).click();
 
-    await expect(
-      page.getByText(/sign in failed|failed to fetch/i),
-    ).toBeVisible();
+    await expect(page.getByText("Sign in failed").first()).toBeVisible();
 
     await page.context().setOffline(false);
     await expect(page.getByRole("button", { name: "Sign In" })).toBeEnabled();
@@ -116,7 +120,9 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Clear auth (simulates sign out)
     await clearAuth(page);
@@ -126,7 +132,9 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     const token = await page.evaluate(() =>
       localStorage.getItem("homebase-auth-token"),

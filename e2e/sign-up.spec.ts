@@ -20,8 +20,10 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
       page.getByRole("button", { name: "Creating account..." }),
     ).toBeVisible();
 
-    // Should navigate away from auth page
-    await page.waitForURL((url) => url.pathname !== "/");
+    // Wait for onboarding page to appear (signup leads to onboarding)
+    await expect(
+      page.getByRole("heading", { name: "Welcome to Homebase" }),
+    ).toBeVisible({ timeout: 10000 });
 
     // Token should be stored
     const token = await page.evaluate(() =>
@@ -39,7 +41,9 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Create Account" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await expect(
+      page.getByRole("heading", { name: "Welcome to Homebase" }),
+    ).toBeVisible({ timeout: 10000 });
 
     // Clear auth and go back
     await clearAuth(page);
@@ -54,7 +58,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
 
     // Should show error
     await expect(
-      page.getByText("An account with this email already exists"),
+      page.getByText("An account with this email already exists").first(),
     ).toBeVisible();
   });
 
@@ -67,7 +71,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
 
     // Client-side validation — no network request
     await expect(
-      page.getByText("Password must be at least 8 characters"),
+      page.getByText("Password must be at least 8 characters").first(),
     ).toBeVisible();
   });
 
@@ -127,9 +131,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
     await page.getByRole("button", { name: "Create Account" }).click();
 
     // Should show error toast
-    await expect(
-      page.getByText(/sign up failed|failed to fetch/i),
-    ).toBeVisible();
+    await expect(page.getByText("Sign up failed").first()).toBeVisible();
 
     // Button should recover
     await page.context().setOffline(false);

@@ -1,4 +1,4 @@
-import { type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /** Generate a unique email for test isolation */
 export function uniqueEmail(): string {
@@ -23,8 +23,10 @@ export async function signUp(
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Create Account" }).click();
-  // Wait for navigation away from auth page
-  await page.waitForURL((url) => url.pathname !== "/");
+  // Wait for onboarding page to appear (signup leads to onboarding)
+  await expect(
+    page.getByRole("heading", { name: "Welcome to Homebase" }),
+  ).toBeVisible({ timeout: 10000 });
 
   return email;
 }
@@ -39,7 +41,10 @@ export async function signIn(
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign In" }).click();
-  await page.waitForURL((url) => url.pathname !== "/");
+  // Wait for auth page to disappear (app shows onboarding, dashboard, or calendar)
+  await page.waitForSelector('button:has-text("Sign In")', {
+    state: "hidden",
+  });
 }
 
 /** Sign out the current user */

@@ -38,7 +38,9 @@ test.describe("Forgot Password (QA: specs/qa/qa-forgot-password.md)", () => {
       page.getByRole("button", { name: "Sending..." }),
     ).toBeVisible();
 
-    await expect(page.getByText(/if that email is registered/i)).toBeVisible();
+    await expect(
+      page.getByText(/if that email is registered/i).first(),
+    ).toBeVisible();
   });
 
   test("TC-FP-03: Request password reset with unregistered email", async ({
@@ -49,7 +51,9 @@ test.describe("Forgot Password (QA: specs/qa/qa-forgot-password.md)", () => {
     await page.getByRole("button", { name: "Send Reset Link" }).click();
 
     // Same response as registered email — no enumeration
-    await expect(page.getByText(/if that email is registered/i)).toBeVisible();
+    await expect(
+      page.getByText(/if that email is registered/i).first(),
+    ).toBeVisible();
   });
 
   test("TC-FP-04: Request password reset with empty email", async ({

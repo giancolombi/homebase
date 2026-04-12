@@ -25,7 +25,9 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Find and click sign out (may be in different locations depending on layout)
     const signOutButton = page
@@ -65,7 +67,9 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Sign out by clearing auth
     await clearAuth(page);
@@ -88,7 +92,9 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await page.waitForURL((url) => url.pathname !== "/");
+    await page.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Set some app data
     await page.evaluate(() => {
@@ -123,11 +129,15 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     await pageA.getByLabel("Email").fill(email);
     await pageA.getByLabel("Password").fill(TEST_PASSWORD);
     await pageA.getByRole("button", { name: "Sign In" }).click();
-    await pageA.waitForURL((url) => url.pathname !== "/");
+    await pageA.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Page B should be logged in too
     await pageB.goto("/");
-    await pageB.waitForURL((url) => url.pathname !== "/");
+    await pageB.waitForSelector('button:has-text("Sign In")', {
+      state: "hidden",
+    });
 
     // Sign out on page A by clearing token
     await pageA.evaluate(() => {
