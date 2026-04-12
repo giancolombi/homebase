@@ -56,7 +56,7 @@ export default function OnboardingFlow() {
           connected: true,
         }));
 
-      await onboarding.complete({
+      const result = await onboarding.complete({
         profile: {
           display_name: currentMember?.name || user.full_name || "",
           color_index: currentMember?.colorIndex ?? 0,
@@ -65,6 +65,11 @@ export default function OnboardingFlow() {
         members: [ownerPayload, ...otherMembers],
         calendarConnections: calConnections,
       });
+
+      // Save the family ID from the backend
+      if (result?.familyId) {
+        store.setFamilyId(result.familyId);
+      }
 
       // Mark onboarding complete locally
       store.completeOnboarding();

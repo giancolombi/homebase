@@ -58,10 +58,7 @@ export default function SettingsPage() {
     addCalendarConnection,
   } = useFamilyStore();
 
-  // Get familyId from the store (stored after onboarding)
-  const familyId = useFamilyStore((s) => (s as any).familyId) as
-    | string
-    | undefined;
+  const familyId = useFamilyStore((s) => s.familyId);
 
   // Real calendar sync (only when authenticated with backend)
   const {

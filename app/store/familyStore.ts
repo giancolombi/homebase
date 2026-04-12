@@ -24,6 +24,7 @@ import { foodlabToHomebaseRecipe } from "@/lib/foodlabParser";
 import { mockBankAccounts, mockTransactions } from "@/data/mockFinance";
 
 const initialState: FamilyData = {
+  familyId: null,
   familyName: "",
   members: [],
   currentUserId: null,
@@ -51,6 +52,7 @@ const initialState: FamilyData = {
 };
 
 interface FamilyStore extends FamilyData {
+  setFamilyId: (id: string) => void;
   setFamilyName: (name: string) => void;
   setCurrentUserId: (id: string) => void;
   addMember: (member: FamilyMember) => void;
@@ -109,6 +111,7 @@ export const useFamilyStore = create<FamilyStore>()(
     (set, get) => ({
       ...initialState,
 
+      setFamilyId: (id) => set({ familyId: id }),
       setFamilyName: (name) => set({ familyName: name }),
       setCurrentUserId: (id) => set({ currentUserId: id }),
 

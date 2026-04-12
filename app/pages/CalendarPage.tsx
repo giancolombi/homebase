@@ -41,9 +41,7 @@ export default function CalendarPage() {
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const familyId = useFamilyStore((s) => (s as any).familyId) as
-    | string
-    | undefined;
+  const familyId = useFamilyStore((s) => s.familyId);
   const isDemo = !user || user.id === "demo-user";
 
   // Date range for API query

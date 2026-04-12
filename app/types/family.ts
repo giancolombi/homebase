@@ -121,6 +121,7 @@ export interface Transaction {
 }
 
 export interface FamilyData {
+  familyId: string | null; // Database family ID (set after onboarding)
   familyName: string;
   members: FamilyMember[];
   currentUserId: string | null; // ID of the member doing onboarding
