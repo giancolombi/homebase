@@ -167,3 +167,67 @@ export const onboarding = {
     });
   },
 };
+
+// ---- Calendar API ----
+
+export interface CalendarConnectionResponse {
+  id: string;
+  memberId: string;
+  provider: string;
+  email: string;
+  externalEmail: string | null;
+  connected: boolean;
+  lastSyncedAt: string | null;
+  syncError: string | null;
+}
+
+export interface CalendarEventResponse {
+  id: string;
+  memberId: string;
+  title: string;
+  description: string | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  recurrence: string;
+  source: "homebase" | "google" | "outlook";
+  allDay?: boolean;
+  location?: string;
+}
+
+export const calendar = {
+  getAuthUrl(provider: string, memberId: string, familyId: string): string {
+    return `/api/calendar/auth/${provider}?memberId=${memberId}&familyId=${familyId}`;
+  },
+
+  async getConnections(
+    familyId: string,
+  ): Promise<CalendarConnectionResponse[]> {
+    return request<CalendarConnectionResponse[]>(
+      `/api/calendar/connections?familyId=${familyId}`,
+    );
+  },
+
+  async syncConnection(connectionId: string): Promise<{ syncedCount: number }> {
+    return request<{ syncedCount: number }>(
+      `/api/calendar/sync/${connectionId}`,
+      { method: "POST" },
+    );
+  },
+
+  async getEvents(
+    familyId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<CalendarEventResponse[]> {
+    return request<CalendarEventResponse[]>(
+      `/api/calendar/events?familyId=${familyId}&startDate=${startDate}&endDate=${endDate}`,
+    );
+  },
+
+  async deleteConnection(connectionId: string): Promise<void> {
+    await request(`/api/calendar/connections/${connectionId}`, {
+      method: "DELETE",
+    });
+  },
+};

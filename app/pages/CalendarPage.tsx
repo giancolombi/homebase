@@ -3,11 +3,14 @@ import {
   format,
   addDays,
   startOfWeek,
+  endOfWeek,
   isToday,
   isSameDay,
   parseISO,
 } from "date-fns";
 import { useFamilyStore } from "@/store/familyStore";
+import { useCalendarEvents, useCalendarSync } from "@/hooks/use-calendar-sync";
+import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -27,6 +30,7 @@ const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6 AM to 9 PM
 
 export default function CalendarPage() {
   const { members, events, tasks } = useFamilyStore();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const slotHeight = isMobile ? 64 : 80; // matches h-16 / md:h-20
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -37,7 +41,29 @@ export default function CalendarPage() {
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // Merge task deadlines as calendar events
+  const familyId = useFamilyStore((s) => (s as any).familyId) as
+    | string
+    | undefined;
+  const isDemo = !user || user.id === "demo-user";
+
+  // Date range for API query
+  const rangeStart = format(addDays(weekStart, -7), "yyyy-MM-dd");
+  const rangeEnd = format(
+    addDays(endOfWeek(selectedDate, { weekStartsOn: 1 }), 7),
+    "yyyy-MM-dd",
+  );
+
+  // Sync external calendars
+  useCalendarSync(!isDemo ? familyId || null : null);
+
+  // Fetch external events from API
+  const { data: apiEvents } = useCalendarEvents(
+    !isDemo ? familyId || null : null,
+    rangeStart,
+    rangeEnd,
+  );
+
+  // Merge task deadlines and external events as calendar events
   const allEvents = useMemo(() => {
     const taskEvents: CalendarEvent[] = tasks
       .filter((t) => t.deadline && t.status !== "done")
@@ -57,8 +83,27 @@ export default function CalendarPage() {
         isTask: true,
         taskId: t.id,
       }));
-    return [...events, ...taskEvents];
-  }, [events, tasks]);
+
+    // External events from API
+    const externalEvents: CalendarEvent[] = (apiEvents || []).map((e) => ({
+      id: e.id,
+      title:
+        e.source !== "homebase"
+          ? `${e.source === "google" ? "📅" : "📆"} ${e.title}`
+          : e.title,
+      description: e.description || undefined,
+      date: e.date,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      memberId: e.memberId,
+      recurrence: e.recurrence as CalendarEvent["recurrence"],
+      source: e.source,
+      allDay: e.allDay,
+      location: e.location || undefined,
+    }));
+
+    return [...events, ...taskEvents, ...externalEvents];
+  }, [events, tasks, apiEvents]);
 
   const dayEvents = (date: Date) =>
     allEvents.filter((e) => isSameDay(parseISO(e.date), date));

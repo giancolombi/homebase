@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { useFamilyStore } from "@/store/familyStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +22,20 @@ import {
   Check,
   Plus,
   Home,
+  RefreshCw,
+  Loader2,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
+import { calendar } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  useCalendarSync,
+  useDisconnectCalendar,
+} from "@/hooks/use-calendar-sync";
+import { toast } from "@/hooks/use-toast";
 
 const providers = [
   { id: "google" as const, name: "Google", icon: "🔵" },
@@ -33,6 +45,8 @@ const providers = [
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
   const {
     familyName,
     members,
@@ -44,16 +58,69 @@ export default function SettingsPage() {
     addCalendarConnection,
   } = useFamilyStore();
 
+  // Get familyId from the store (stored after onboarding)
+  const familyId = useFamilyStore((s) => (s as any).familyId) as
+    | string
+    | undefined;
+
+  // Real calendar sync (only when authenticated with backend)
+  const {
+    connections: apiConnections,
+    isSyncing,
+    syncConnection,
+  } = useCalendarSync(familyId || null);
+  const disconnectMutation = useDisconnectCalendar();
+
+  // Handle OAuth redirect params
+  useEffect(() => {
+    const connected = searchParams.get("calendarConnected");
+    const error = searchParams.get("calendarError");
+    if (connected) {
+      toast({
+        title: "Calendar connected",
+        description: `Your ${connected} calendar has been connected.`,
+      });
+      setSearchParams({}, { replace: true });
+    }
+    if (error) {
+      toast({
+        title: "Calendar connection failed",
+        description: `Could not connect calendar: ${error}`,
+        variant: "destructive",
+      });
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const currentUser = members.find((m) => m.id === currentUserId);
   const childMembers = members.filter((m) => m.role === "child");
   const otherAdults = members.filter(
     (m) => m.role === "adult" && m.id !== currentUserId,
   );
 
+  const isDemo = !user || user.id === "demo-user";
+
   const handleConnect = (
     memberId: string,
     provider: "google" | "outlook" | "apple",
   ) => {
+    // Real OAuth flow when authenticated with backend
+    if (!isDemo && familyId && provider !== "apple") {
+      const url = calendar.getAuthUrl(provider, memberId, familyId);
+      // Open in popup so user doesn't lose settings page context
+      const popup = window.open(url, "calendar-auth", "width=500,height=700");
+      // Poll for popup close
+      const interval = setInterval(() => {
+        if (popup?.closed) {
+          clearInterval(interval);
+          // Reload to pick up new connection
+          window.location.reload();
+        }
+      }, 500);
+      return;
+    }
+
+    // Demo mode fallback: toggle local state
     const existing = calendarConnections.find(
       (c) => c.memberId === memberId && c.provider === provider,
     );
@@ -70,9 +137,28 @@ export default function SettingsPage() {
     }
   };
 
-  const isConnected = (memberId: string, provider: string) =>
-    calendarConnections.some(
+  const handleDisconnect = (connectionId: string) => {
+    if (!isDemo) {
+      disconnectMutation.mutate(connectionId);
+    }
+  };
+
+  const isConnected = (memberId: string, provider: string) => {
+    // Check API connections first, fall back to local store
+    if (apiConnections) {
+      return apiConnections.some(
+        (c) =>
+          c.memberId === memberId && c.provider === provider && c.connected,
+      );
+    }
+    return calendarConnections.some(
       (c) => c.memberId === memberId && c.provider === provider && c.connected,
+    );
+  };
+
+  const getApiConnection = (memberId: string, provider: string) =>
+    apiConnections?.find(
+      (c) => c.memberId === memberId && c.provider === provider,
     );
 
   return (
@@ -236,23 +322,74 @@ export default function SettingsPage() {
             {currentUser &&
               providers.map((p) => {
                 const connected = isConnected(currentUser.id, p.id);
+                const apiConn = getApiConnection(currentUser.id, p.id);
                 return (
-                  <button
-                    key={p.id}
-                    onClick={() => handleConnect(currentUser.id, p.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all",
-                      connected
-                        ? "bg-primary/5 border-primary/20"
-                        : "bg-card border-border hover:border-primary/15",
+                  <div key={p.id} className="space-y-1">
+                    <button
+                      onClick={() =>
+                        connected && apiConn
+                          ? undefined
+                          : handleConnect(currentUser.id, p.id)
+                      }
+                      className={cn(
+                        "w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all",
+                        connected
+                          ? "bg-primary/5 border-primary/20"
+                          : "bg-card border-border hover:border-primary/15",
+                      )}
+                    >
+                      <span className="text-sm">{p.icon}</span>
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-foreground">
+                          {p.name}
+                        </span>
+                        {apiConn?.externalEmail && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {apiConn.externalEmail}
+                          </p>
+                        )}
+                      </div>
+                      {connected && apiConn && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              syncConnection(apiConn.id);
+                            }}
+                            className="p-1 hover:bg-muted rounded"
+                            title="Sync now"
+                          >
+                            {isSyncing ? (
+                              <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDisconnect(apiConn.id);
+                            }}
+                            className="p-1 hover:bg-destructive/10 rounded"
+                            title="Disconnect"
+                          >
+                            <X className="h-3.5 w-3.5 text-destructive" />
+                          </button>
+                        </div>
+                      )}
+                      {connected && !apiConn && (
+                        <Check className="h-4 w-4 text-primary" />
+                      )}
+                      {!connected && (
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </button>
+                    {apiConn?.syncError && (
+                      <p className="text-[11px] text-destructive px-2.5">
+                        Sync error: {apiConn.syncError}
+                      </p>
                     )}
-                  >
-                    <span className="text-sm">{p.icon}</span>
-                    <span className="flex-1 text-sm font-medium text-foreground">
-                      {p.name}
-                    </span>
-                    {connected && <Check className="h-4 w-4 text-primary" />}
-                  </button>
+                  </div>
                 );
               })}
           </CardContent>

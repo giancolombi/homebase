@@ -18,6 +18,9 @@ export interface CalendarConnection {
   email: string;
   connected: boolean;
   memberId: string;
+  externalEmail?: string;
+  lastSyncedAt?: string;
+  syncError?: string;
 }
 
 export type Recurrence = "none" | "daily" | "weekly" | "monthly";
@@ -33,6 +36,9 @@ export interface CalendarEvent {
   recurrence: Recurrence;
   isTask?: boolean;
   taskId?: string;
+  source?: "homebase" | "google" | "outlook";
+  allDay?: boolean;
+  location?: string;
 }
 
 export type TaskStatus = "todo" | "in-progress" | "done";
