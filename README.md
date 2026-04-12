@@ -181,16 +181,44 @@ pnpm dev
 | `pnpm format`          | Prettier (write)            |
 | `pnpm format:check`    | Prettier (check only)       |
 
-## Pre-commit hook
+## Committing changes
 
-Every `git commit` automatically runs:
+### Step by step
+
+```sh
+# 1. Format your code
+pnpm format
+
+# 2. Run all checks (catches issues before the hook does)
+pnpm typecheck && pnpm lint && pnpm format:check && pnpm test
+
+# 3. Stage specific files (never use git add . or git add -A)
+git add app/pages/CalendarPage.tsx app/components/calendar/AddEventDialog.tsx
+
+# 4. Commit with a clear message
+git commit -m "Fix event overlap detection on weekly calendar view"
+
+# 5. Push to deploy (auto-deploys to Railway)
+git push
+```
+
+### Pre-commit hook
+
+Every `git commit` automatically runs these checks — the commit is rejected if any fail:
 
 1. `pnpm typecheck`
 2. `pnpm lint`
 3. `pnpm format:check`
 4. `pnpm test`
 
-The commit is rejected if any check fails.
+If the hook fails, read the error, fix the issue, stage the fix, and commit again.
+**Do not use `--no-verify`.**
+
+### What not to commit
+
+- `.env` files or secrets
+- `node_modules/`, `dist/`, or `test-results/`
+- Unrelated changes — keep commits focused on one logical change
 
 ## Testing
 

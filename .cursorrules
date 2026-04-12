@@ -15,6 +15,19 @@ After making any code changes, you MUST run the relevant tests before considerin
 
 Manual QA test plans live in `specs/qa/`. E2E tests in `e2e/` map 1:1 to these specs. When adding new features that affect auth flows, add corresponding test cases to both the QA spec and the E2E test file.
 
+## How to Commit Changes
+
+Follow this process every time. Do not skip steps or use `--no-verify`.
+
+1. `pnpm run format` — format all files
+2. `pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test` — run all checks
+3. Stage specific files: `git add <files>` — never use `git add .` or `git add -A`
+4. `git commit -m "Clear description of what changed and why"`
+5. If the pre-commit hook fails: fix the issue, stage the fix, commit again
+6. `git push` — pushes to `main` auto-deploy to Railway
+
+Never commit `.env` files, `node_modules/`, `dist/`, or `test-results/`.
+
 ## Quick Reference
 
 - Package manager: `pnpm` (never npm or yarn)

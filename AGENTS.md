@@ -111,6 +111,51 @@ The pre-commit hook runs all four checks in sequence — a commit will be reject
 3. **If any test fails, fix the regression before moving on.** Do not leave broken tests for later.
 4. **QA specs** — the `specs/qa/` directory contains manual QA test plans. Reference these when writing or updating E2E tests to ensure coverage stays aligned.
 
+### How to commit changes
+
+Follow this process every time you commit code to the repository:
+
+1. **Format your code first:**
+
+   ```bash
+   pnpm run format
+   ```
+
+2. **Run all checks manually before committing** (the pre-commit hook runs these too, but catching issues early saves time):
+
+   ```bash
+   pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test
+   ```
+
+3. **Stage your changes** — be specific, do not use `git add .` or `git add -A`:
+
+   ```bash
+   git add app/pages/CalendarPage.tsx app/components/calendar/AddEventDialog.tsx
+   ```
+
+4. **Commit with a clear message** — describe what changed and why:
+
+   ```bash
+   git commit -m "Fix event overlap detection on weekly calendar view"
+   ```
+
+5. **If the pre-commit hook fails:**
+   - Read the error output — it tells you which check failed.
+   - Fix the issue (type error, lint error, format issue, or failing test).
+   - Stage the fix and commit again. **Do not use `--no-verify`.**
+
+6. **Push to deploy:**
+   ```bash
+   git push
+   ```
+   Pushes to `main` auto-deploy to Railway. Make sure all checks pass before pushing.
+
+**Do not commit:**
+
+- `.env` files or secrets
+- `node_modules/`, `dist/`, or `test-results/`
+- Unrelated changes — keep commits focused on one logical change
+
 ## Code Style Guidelines
 
 ### TypeScript Configuration
