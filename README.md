@@ -90,58 +90,51 @@ Cursor saves the file, the browser updates automatically.
 
 - **Node.js 24+** — `brew install node@24` or [nodejs.org](https://nodejs.org/)
 - **pnpm** — `corepack enable`
-- **Docker Desktop** — [docker.com](https://www.docker.com/products/docker-desktop/) (for database)
+- **Docker Desktop** — [docker.com](https://www.docker.com/products/docker-desktop/) (for database and full stack)
 
 ### Clone and install
 
 ```sh
 git clone https://github.com/giancolombi/homebase.git
-```
-
-```sh
 cd homebase
-```
-
-```sh
 pnpm install
 ```
 
 ### Frontend only (demo mode)
 
+No database or backend needed. All data lives in localStorage.
+
 ```sh
 make up
 ```
 
-Open [http://localhost:8080](http://localhost:8080) and click **"Try Demo"**.
-All data lives in localStorage — no database needed.
+Open [http://localhost:8080](http://localhost:8080) and click **"Load sample data (skip sign-in)"**.
+Every file change shows up in the browser instantly via HMR.
 
-### Full stack
+### Full stack (Docker Compose)
+
+Start all three services with one command:
 
 ```sh
 docker compose up
 ```
 
-Or run each service natively:
+Open [http://localhost:8080](http://localhost:8080). Sign up with a new account.
+
+### Full stack (native — faster HMR)
+
+For active development, run each service natively for faster feedback:
 
 ```sh
+# Terminal 1 — start just the database
 docker compose up db -d
-```
 
-```sh
+# Terminal 2 — run migrations and start the API
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/homebase
-```
-
-```sh
 pnpm db:migrate
-```
-
-```sh
 pnpm server:dev
-```
 
-In a second terminal:
-
-```sh
+# Terminal 3 — start the frontend
 pnpm dev
 ```
 
@@ -149,7 +142,28 @@ pnpm dev
 | -------- | ---------------- | ------------------------------------- |
 | Frontend | `localhost:8080` | React app (proxies `/api` to backend) |
 | API      | `localhost:3001` | Express API server                    |
-| Database | `localhost:5432` | PostgreSQL                            |
+| Database | `localhost:5432` | PostgreSQL 17                         |
+
+### Calendar integration (optional)
+
+To test Google/Outlook calendar sync locally, you need OAuth credentials. Add these to your `.env`:
+
+```sh
+APP_URL="http://localhost:8080"
+TOKEN_ENCRYPTION_KEY=""  # generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Google (https://console.cloud.google.com → APIs & Services → Credentials)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GOOGLE_REDIRECT_URI="http://localhost:3001/api/calendar/callback/google"
+
+# Microsoft (https://portal.azure.com → App registrations)
+MICROSOFT_CLIENT_ID=""
+MICROSOFT_CLIENT_SECRET=""
+MICROSOFT_REDIRECT_URI="http://localhost:3001/api/calendar/callback/outlook"
+```
+
+The app works without these — calendar connect buttons fall back to demo mode toggling.
 
 ---
 
@@ -323,8 +337,18 @@ the project. Works with:
 
 ## Environment variables
 
-| Variable       | Default                                | Description                |
-| -------------- | -------------------------------------- | -------------------------- |
-| `DATABASE_URL` | `postgresql://localhost:5432/homebase` | Postgres connection string |
-| `JWT_SECRET`   | `dev-secret`                           | Secret for signing JWTs    |
-| `API_PORT`     | `3001`                                 | API server port            |
+| Variable                  | Default / Dev Value                                      | Required For         |
+| ------------------------- | -------------------------------------------------------- | -------------------- |
+| `DATABASE_URL`            | `postgresql://postgres:postgres@localhost:5432/homebase` | API server           |
+| `JWT_SECRET`              | `change-me-to-a-random-secret-in-production`             | API server           |
+| `API_PORT`                | `3001`                                                   | API server           |
+| `APP_URL`                 | `http://localhost:8080`                                  | Calendar OAuth       |
+| `TOKEN_ENCRYPTION_KEY`    | (generate with `node -e "..."`)                          | Calendar OAuth       |
+| `GOOGLE_CLIENT_ID`        | (from Google Cloud Console)                              | Google Calendar sync |
+| `GOOGLE_CLIENT_SECRET`    | (from Google Cloud Console)                              | Google Calendar sync |
+| `GOOGLE_REDIRECT_URI`     | `http://localhost:3001/api/calendar/callback/google`     | Google Calendar sync |
+| `MICROSOFT_CLIENT_ID`     | (from Azure Portal)                                      | Outlook sync         |
+| `MICROSOFT_CLIENT_SECRET` | (from Azure Portal)                                      | Outlook sync         |
+| `MICROSOFT_REDIRECT_URI`  | `http://localhost:3001/api/calendar/callback/outlook`    | Outlook sync         |
+
+Calendar variables are optional — the app works without them in demo mode.

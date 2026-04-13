@@ -10,6 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./api/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
+      - ./api/migrations/002_calendar_tokens.sql:/docker-entrypoint-initdb.d/002_calendar_tokens.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d homebase"]
       interval: 5s

@@ -2,6 +2,77 @@
 
 Read CLAUDE.md for full project context, conventions, and architecture.
 
+## Local Environment Setup
+
+There are two ways to run the app locally. Choose based on what you're working on.
+
+### Option A: Frontend only (demo mode) — for UI/design work
+
+No database or backend needed. All data lives in localStorage.
+
+```sh
+cd ~/homebase
+make setup   # first time only — installs Node, pnpm, dependencies
+make up      # starts Vite dev server on http://localhost:8080
+```
+
+Click **"Load sample data (skip sign-in)"** on the auth page. HMR updates the browser instantly on every file save.
+
+### Option B: Full stack — for backend, auth, or calendar integration work
+
+Requires Docker Desktop running.
+
+**Quick start (Docker Compose — runs everything):**
+
+```sh
+docker compose up
+```
+
+This starts PostgreSQL (:5432), API (:3001), and Frontend (:8080). Open http://localhost:8080.
+
+**Native start (faster HMR, better for active development):**
+
+```sh
+# Terminal 1 — start just the database
+docker compose up db -d
+
+# Terminal 2 — run database migrations
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/homebase
+pnpm db:migrate
+
+# Terminal 2 — start the API server with auto-reload
+pnpm server:dev
+
+# Terminal 3 — start the frontend with HMR
+pnpm dev
+```
+
+| Service  | URL              | Description                           |
+|----------|------------------|---------------------------------------|
+| Frontend | localhost:8080   | React app (proxies /api to backend)   |
+| API      | localhost:3001   | Express API server                    |
+| Database | localhost:5432   | PostgreSQL 17                         |
+
+### Environment variables
+
+Copy `.env` in the project root. Required for full stack:
+
+| Variable               | Default / Dev Value                               | Required For          |
+|------------------------|---------------------------------------------------|-----------------------|
+| `DATABASE_URL`         | `postgresql://postgres:postgres@localhost:5432/homebase` | API server            |
+| `JWT_SECRET`           | `change-me-to-a-random-secret-in-production`       | API server            |
+| `API_PORT`             | `3001`                                             | API server            |
+| `APP_URL`              | `http://localhost:8080`                            | Calendar OAuth        |
+| `TOKEN_ENCRYPTION_KEY` | (generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) | Calendar OAuth |
+| `GOOGLE_CLIENT_ID`     | (from Google Cloud Console)                        | Google Calendar sync  |
+| `GOOGLE_CLIENT_SECRET` | (from Google Cloud Console)                        | Google Calendar sync  |
+| `GOOGLE_REDIRECT_URI`  | `http://localhost:3001/api/calendar/callback/google` | Google Calendar sync |
+| `MICROSOFT_CLIENT_ID`  | (from Azure Portal)                                | Outlook Calendar sync |
+| `MICROSOFT_CLIENT_SECRET` | (from Azure Portal)                             | Outlook Calendar sync |
+| `MICROSOFT_REDIRECT_URI` | `http://localhost:3001/api/calendar/callback/outlook` | Outlook Calendar sync |
+
+Calendar OAuth variables are only needed if you're working on calendar integration. The app works without them — the connect buttons will just fall back to demo mode toggling.
+
 ## Regression Testing (REQUIRED)
 
 After making any code changes, you MUST run the relevant tests before considering the work done:
