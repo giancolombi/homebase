@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  MEMBER_COLORS,
-  getMemberInitials,
-  generateId,
-} from "@/lib/memberColors";
+import { MEMBER_COLORS, getMemberInitials } from "@/lib/memberColors";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -55,13 +51,11 @@ export default function SettingsPage() {
     currentUserId,
     calendarConnections,
     removeMember,
-    toggleCalendarConnection,
-    addCalendarConnection,
   } = useFamilyStore();
 
   const familyId = useFamilyStore((s) => s.familyId);
 
-  // Real calendar sync (only when authenticated with backend)
+  // Calendar sync
   const {
     connections: apiConnections,
     isSyncing,
@@ -70,7 +64,7 @@ export default function SettingsPage() {
   const disconnectMutation = useDisconnectCalendar();
 
   // Fetch real member data from API (includes isAdmin, inviteStatus, etc.)
-  const { data: apiMembers } = useFamilyMembers(!isDemo ? familyId : null);
+  const { data: apiMembers } = useFamilyMembers(familyId);
   const toggleAdminMutation = useToggleAdmin();
 
   // Helper to get API member data by email (since local IDs don't match DB IDs)
@@ -104,63 +98,27 @@ export default function SettingsPage() {
     (m) => m.role === "adult" && m.id !== currentUserId,
   );
 
-  const isDemo = !user || user.id === "demo-user";
+  const handleConnect = (provider: "google" | "outlook" | "apple") => {
+    if (!familyId || provider === "apple") return;
 
-  const handleConnect = (
-    memberId: string,
-    provider: "google" | "outlook" | "apple",
-  ) => {
-    // Real OAuth flow when authenticated with backend
-    if (!isDemo && familyId && provider !== "apple") {
-      const url = calendar.getAuthUrl(provider, familyId);
-      // Open in popup so user doesn't lose settings page context
-      const popup = window.open(url, "calendar-auth", "width=500,height=700");
-      // Poll for popup close
-      const interval = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(interval);
-          // Reload to pick up new connection
-          window.location.reload();
-        }
-      }, 500);
-      return;
-    }
-
-    // Demo mode fallback: toggle local state
-    const existing = calendarConnections.find(
-      (c) => c.memberId === memberId && c.provider === provider,
-    );
-    if (existing) {
-      toggleCalendarConnection(existing.id);
-    } else {
-      addCalendarConnection({
-        id: generateId(),
-        provider,
-        email: `${provider}@example.com`,
-        connected: true,
-        memberId,
-      });
-    }
+    const url = calendar.getAuthUrl(provider, familyId);
+    const popup = window.open(url, "calendar-auth", "width=500,height=700");
+    const interval = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(interval);
+        window.location.reload();
+      }
+    }, 500);
   };
 
   const handleDisconnect = (connectionId: string) => {
-    if (!isDemo) {
-      disconnectMutation.mutate(connectionId);
-    }
+    disconnectMutation.mutate(connectionId);
   };
 
-  const isConnected = (memberId: string, provider: string) => {
-    // Check API connections first, fall back to local store
-    if (apiConnections) {
-      return apiConnections.some(
-        (c) =>
-          c.memberId === memberId && c.provider === provider && c.connected,
-      );
-    }
-    return calendarConnections.some(
+  const isConnected = (memberId: string, provider: string) =>
+    apiConnections?.some(
       (c) => c.memberId === memberId && c.provider === provider && c.connected,
-    );
-  };
+    ) ?? false;
 
   const getApiConnection = (memberId: string, provider: string) =>
     apiConnections?.find(
@@ -311,7 +269,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     {/* Admin toggle */}
-                    {apiMember && !isDemo && (
+                    {apiMember && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -330,24 +288,22 @@ export default function SettingsPage() {
                       </Button>
                     )}
                     {/* Send invite */}
-                    {m.email &&
-                      memberInviteStatus !== "accepted" &&
-                      !isDemo && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7 px-2"
-                          disabled={sendingInvite === m.id}
-                          onClick={() => handleSendInvite(m.email!, m.id)}
-                        >
-                          {sendingInvite === m.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                          ) : (
-                            <Mail className="h-3 w-3 mr-1" />
-                          )}
-                          Send Invite
-                        </Button>
-                      )}
+                    {m.email && memberInviteStatus !== "accepted" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 px-2"
+                        disabled={sendingInvite === m.id}
+                        onClick={() => handleSendInvite(m.email!, m.id)}
+                      >
+                        {sendingInvite === m.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : (
+                          <Mail className="h-3 w-3 mr-1" />
+                        )}
+                        Send Invite
+                      </Button>
+                    )}
                     {/* Delete member */}
                     <button
                       onClick={() => removeMember(m.id)}
@@ -418,9 +374,7 @@ export default function SettingsPage() {
                   <div key={p.id} className="space-y-1">
                     <button
                       onClick={() =>
-                        connected && apiConn
-                          ? undefined
-                          : handleConnect(currentUser.id, p.id)
+                        connected && apiConn ? undefined : handleConnect(p.id)
                       }
                       className={cn(
                         "w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all",
@@ -527,7 +481,7 @@ export default function SettingsPage() {
                       return (
                         <button
                           key={p.id}
-                          onClick={() => handleConnect(child.id, p.id)}
+                          onClick={() => handleConnect(p.id)}
                           className={cn(
                             "w-full flex items-center gap-3 p-2 rounded-lg border text-left transition-all",
                             connected
