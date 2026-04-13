@@ -144,6 +144,23 @@ router.post(
 
       // Toggle admin status
       const newIsAdmin = !target.is_admin;
+
+      // Prevent removing the last admin
+      if (!newIsAdmin) {
+        const adminCount = await pool.query(
+          `SELECT COUNT(*) FROM family_members
+           WHERE family_id = $1 AND (is_admin = true OR is_owner = true)`,
+          [caller.family_id],
+        );
+        if (parseInt(adminCount.rows[0].count) <= 1) {
+          res.status(400).json({
+            error:
+              "Cannot remove the last admin. At least one admin is required.",
+          });
+          return;
+        }
+      }
+
       await pool.query(
         `UPDATE family_members SET is_admin = $1 WHERE id = $2`,
         [newIsAdmin, memberId],

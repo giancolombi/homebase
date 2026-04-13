@@ -271,20 +271,26 @@ export default function SettingsPage() {
                     {/* Admin toggle */}
                     {apiMember && (
                       <Button
-                        variant="ghost"
+                        variant={memberIsAdmin ? "secondary" : "outline"}
                         size="sm"
-                        className="text-xs h-7 px-2"
-                        title={memberIsAdmin ? "Remove admin" : "Make admin"}
-                        onClick={() => toggleAdminMutation.mutate(apiMember.id)}
+                        className={cn(
+                          "text-xs h-7 px-2.5 gap-1",
+                          memberIsAdmin && "bg-primary/10 text-primary",
+                        )}
+                        onClick={() =>
+                          toggleAdminMutation.mutate(apiMember.id, {
+                            onError: (err: any) => {
+                              toast({
+                                title: "Cannot remove admin",
+                                description: err.message,
+                                variant: "destructive",
+                              });
+                            },
+                          })
+                        }
                       >
-                        <ShieldCheck
-                          className={cn(
-                            "h-3.5 w-3.5",
-                            memberIsAdmin
-                              ? "text-primary"
-                              : "text-muted-foreground",
-                          )}
-                        />
+                        {memberIsAdmin && <Check className="h-3 w-3" />}
+                        Admin
                       </Button>
                     )}
                     {/* Send invite */}
