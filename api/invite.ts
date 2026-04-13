@@ -76,7 +76,7 @@ router.post(
           `UPDATE family_members
            SET user_id = $1, invite_status = 'accepted'
            WHERE id = $2`,
-          [existingUser.rows[0].id, memberId],
+          [existingUser.rows[0].id, member.id],
         );
         res.json({
           message: "User already has an account — linked to family",
@@ -102,7 +102,7 @@ router.post(
         `UPDATE family_members
          SET invite_token = $1, invite_sent_at = now()
          WHERE id = $2`,
-        [inviteToken, memberId],
+        [inviteToken, member.id],
       );
 
       // Send the email
