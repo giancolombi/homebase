@@ -143,8 +143,8 @@ export default function FinancePage() {
                 </div>
 
                 {/* Chart */}
-                <div className="h-32 md:h-48">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={1}>
+                <div>
+                  <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={balances}>
                       <XAxis
                         dataKey="month"
@@ -226,12 +226,8 @@ export default function FinancePage() {
                   {account.savingsGoal &&
                     monthsToGoal &&
                     monthsToGoal !== Infinity && (
-                      <div className="h-24 md:h-36">
-                        <ResponsiveContainer
-                          width="100%"
-                          height="100%"
-                          minHeight={1}
-                        >
+                      <div>
+                        <ResponsiveContainer width="100%" height={120}>
                           <LineChart
                             data={Array.from(
                               { length: monthsToGoal + 1 },
@@ -314,8 +310,8 @@ export default function FinancePage() {
             <CardTitle className="text-base">Expenses by Category</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="h-48 md:h-64">
-              <ResponsiveContainer width="100%" height="100%" minHeight={1}>
+            <div>
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
                     data={pieData}
