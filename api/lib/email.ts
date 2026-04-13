@@ -1,8 +1,22 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM_EMAIL = process.env.FROM_EMAIL || "Homebase <onboarding@resend.dev>";
+
+// Lazy initialization — don't crash on startup if key is missing
+let resend: Resend | null = null;
+
+function getResend(): Resend {
+  if (!resend) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) {
+      throw new Error(
+        "RESEND_API_KEY is not set. Add it to your environment variables.",
+      );
+    }
+    resend = new Resend(key);
+  }
+  return resend;
+}
 
 export async function sendInviteEmail(options: {
   to: string;
@@ -12,7 +26,7 @@ export async function sendInviteEmail(options: {
 }): Promise<void> {
   const { to, inviterName, familyName, inviteUrl } = options;
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `${inviterName} invited you to join ${familyName} on Homebase`,
