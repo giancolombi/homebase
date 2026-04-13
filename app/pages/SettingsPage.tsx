@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
-  RotateCcw,
+  LogOut,
   Users,
   Calendar,
   Trash2,
@@ -46,13 +46,12 @@ const providers = [
 export default function SettingsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const {
     familyName,
     members,
     currentUserId,
     calendarConnections,
-    resetOnboarding,
     removeMember,
     toggleCalendarConnection,
     addCalendarConnection,
@@ -473,15 +472,15 @@ export default function SettingsPage() {
 
         <div className="pt-4">
           <Button
-            variant="destructive"
+            variant="outline"
             className="w-full"
             size="sm"
             onClick={() => {
-              resetOnboarding();
+              signOut();
               navigate("/");
             }}
           >
-            <RotateCcw className="h-4 w-4 mr-2" /> Reset Homebase
+            <LogOut className="h-4 w-4 mr-2" /> Sign Out
           </Button>
         </div>
       </div>
