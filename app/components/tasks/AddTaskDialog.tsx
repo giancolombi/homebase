@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +82,9 @@ export default function AddTaskDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-sm mx-auto">
         <DialogHeader>
           <DialogTitle>Add Task</DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a new task for your family
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">

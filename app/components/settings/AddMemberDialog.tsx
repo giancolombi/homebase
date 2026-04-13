@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -74,6 +75,9 @@ export function AddMemberDialog() {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Add Family Member</DialogTitle>
+          <DialogDescription className="sr-only">
+            Add a new member to your family
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="space-y-2">

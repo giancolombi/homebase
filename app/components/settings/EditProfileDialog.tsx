@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -154,6 +155,9 @@ export function EditProfileDialog() {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
+          <DialogDescription className="sr-only">
+            Update your profile information
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">

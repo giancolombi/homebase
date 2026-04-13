@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,9 @@ export default function AddEventDialog({
       <DialogContent className="max-w-sm mx-auto">
         <DialogHeader>
           <DialogTitle>Add Event</DialogTitle>
+          <DialogDescription className="sr-only">
+            Add a new calendar event
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">

@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,9 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-sm mx-auto max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Recipe</DialogTitle>
+          <DialogDescription className="sr-only">
+            Add a new recipe to your collection
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
