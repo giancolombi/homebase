@@ -16,6 +16,7 @@ import AuthPage from "@/pages/AuthPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import AcceptInvitePage from "@/pages/AcceptInvitePage";
 import PrivacyPage from "@/pages/PrivacyPage";
+import LandingPage from "@/pages/LandingPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,14 +33,16 @@ function AppRoutes() {
     );
   }
 
-  // Not logged in → auth pages only
+  // Not logged in → public pages + auth
   if (!user) {
     return (
       <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<AuthPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="*" element={<AuthPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }
