@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Home, ArrowLeft, Database } from "lucide-react";
-import { seedState } from "@/data/seedData";
+import { Home, ArrowLeft } from "lucide-react";
 
 export default function AuthPage() {
   const [tab, setTab] = useState<"signin" | "signup" | "forgot">("signin");
@@ -82,20 +81,6 @@ export default function AuthPage() {
       });
     }
     setLoading(false);
-  };
-
-  const handleLoadSampleData = () => {
-    // Seed the Zustand store (persisted in localStorage)
-    localStorage.setItem("homebase-family-data", JSON.stringify(seedState));
-    // Set a fake auth token so the auth context treats us as logged in
-    localStorage.setItem("homebase-auth-token", "demo-token");
-    // Set the user in the auth context directly (bypasses the API)
-    const demoUser = {
-      id: "demo-user",
-      email: "alex@example.com",
-      full_name: "Alex Johnson",
-    };
-    (window as any).__setAuthUser?.(demoUser);
   };
 
   return (
@@ -238,20 +223,6 @@ export default function AuthPage() {
             </Tabs>
           </Card>
         )}
-
-        <div className="pt-2">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleLoadSampleData}
-          >
-            <Database className="h-4 w-4 mr-2" />
-            Load sample data (skip sign-in)
-          </Button>
-          <p className="text-xs text-center text-muted-foreground mt-2">
-            Populates all pages with a demo family. No account needed.
-          </p>
-        </div>
       </div>
     </div>
   );
