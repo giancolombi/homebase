@@ -59,6 +59,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/calendar" replace />} />
+      <Route path="/auth" element={<Navigate to="/calendar" replace />} />
       <Route
         path="/calendar"
         element={
