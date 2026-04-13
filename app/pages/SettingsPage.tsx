@@ -30,13 +30,13 @@ import {
 } from "lucide-react";
 import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
-import { calendar, invite, family } from "@/lib/api";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { calendar, invite } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCalendarSync,
   useDisconnectCalendar,
 } from "@/hooks/use-calendar-sync";
+import { useFamilyMembers, useToggleAdmin } from "@/hooks/use-family-members";
 import { toast } from "@/hooks/use-toast";
 
 const providers = [
@@ -68,21 +68,10 @@ export default function SettingsPage() {
     syncConnection,
   } = useCalendarSync(familyId || null);
   const disconnectMutation = useDisconnectCalendar();
-  const queryClient = useQueryClient();
 
   // Fetch real member data from API (includes isAdmin, inviteStatus, etc.)
-  const { data: apiMembers } = useQuery({
-    queryKey: ["family-members", familyId],
-    queryFn: () => family.getMembers(familyId!),
-    enabled: !!familyId && !isDemo,
-  });
-
-  const toggleAdminMutation = useMutation({
-    mutationFn: (memberId: string) => family.toggleAdmin(memberId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["family-members"] });
-    },
-  });
+  const { data: apiMembers } = useFamilyMembers(!isDemo ? familyId : null);
+  const toggleAdminMutation = useToggleAdmin();
 
   // Helper to get API member data by email (since local IDs don't match DB IDs)
   const getApiMember = (email?: string) =>
