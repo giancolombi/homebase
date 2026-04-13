@@ -288,6 +288,19 @@ export interface FamilyMemberResponse {
 }
 
 export const family = {
+  async addMember(data: {
+    familyId: string;
+    name: string;
+    role: string;
+    email?: string;
+    colorIndex: number;
+  }): Promise<{ id: string }> {
+    return request<{ id: string }>("/api/family/members", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   async getMembers(familyId: string): Promise<FamilyMemberResponse[]> {
     return request<FamilyMemberResponse[]>(
       `/api/family/members?familyId=${familyId}`,

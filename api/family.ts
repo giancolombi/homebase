@@ -47,6 +47,48 @@ router.get(
   },
 );
 
+// POST /api/family/members — add a member to a family
+router.post(
+  "/members",
+  requireAuth as any,
+  async (req: AuthRequest, res: Response) => {
+    const { familyId, name, role, email, colorIndex } = req.body;
+
+    if (!familyId || !name || !role) {
+      res.status(400).json({ error: "familyId, name, and role are required" });
+      return;
+    }
+
+    try {
+      const result = await pool.query(
+        `INSERT INTO family_members
+           (family_id, name, role, email, color_index, is_owner, invite_status)
+         VALUES ($1, $2, $3, $4, $5, false, $6)
+         RETURNING id`,
+        [
+          familyId,
+          name,
+          role,
+          email || null,
+          colorIndex ?? 0,
+          role === "adult" ? "pending" : null,
+        ],
+      );
+
+      res.status(201).json({
+        id: result.rows[0].id,
+        name,
+        role,
+        email: email || null,
+        colorIndex: colorIndex ?? 0,
+      });
+    } catch (err: any) {
+      console.error("Add member error:", err);
+      res.status(500).json({ error: "Failed to add member" });
+    }
+  },
+);
+
 // POST /api/family/members/:memberId/toggle-admin — promote/demote admin
 router.post(
   "/members/:memberId/toggle-admin",

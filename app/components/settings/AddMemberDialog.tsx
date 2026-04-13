@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useFamilyStore } from "@/store/familyStore";
 import { generateId } from "@/lib/memberColors";
+import { family } from "@/lib/api";
 import { Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { MemberRole } from "@/types/family";
 
 export function AddMemberDialog() {
@@ -21,19 +23,40 @@ export function AddMemberDialog() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("adult");
   const { members, addMember } = useFamilyStore();
+  const familyId = useFamilyStore((s) => s.familyId);
+  const queryClient = useQueryClient();
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!name.trim()) return;
 
     const colorIndex = (members.length % 6) + 1;
-    addMember({
-      id: generateId(),
+    const memberData = {
       name: name.trim(),
       role,
       email: role === "adult" ? email.trim() || undefined : undefined,
       colorIndex,
-      inviteStatus: role === "adult" ? "pending" : undefined,
-    });
+      inviteStatus: role === "adult" ? ("pending" as const) : undefined,
+    };
+
+    // Save to local store
+    const localId = generateId();
+    addMember({ id: localId, ...memberData });
+
+    // Also save to database if we have a familyId
+    if (familyId) {
+      try {
+        await family.addMember({
+          familyId,
+          name: memberData.name,
+          role: memberData.role,
+          email: memberData.email,
+          colorIndex,
+        });
+        queryClient.invalidateQueries({ queryKey: ["family-members"] });
+      } catch (err) {
+        console.error("Failed to save member to API:", err);
+      }
+    }
 
     setName("");
     setEmail("");
