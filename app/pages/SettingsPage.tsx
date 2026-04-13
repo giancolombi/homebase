@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFamilyStore } from "@/store/familyStore";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
-import { calendar } from "@/lib/api";
+import { calendar, invite } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCalendarSync,
@@ -157,6 +157,32 @@ export default function SettingsPage() {
       (c) => c.memberId === memberId && c.provider === provider,
     );
 
+  const [sendingInvite, setSendingInvite] = useState<string | null>(null);
+
+  const handleSendInvite = async (
+    memberEmail: string,
+    localMemberId: string,
+  ) => {
+    if (!familyId) return;
+    setSendingInvite(localMemberId);
+    try {
+      const result = await invite.send(memberEmail, familyId);
+      toast({
+        title: "Invite sent!",
+        description: result.email
+          ? `Email sent to ${result.email}`
+          : result.message,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Failed to send invite",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+    setSendingInvite(null);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 md:px-6 md:py-4 bg-card/95 backdrop-blur-sm border-b border-border">
@@ -249,13 +275,30 @@ export default function SettingsPage() {
                       variant="outline"
                       className="text-[10px] px-1.5 py-0 gap-0.5"
                     >
-                      <Mail className="h-2.5 w-2.5" /> Invited
+                      <Mail className="h-2.5 w-2.5" />{" "}
+                      {m.inviteStatus === "accepted" ? "Joined" : "Pending"}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Adult{m.email ? ` · ${m.email}` : ""}
                   </p>
                 </div>
+                {m.email && m.inviteStatus !== "accepted" && !isDemo && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 px-2"
+                    disabled={sendingInvite === m.id}
+                    onClick={() => handleSendInvite(m.email!, m.id)}
+                  >
+                    {sendingInvite === m.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Mail className="h-3 w-3 mr-1" />
+                    )}
+                    Send Invite
+                  </Button>
+                )}
                 <button
                   onClick={() => removeMember(m.id)}
                   className="p-1 hover:bg-destructive/10 rounded-lg"

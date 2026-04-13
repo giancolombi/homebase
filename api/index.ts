@@ -3,6 +3,7 @@ import cors from "cors";
 import authRouter from "./auth.js";
 import onboardingRouter from "./onboarding.js";
 import calendarRouter from "./calendar.js";
+import inviteRouter from "./invite.js";
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || "3001", 10);
@@ -19,6 +20,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/onboarding", onboardingRouter);
 app.use("/api/calendar", calendarRouter);
+app.use("/api/invite", inviteRouter);
 
 app.listen(PORT, () => {
   console.log(`API server running on http://localhost:${PORT}`);

@@ -233,3 +233,40 @@ export const calendar = {
     });
   },
 };
+
+// ---- Invite API ----
+
+export const invite = {
+  async send(
+    email: string,
+    familyId: string,
+  ): Promise<{ message: string; email?: string }> {
+    return request<{ message: string; email?: string }>("/api/invite/send", {
+      method: "POST",
+      body: JSON.stringify({ email, familyId }),
+    });
+  },
+
+  async verify(
+    token: string,
+  ): Promise<{ email: string; familyName: string; memberName: string }> {
+    return request<{
+      email: string;
+      familyName: string;
+      memberName: string;
+    }>(`/api/invite/verify?token=${token}`);
+  },
+
+  async accept(
+    token: string,
+    userId: string,
+  ): Promise<{ familyId: string; memberId: string }> {
+    return request<{ familyId: string; memberId: string }>(
+      "/api/invite/accept",
+      {
+        method: "POST",
+        body: JSON.stringify({ token, userId }),
+      },
+    );
+  },
+};
