@@ -84,7 +84,12 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
 
   if (error) {
     console.error("OAuth callback error:", error);
-    res.redirect(`${APP_URL}/settings?calendarError=${error}`);
+    res.send(`<!DOCTYPE html><html><body><script>
+      if (window.opener) {
+        window.opener.location.href = "${APP_URL}/settings?calendarError=${error}";
+      }
+      window.close();
+    </script><p>Connection cancelled. You can close this window.</p></body></html>`);
     return;
   }
 
@@ -144,10 +149,21 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
       ],
     );
 
-    res.redirect(`${APP_URL}/settings?calendarConnected=${provider}`);
+    // Send a page that closes the popup and notifies the opener
+    res.send(`<!DOCTYPE html><html><body><script>
+      if (window.opener) {
+        window.opener.location.href = "${APP_URL}/settings?calendarConnected=${provider}";
+      }
+      window.close();
+    </script><p>Calendar connected! You can close this window.</p></body></html>`);
   } catch (err: any) {
     console.error("OAuth callback error:", err);
-    res.redirect(`${APP_URL}/settings?calendarError=exchange_failed`);
+    res.send(`<!DOCTYPE html><html><body><script>
+      if (window.opener) {
+        window.opener.location.href = "${APP_URL}/settings?calendarError=exchange_failed";
+      }
+      window.close();
+    </script><p>Connection failed. You can close this window.</p></body></html>`);
   }
 });
 
