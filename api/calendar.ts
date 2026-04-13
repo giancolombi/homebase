@@ -16,42 +16,62 @@ const router = Router();
 const APP_URL = process.env.APP_URL || "http://localhost:8080";
 
 // GET /api/calendar/auth/:provider — redirect to OAuth provider
-router.get(
-  "/auth/:provider",
-  requireAuth as any,
-  async (req: AuthRequest, res: Response) => {
-    const { provider } = req.params;
-    const { memberId, familyId } = req.query as {
-      memberId: string;
-      familyId: string;
+// No requireAuth — this is a browser redirect (popup), not XHR.
+// The user's identity is verified via the JWT token passed as a query param.
+router.get("/auth/:provider", async (req: Request, res: Response) => {
+  const { provider } = req.params;
+  const { token, familyId } = req.query as {
+    token?: string;
+    familyId?: string;
+  };
+
+  if (!token || !familyId) {
+    res.status(400).json({ error: "token and familyId are required" });
+    return;
+  }
+
+  if (!["google", "outlook"].includes(provider)) {
+    res.status(400).json({ error: "Unsupported provider" });
+    return;
+  }
+
+  try {
+    // Verify the JWT to get the user's identity
+    const jwt = await import("jsonwebtoken");
+    const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
+    const payload = jwt.default.verify(token, JWT_SECRET) as {
+      sub: string;
     };
 
-    if (!memberId || !familyId) {
-      res.status(400).json({ error: "memberId and familyId are required" });
+    // Look up the member ID for this user in this family
+    const memberResult = await pool.query(
+      `SELECT id FROM family_members
+       WHERE family_id = $1 AND user_id = $2
+       LIMIT 1`,
+      [familyId, payload.sub],
+    );
+
+    if (memberResult.rows.length === 0) {
+      res.status(404).json({ error: "Member not found in family" });
       return;
     }
 
-    if (!["google", "outlook"].includes(provider)) {
-      res.status(400).json({ error: "Unsupported provider" });
-      return;
-    }
+    const memberId = memberResult.rows[0].id;
 
-    try {
-      const state = createOAuthState({
-        userId: req.user!.id,
-        memberId,
-        familyId,
-        provider,
-      });
+    const state = createOAuthState({
+      userId: payload.sub,
+      memberId,
+      familyId,
+      provider,
+    });
 
-      const url = getAuthUrl(provider, state);
-      res.redirect(url);
-    } catch (err: any) {
-      console.error("OAuth auth error:", err);
-      res.status(500).json({ error: "Failed to start OAuth flow" });
-    }
-  },
-);
+    const url = getAuthUrl(provider, state);
+    res.redirect(url);
+  } catch (err: any) {
+    console.error("OAuth auth error:", err);
+    res.status(500).json({ error: "Failed to start OAuth flow" });
+  }
+});
 
 // GET /api/calendar/callback/:provider — OAuth callback
 router.get("/callback/:provider", async (req: Request, res: Response) => {

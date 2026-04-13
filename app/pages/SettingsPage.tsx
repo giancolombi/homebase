@@ -103,7 +103,7 @@ export default function SettingsPage() {
   ) => {
     // Real OAuth flow when authenticated with backend
     if (!isDemo && familyId && provider !== "apple") {
-      const url = calendar.getAuthUrl(provider, memberId, familyId);
+      const url = calendar.getAuthUrl(provider, familyId);
       // Open in popup so user doesn't lose settings page context
       const popup = window.open(url, "calendar-auth", "width=500,height=700");
       // Poll for popup close

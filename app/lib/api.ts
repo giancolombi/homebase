@@ -197,8 +197,9 @@ export interface CalendarEventResponse {
 }
 
 export const calendar = {
-  getAuthUrl(provider: string, memberId: string, familyId: string): string {
-    return `/api/calendar/auth/${provider}?memberId=${memberId}&familyId=${familyId}`;
+  getAuthUrl(provider: string, familyId: string): string {
+    const token = getToken();
+    return `/api/calendar/auth/${provider}?familyId=${familyId}&token=${token}`;
   },
 
   async getConnections(

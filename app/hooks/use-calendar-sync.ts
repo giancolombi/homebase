@@ -39,7 +39,13 @@ export function useCalendarSync(familyId: string | null) {
     const staleThreshold = Date.now() - STALE_MINUTES * 60 * 1000;
 
     for (const conn of connections) {
-      if (!conn.connected || conn.provider === "homebase") continue;
+      // Only sync real OAuth connections (not demo mode toggles)
+      if (
+        !conn.connected ||
+        conn.provider === "homebase" ||
+        !conn.externalEmail
+      )
+        continue;
 
       const lastSynced = conn.lastSyncedAt
         ? new Date(conn.lastSyncedAt).getTime()
