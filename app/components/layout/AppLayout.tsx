@@ -35,7 +35,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               {familyName || "Homebase"}
             </h1>
             <p className="text-xs text-muted-foreground">
-              Family Command Center
+              Your family's command center
             </p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               {familyName || "Homebase"}
             </h1>
             <p className="text-[11px] text-muted-foreground">
-              Family Command Center
+              Your family's command center
             </p>
           </div>
           <div className="flex items-center gap-2.5">

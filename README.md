@@ -1,4 +1,4 @@
-# Homebase — Family Command Center
+# Homebase — Homebase
 
 A full-stack web app for families to manage calendars, tasks, meals, and finances.
 

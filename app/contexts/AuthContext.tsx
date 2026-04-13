@@ -6,7 +6,6 @@ import {
   type ReactNode,
 } from "react";
 import { auth, type AuthUser } from "@/lib/api";
-import { useFamilyStore } from "@/store/familyStore";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -28,9 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for an existing session on mount
     auth.getSession().then((session) => {
       setUser(session?.user ?? null);
-      // Sync familyId from backend into Zustand store
+      // Sync familyId from backend into Zustand store (lazy import to avoid circular dep)
       if (session?.user?.familyId) {
-        useFamilyStore.getState().setFamilyId(session.user.familyId);
+        import("@/store/familyStore").then(({ useFamilyStore }) => {
+          useFamilyStore.getState().setFamilyId(session.user.familyId!);
+        });
       }
       setLoading(false);
     });

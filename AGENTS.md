@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Family Command Center — a Vite 7 + React 19 SPA with an Express 5 / PostgreSQL API backend.
+Homebase — a Vite 7 + React 19 SPA with an Express 5 / PostgreSQL API backend.
 Despite the repo name, this is **not** a Remix project. It uses React Router DOM v7 for client-side routing.
 
 **Package manager:** pnpm 10.23.0 (enforced via `packageManager` field). Always use `pnpm`, never `npm` or `yarn`.
