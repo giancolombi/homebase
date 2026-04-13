@@ -12,7 +12,16 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Home, Loader2 } from "lucide-react";
+import { Home, Loader2, AlertTriangle } from "lucide-react";
+
+interface InviteInfo {
+  email: string;
+  familyName: string;
+  memberName: string;
+  hasExistingAccount?: boolean;
+  currentFamily?: string | null;
+  isOwnerOfCurrentFamily?: boolean;
+}
 
 export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
@@ -23,15 +32,9 @@ export default function AcceptInvitePage() {
   const [error, setError] = useState<string | null>(
     token ? null : "No invite token provided",
   );
-  const [inviteInfo, setInviteInfo] = useState<{
-    email: string;
-    familyName: string;
-    memberName: string;
-  } | null>(null);
-
+  const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
   const [password, setPassword] = useState("");
 
-  // Verify the invite token on mount
   useEffect(() => {
     if (!token) return;
 
@@ -62,34 +65,35 @@ export default function AcceptInvitePage() {
 
     setSubmitting(true);
     try {
-      // Create account with the invite email
-      const { user } = await auth.signUp(
-        inviteInfo.email,
-        password,
-        inviteInfo.memberName,
-      );
+      let userId: string;
 
-      // Accept the invite — links user to family member
-      await invite.accept(token, user.id);
+      if (inviteInfo.hasExistingAccount) {
+        // Existing user — sign in
+        const { user } = await auth.signIn(inviteInfo.email, password);
+        userId = user.id;
+      } else {
+        // New user — create account
+        const { user } = await auth.signUp(
+          inviteInfo.email,
+          password,
+          inviteInfo.memberName,
+        );
+        userId = user.id;
+      }
 
-      // Update auth context
-      (window as any).__setAuthUser?.(user);
+      // Accept the invite — handles family switching on the backend
+      await invite.accept(token, userId);
 
-      toast({
-        title: "Welcome to the family!",
-        description: `You've joined ${inviteInfo.familyName}`,
-      });
+      // Reload to get fresh auth state with new familyId
+      window.location.href = "/";
     } catch (err: any) {
-      // If account already exists, try signing in
+      // If signup says "already exists", try signing in
       if (err.message?.includes("already exists")) {
         try {
           const { user } = await auth.signIn(inviteInfo.email, password);
           await invite.accept(token, user.id);
-          (window as any).__setAuthUser?.(user);
-          toast({
-            title: "Welcome back!",
-            description: `You've joined ${inviteInfo.familyName}`,
-          });
+          window.location.href = "/";
+          return;
         } catch (signInErr: any) {
           toast({
             title: "Could not accept invite",
@@ -138,6 +142,32 @@ export default function AcceptInvitePage() {
     );
   }
 
+  // Owner of another family — cannot join
+  if (inviteInfo?.isOwnerOfCurrentFamily) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center px-4">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <div className="h-14 w-14 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-7 w-7 text-amber-500" />
+          </div>
+          <h1 className="text-xl font-semibold text-foreground">
+            Cannot Join Family
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            You are the owner of <strong>{inviteInfo.currentFamily}</strong>.
+            Transfer ownership or delete your family before joining another.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/")}
+          >
+            Go to Homebase
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
@@ -153,12 +183,29 @@ export default function AcceptInvitePage() {
           </p>
         </div>
 
+        {/* Warning if user already has a family */}
+        {inviteInfo?.currentFamily && (
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-foreground leading-relaxed">
+              You currently belong to{" "}
+              <strong>{inviteInfo.currentFamily}</strong>. Joining{" "}
+              <strong>{inviteInfo.familyName}</strong> will remove you from your
+              current family.
+            </p>
+          </div>
+        )}
+
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Create Your Account</CardTitle>
+            <CardTitle className="text-lg">
+              {inviteInfo?.hasExistingAccount
+                ? "Sign In to Join"
+                : "Create Your Account"}
+            </CardTitle>
             <CardDescription>
-              Sign up as <strong>{inviteInfo?.memberName}</strong> (
-              {inviteInfo?.email})
+              {inviteInfo?.hasExistingAccount ? "Sign in" : "Sign up"} as{" "}
+              <strong>{inviteInfo?.memberName}</strong> ({inviteInfo?.email})
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -184,8 +231,22 @@ export default function AcceptInvitePage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? "Joining..." : "Accept & Join Family"}
+                {submitting
+                  ? "Joining..."
+                  : inviteInfo?.currentFamily
+                    ? "Switch Family & Join"
+                    : "Accept & Join Family"}
               </Button>
+              {inviteInfo?.currentFamily && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  onClick={() => (window.location.href = "/")}
+                >
+                  Stay in my current family
+                </Button>
+              )}
             </form>
           </CardContent>
         </Card>

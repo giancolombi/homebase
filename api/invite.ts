@@ -123,7 +123,7 @@ router.post(
   },
 );
 
-// POST /api/invite/accept — accept an invite (called during signup)
+// POST /api/invite/accept — accept an invite
 router.post("/accept", async (req, res) => {
   const { token, userId } = req.body;
 
@@ -145,7 +145,36 @@ router.post("/accept", async (req, res) => {
       return;
     }
 
-    // Link user to the family member
+    // Check if user already belongs to a family
+    const existingMembership = await pool.query(
+      `SELECT fm.id, fm.family_id, fm.is_owner, f.name as family_name
+       FROM family_members fm
+       JOIN families f ON f.id = fm.family_id
+       WHERE fm.user_id = $1`,
+      [userId],
+    );
+
+    if (existingMembership.rows.length > 0) {
+      const current = existingMembership.rows[0];
+
+      // Owners cannot leave their family
+      if (current.is_owner) {
+        res.status(400).json({
+          error: `You are the owner of "${current.family_name}". Transfer ownership or delete your family before joining another.`,
+          isOwner: true,
+          currentFamilyName: current.family_name,
+        });
+        return;
+      }
+
+      // Remove user from their current family
+      await pool.query(
+        `UPDATE family_members SET user_id = NULL WHERE id = $1`,
+        [current.id],
+      );
+    }
+
+    // Link user to the new family member
     await pool.query(
       `UPDATE family_members
        SET user_id = $1, invite_status = 'accepted', invite_token = NULL
@@ -205,10 +234,36 @@ router.get("/verify", async (req, res) => {
       return;
     }
 
+    // Check if the invited email already has an account and family
+    const existingUser = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [payload.email],
+    );
+
+    let currentFamily = null;
+    let isOwnerOfCurrentFamily = false;
+
+    if (existingUser.rows.length > 0) {
+      const membershipResult = await pool.query(
+        `SELECT fm.is_owner, f.name as family_name
+         FROM family_members fm
+         JOIN families f ON f.id = fm.family_id
+         WHERE fm.user_id = $1`,
+        [existingUser.rows[0].id],
+      );
+      if (membershipResult.rows.length > 0) {
+        currentFamily = membershipResult.rows[0].family_name;
+        isOwnerOfCurrentFamily = membershipResult.rows[0].is_owner;
+      }
+    }
+
     res.json({
       email: payload.email,
       familyName: familyResult.rows[0]?.name || "Unknown family",
       memberName: memberResult.rows[0]?.name || "Unknown",
+      hasExistingAccount: existingUser.rows.length > 0,
+      currentFamily,
+      isOwnerOfCurrentFamily,
     });
   } catch (err: any) {
     if (err.name === "TokenExpiredError") {

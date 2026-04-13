@@ -247,14 +247,15 @@ export const invite = {
     });
   },
 
-  async verify(
-    token: string,
-  ): Promise<{ email: string; familyName: string; memberName: string }> {
-    return request<{
-      email: string;
-      familyName: string;
-      memberName: string;
-    }>(`/api/invite/verify?token=${token}`);
+  async verify(token: string): Promise<{
+    email: string;
+    familyName: string;
+    memberName: string;
+    hasExistingAccount?: boolean;
+    currentFamily?: string | null;
+    isOwnerOfCurrentFamily?: boolean;
+  }> {
+    return request(`/api/invite/verify?token=${token}`);
   },
 
   async accept(
