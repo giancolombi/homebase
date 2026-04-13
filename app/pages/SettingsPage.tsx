@@ -18,6 +18,7 @@ import {
   Calendar,
   Trash2,
   Shield,
+  ShieldCheck,
   Mail,
   Check,
   Plus,
@@ -29,7 +30,8 @@ import {
 } from "lucide-react";
 import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
-import { calendar, invite } from "@/lib/api";
+import { calendar, invite, family } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCalendarSync,
@@ -66,6 +68,25 @@ export default function SettingsPage() {
     syncConnection,
   } = useCalendarSync(familyId || null);
   const disconnectMutation = useDisconnectCalendar();
+  const queryClient = useQueryClient();
+
+  // Fetch real member data from API (includes isAdmin, inviteStatus, etc.)
+  const { data: apiMembers } = useQuery({
+    queryKey: ["family-members", familyId],
+    queryFn: () => family.getMembers(familyId!),
+    enabled: !!familyId && !isDemo,
+  });
+
+  const toggleAdminMutation = useMutation({
+    mutationFn: (memberId: string) => family.toggleAdmin(memberId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["family-members"] });
+    },
+  });
+
+  // Helper to get API member data by email (since local IDs don't match DB IDs)
+  const getApiMember = (email?: string) =>
+    apiMembers?.find((m) => m.email === email);
 
   // Handle OAuth redirect params
   useEffect(() => {
@@ -251,62 +272,104 @@ export default function SettingsPage() {
             )}
 
             {/* Other adults */}
-            {otherAdults.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center gap-3 p-2.5 rounded-lg bg-card border border-border"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback
-                    className={cn(
-                      "text-xs font-bold text-primary-foreground",
-                      MEMBER_COLORS[m.colorIndex],
-                    )}
-                  >
-                    {getMemberInitials(m.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-foreground">
-                      {m.name}
-                    </p>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] px-1.5 py-0 gap-0.5"
-                    >
-                      <Mail className="h-2.5 w-2.5" />{" "}
-                      {m.inviteStatus === "accepted" ? "Joined" : "Pending"}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Adult{m.email ? ` · ${m.email}` : ""}
-                  </p>
-                </div>
-                {m.email && m.inviteStatus !== "accepted" && !isDemo && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-7 px-2"
-                    disabled={sendingInvite === m.id}
-                    onClick={() => handleSendInvite(m.email!, m.id)}
-                  >
-                    {sendingInvite === m.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <Mail className="h-3 w-3 mr-1" />
-                    )}
-                    Send Invite
-                  </Button>
-                )}
-                <button
-                  onClick={() => removeMember(m.id)}
-                  className="p-1 hover:bg-destructive/10 rounded-lg"
+            {otherAdults.map((m) => {
+              const apiMember = getApiMember(m.email);
+              const memberIsAdmin = apiMember?.isAdmin ?? false;
+              const memberInviteStatus =
+                apiMember?.inviteStatus ?? m.inviteStatus;
+
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-card border border-border"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </button>
-              </div>
-            ))}
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback
+                      className={cn(
+                        "text-xs font-bold text-primary-foreground",
+                        MEMBER_COLORS[m.colorIndex],
+                      )}
+                    >
+                      {getMemberInitials(m.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-foreground">
+                        {m.name}
+                      </p>
+                      {memberIsAdmin && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 gap-0.5"
+                        >
+                          <ShieldCheck className="h-2.5 w-2.5" /> Admin
+                        </Badge>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 gap-0.5"
+                      >
+                        <Mail className="h-2.5 w-2.5" />{" "}
+                        {memberInviteStatus === "accepted"
+                          ? "Joined"
+                          : "Pending"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Adult{m.email ? ` · ${m.email}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {/* Admin toggle */}
+                    {apiMember && !isDemo && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-7 px-2"
+                        title={memberIsAdmin ? "Remove admin" : "Make admin"}
+                        onClick={() => toggleAdminMutation.mutate(apiMember.id)}
+                      >
+                        <ShieldCheck
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            memberIsAdmin
+                              ? "text-primary"
+                              : "text-muted-foreground",
+                          )}
+                        />
+                      </Button>
+                    )}
+                    {/* Send invite */}
+                    {m.email &&
+                      memberInviteStatus !== "accepted" &&
+                      !isDemo && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7 px-2"
+                          disabled={sendingInvite === m.id}
+                          onClick={() => handleSendInvite(m.email!, m.id)}
+                        >
+                          {sendingInvite === m.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          ) : (
+                            <Mail className="h-3 w-3 mr-1" />
+                          )}
+                          Send Invite
+                        </Button>
+                      )}
+                    {/* Delete member */}
+                    <button
+                      onClick={() => removeMember(m.id)}
+                      className="p-1 hover:bg-destructive/10 rounded-lg"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
 
             {/* Children */}
             {childMembers.map((m) => (

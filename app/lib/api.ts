@@ -270,3 +270,33 @@ export const invite = {
     );
   },
 };
+
+// ---- Family API ----
+
+export interface FamilyMemberResponse {
+  id: string;
+  name: string;
+  role: string;
+  email: string | null;
+  colorIndex: number;
+  isOwner: boolean;
+  isAdmin: boolean;
+  inviteStatus: string | null;
+  inviteSentAt: string | null;
+  hasAccount: boolean;
+}
+
+export const family = {
+  async getMembers(familyId: string): Promise<FamilyMemberResponse[]> {
+    return request<FamilyMemberResponse[]>(
+      `/api/family/members?familyId=${familyId}`,
+    );
+  },
+
+  async toggleAdmin(memberId: string): Promise<{ isAdmin: boolean }> {
+    return request<{ isAdmin: boolean }>(
+      `/api/family/members/${memberId}/toggle-admin`,
+      { method: "POST" },
+    );
+  },
+};
