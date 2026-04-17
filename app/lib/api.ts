@@ -3,6 +3,19 @@
 
 const TOKEN_KEY = "homebase-auth-token";
 
+/**
+ * Sentinel token that signals "demo mode" — the app runs entirely from
+ * localStorage with seeded mock data and no network calls. The UI sets this
+ * token when the user picks "Try the demo"; production sign-in replaces it
+ * with a real JWT from the backend. Import this from anywhere that needs to
+ * branch on demo vs authenticated behavior.
+ */
+export const DEMO_TOKEN = "demo-token";
+
+export function isDemoMode(): boolean {
+  return localStorage.getItem(TOKEN_KEY) === DEMO_TOKEN;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -81,7 +94,7 @@ export const auth = {
     const token = getToken();
     if (!token) return null;
     // Demo mode — skip the API call and return a fake user
-    if (token === "demo-token") {
+    if (token === DEMO_TOKEN) {
       return {
         user: {
           id: "demo-user",
@@ -312,5 +325,260 @@ export const family = {
       `/api/family/members/${memberId}/toggle-admin`,
       { method: "POST" },
     );
+  },
+};
+
+// ---- Tasks API ----
+
+export interface TaskCategoryResponse {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
+export interface TaskResponse {
+  id: string;
+  title: string;
+  description: string | null;
+  categoryId: string | null;
+  deadline: string | null;
+  deadlineTime: string | null;
+  recurrence: "none" | "daily" | "weekly" | "monthly";
+  status: "todo" | "in-progress" | "done";
+  assignedTo: string[];
+  createdAt: string;
+}
+
+export const tasks = {
+  list(familyId: string): Promise<TaskResponse[]> {
+    return request<TaskResponse[]>(`/api/tasks?familyId=${familyId}`);
+  },
+  create(
+    familyId: string,
+    task: Omit<TaskResponse, "id" | "createdAt">,
+  ): Promise<TaskResponse> {
+    return request<TaskResponse>(`/api/tasks`, {
+      method: "POST",
+      body: JSON.stringify({ ...task, familyId }),
+    });
+  },
+  update(
+    familyId: string,
+    id: string,
+    updates: Partial<TaskResponse>,
+  ): Promise<TaskResponse> {
+    return request<TaskResponse>(`/api/tasks/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...updates, familyId }),
+    });
+  },
+  remove(familyId: string, id: string): Promise<void> {
+    return request(`/api/tasks/${id}?familyId=${familyId}`, {
+      method: "DELETE",
+    });
+  },
+
+  listCategories(familyId: string): Promise<TaskCategoryResponse[]> {
+    return request<TaskCategoryResponse[]>(
+      `/api/tasks/categories?familyId=${familyId}`,
+    );
+  },
+  createCategory(
+    familyId: string,
+    name: string,
+    icon?: string,
+  ): Promise<TaskCategoryResponse> {
+    return request<TaskCategoryResponse>(`/api/tasks/categories`, {
+      method: "POST",
+      body: JSON.stringify({ familyId, name, icon }),
+    });
+  },
+};
+
+// ---- Meals API ----
+
+export interface RecipeResponse {
+  id: string;
+  title: string;
+  description: string | null;
+  prepTime: number | null;
+  cookTime: number | null;
+  servings: number | null;
+  imageUrl: string | null;
+  sourceUrl: string | null;
+  tags: string[];
+  ingredients: unknown[];
+  steps: string[];
+}
+
+export interface MealPlanResponse {
+  id: string;
+  recipeId: string;
+  date: string;
+  mealType: "breakfast" | "lunch" | "dinner";
+}
+
+export interface ShoppingItemResponse {
+  id: string;
+  name: string;
+  amount: string;
+  unit: string;
+  category: string;
+  checked: boolean;
+}
+
+export const meals = {
+  listRecipes(familyId: string): Promise<RecipeResponse[]> {
+    return request<RecipeResponse[]>(`/api/meals/recipes?familyId=${familyId}`);
+  },
+  createRecipe(
+    familyId: string,
+    r: Omit<RecipeResponse, "id">,
+  ): Promise<RecipeResponse> {
+    return request<RecipeResponse>(`/api/meals/recipes`, {
+      method: "POST",
+      body: JSON.stringify({ ...r, familyId }),
+    });
+  },
+  updateRecipe(
+    familyId: string,
+    id: string,
+    updates: Partial<RecipeResponse>,
+  ): Promise<RecipeResponse> {
+    return request<RecipeResponse>(`/api/meals/recipes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...updates, familyId }),
+    });
+  },
+  removeRecipe(familyId: string, id: string): Promise<void> {
+    return request(`/api/meals/recipes/${id}?familyId=${familyId}`, {
+      method: "DELETE",
+    });
+  },
+
+  listPlan(familyId: string): Promise<MealPlanResponse[]> {
+    return request<MealPlanResponse[]>(`/api/meals/plan?familyId=${familyId}`);
+  },
+  addPlanEntry(
+    familyId: string,
+    entry: Omit<MealPlanResponse, "id">,
+  ): Promise<MealPlanResponse> {
+    return request<MealPlanResponse>(`/api/meals/plan`, {
+      method: "POST",
+      body: JSON.stringify({ ...entry, familyId }),
+    });
+  },
+  removePlanEntry(familyId: string, id: string): Promise<void> {
+    return request(`/api/meals/plan/${id}?familyId=${familyId}`, {
+      method: "DELETE",
+    });
+  },
+
+  listShopping(familyId: string): Promise<ShoppingItemResponse[]> {
+    return request<ShoppingItemResponse[]>(
+      `/api/meals/shopping?familyId=${familyId}`,
+    );
+  },
+  replaceShopping(
+    familyId: string,
+    items: Array<Omit<ShoppingItemResponse, "id">>,
+  ): Promise<void> {
+    return request(`/api/meals/shopping`, {
+      method: "PUT",
+      body: JSON.stringify({ familyId, items }),
+    });
+  },
+  toggleShopping(
+    familyId: string,
+    id: string,
+    checked: boolean,
+  ): Promise<void> {
+    return request(`/api/meals/shopping/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ familyId, checked }),
+    });
+  },
+};
+
+// ---- Finance API ----
+
+export interface BankAccountResponse {
+  id: string;
+  name: string;
+  institution: string;
+  balance: number;
+  isFeatured: boolean;
+  savingsGoal?: number;
+  monthlyBalances: { month: string; balance: number }[];
+}
+
+export interface TransactionResponse {
+  id: string;
+  accountId: string;
+  description: string;
+  amount: number;
+  date: string;
+  category: string;
+}
+
+export const finance = {
+  listAccounts(familyId: string): Promise<BankAccountResponse[]> {
+    return request<BankAccountResponse[]>(
+      `/api/finance/accounts?familyId=${familyId}`,
+    );
+  },
+  createAccount(
+    familyId: string,
+    a: Omit<BankAccountResponse, "id">,
+  ): Promise<BankAccountResponse> {
+    return request<BankAccountResponse>(`/api/finance/accounts`, {
+      method: "POST",
+      body: JSON.stringify({ ...a, familyId }),
+    });
+  },
+  updateAccount(
+    familyId: string,
+    id: string,
+    updates: Partial<BankAccountResponse>,
+  ): Promise<BankAccountResponse> {
+    return request<BankAccountResponse>(`/api/finance/accounts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...updates, familyId }),
+    });
+  },
+  removeAccount(familyId: string, id: string): Promise<void> {
+    return request(`/api/finance/accounts/${id}?familyId=${familyId}`, {
+      method: "DELETE",
+    });
+  },
+
+  listTransactions(familyId: string): Promise<TransactionResponse[]> {
+    return request<TransactionResponse[]>(
+      `/api/finance/transactions?familyId=${familyId}`,
+    );
+  },
+  createTransaction(
+    familyId: string,
+    t: Omit<TransactionResponse, "id">,
+  ): Promise<TransactionResponse> {
+    return request<TransactionResponse>(`/api/finance/transactions`, {
+      method: "POST",
+      body: JSON.stringify({ ...t, familyId }),
+    });
+  },
+  updateTransaction(
+    familyId: string,
+    id: string,
+    updates: Partial<TransactionResponse>,
+  ): Promise<TransactionResponse> {
+    return request<TransactionResponse>(`/api/finance/transactions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...updates, familyId }),
+    });
+  },
+  removeTransaction(familyId: string, id: string): Promise<void> {
+    return request(`/api/finance/transactions/${id}?familyId=${familyId}`, {
+      method: "DELETE",
+    });
   },
 };

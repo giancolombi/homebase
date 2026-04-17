@@ -7,6 +7,9 @@ import {
 import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import pool from "./db.js";
+import { sendPasswordResetEmail } from "./lib/email.js";
+
+const APP_URL = process.env.APP_URL || "http://localhost:8080";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
@@ -262,13 +265,21 @@ router.post("/request-reset", async (req: Request, res: Response) => {
       { expiresIn: "1h" },
     );
 
-    // In production, send this token via email.
-    // For development, return it directly.
-    console.log(`Password reset token for ${email}: ${resetToken}`);
+    const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`;
+
+    // Try to send the email. If RESEND_API_KEY isn't configured the mailer
+    // falls back to console logging so dev/E2E flows still work.
+    const { sent } = await sendPasswordResetEmail({ to: email, resetUrl });
+    if (!sent) {
+      console.log(`Password reset URL for ${email}: ${resetUrl}`);
+    }
+
     res.json({
       message: "If that email is registered, a reset link has been sent.",
-      // Include token in dev for testing (remove in production)
-      ...(process.env.NODE_ENV !== "production" && { resetToken }),
+      // Include token in dev (or whenever no real email was sent) so the
+      // app can surface it for testing — do not expose in production once
+      // SMTP/Resend is configured.
+      ...(!sent && process.env.NODE_ENV !== "production" && { resetToken }),
     });
   } catch (err: any) {
     console.error("Request reset error:", err);

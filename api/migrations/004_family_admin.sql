@@ -1,6 +1,2 @@
--- Add admin role to family members
-ALTER TABLE public.family_members
-  ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
-
--- Owners are automatically admins
-UPDATE public.family_members SET is_admin = true WHERE is_owner = true;
+-- Merged into 001_initial_schema.sql. Kept as a no-op; see 001 for schema.
+SELECT 1;

@@ -1,5 +1,10 @@
 -- Homebase: Initial schema for PostgreSQL (no Supabase dependencies)
 -- Run against a standard PostgreSQL database.
+--
+-- Consolidated history: this file now contains everything originally spread
+-- across migrations 002_calendar_tokens, 003_invite_tokens, 004_family_admin.
+-- Those files remain as no-ops so existing installations that already ran
+-- them stay untouched. Fresh installs get the full schema from this file.
 
 -- Enable UUID generation
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -49,7 +54,10 @@ CREATE TABLE public.family_members (
   color_index INTEGER NOT NULL DEFAULT 0,
   avatar_url TEXT,
   invite_status TEXT CHECK (invite_status IN ('pending', 'accepted')),
+  invite_token TEXT,
+  invite_sent_at TIMESTAMP WITH TIME ZONE,
   is_owner BOOLEAN NOT NULL DEFAULT false,
+  is_admin BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
@@ -60,9 +68,41 @@ CREATE TABLE public.calendar_connections (
   member_id UUID NOT NULL REFERENCES public.family_members(id) ON DELETE CASCADE,
   provider TEXT NOT NULL CHECK (provider IN ('google', 'outlook', 'apple', 'homebase')),
   email TEXT NOT NULL DEFAULT '',
+  external_email TEXT,
   connected BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+  access_token_encrypted TEXT,
+  refresh_token_encrypted TEXT,
+  token_expires_at TIMESTAMP WITH TIME ZONE,
+  last_synced_at TIMESTAMP WITH TIME ZONE,
+  sync_error TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  CONSTRAINT calendar_connections_member_provider_unique UNIQUE (member_id, provider)
 );
+
+-- Synced events pulled from external calendars (separate from homebase events)
+CREATE TABLE public.synced_calendar_events (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  connection_id UUID NOT NULL REFERENCES public.calendar_connections(id) ON DELETE CASCADE,
+  family_id UUID NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES public.family_members(id) ON DELETE CASCADE,
+  external_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  date DATE NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  all_day BOOLEAN NOT NULL DEFAULT false,
+  location TEXT,
+  source_provider TEXT NOT NULL,
+  raw_data JSONB,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_synced_events_connection ON public.synced_calendar_events(connection_id);
+CREATE INDEX idx_synced_events_family_date ON public.synced_calendar_events(family_id, date);
+CREATE UNIQUE INDEX idx_synced_events_external ON public.synced_calendar_events(connection_id, external_id);
 
 -- Calendar events
 CREATE TABLE public.calendar_events (
@@ -209,3 +249,12 @@ CREATE TRIGGER update_recipes_updated_at BEFORE UPDATE ON public.recipes
 
 CREATE TRIGGER update_bank_accounts_updated_at BEFORE UPDATE ON public.bank_accounts
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE TRIGGER update_calendar_connections_updated_at BEFORE UPDATE ON public.calendar_connections
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE TRIGGER update_synced_calendar_events_updated_at BEFORE UPDATE ON public.synced_calendar_events
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Back-fill: existing owners should also be admins.
+UPDATE public.family_members SET is_admin = true WHERE is_owner = true;

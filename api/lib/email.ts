@@ -5,17 +5,37 @@ const FROM_EMAIL = process.env.FROM_EMAIL || "Homebase <onboarding@resend.dev>";
 // Lazy initialization — don't crash on startup if key is missing
 let resend: Resend | null = null;
 
-function getResend(): Resend {
-  if (!resend) {
-    const key = process.env.RESEND_API_KEY;
-    if (!key) {
-      throw new Error(
-        "RESEND_API_KEY is not set. Add it to your environment variables.",
-      );
-    }
-    resend = new Resend(key);
-  }
+function getResend(): Resend | null {
+  if (resend) return resend;
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  resend = new Resend(key);
   return resend;
+}
+
+/**
+ * Send an email via Resend, or log it to the console when RESEND_API_KEY is
+ * not configured (dev fallback). Returns whether the email was actually sent.
+ */
+async function sendOrLog(options: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<{ sent: boolean }> {
+  const client = getResend();
+  if (!client) {
+    console.log(
+      `[email dev-fallback] to=${options.to} subject=${options.subject}`,
+    );
+    return { sent: false };
+  }
+  await client.emails.send({
+    from: FROM_EMAIL,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+  });
+  return { sent: true };
 }
 
 export async function sendInviteEmail(options: {
@@ -23,11 +43,10 @@ export async function sendInviteEmail(options: {
   inviterName: string;
   familyName: string;
   inviteUrl: string;
-}): Promise<void> {
+}): Promise<{ sent: boolean }> {
   const { to, inviterName, familyName, inviteUrl } = options;
 
-  await getResend().emails.send({
-    from: FROM_EMAIL,
+  return sendOrLog({
     to,
     subject: `${inviterName} invited you to join ${familyName} on Homebase`,
     html: `
@@ -49,6 +68,38 @@ export async function sendInviteEmail(options: {
         </div>
         <p style="font-size: 13px; color: #9ca3af; line-height: 1.5;">
           This invite expires in 7 days. If you didn't expect this email, you can safely ignore it.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendPasswordResetEmail(options: {
+  to: string;
+  resetUrl: string;
+}): Promise<{ sent: boolean }> {
+  const { to, resetUrl } = options;
+
+  return sendOrLog({
+    to,
+    subject: "Reset your Homebase password",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="display: inline-block; width: 48px; height: 48px; background: #e0f2f1; border-radius: 12px; line-height: 48px; font-size: 24px;">🏠</div>
+          <h1 style="font-size: 20px; font-weight: 600; margin: 12px 0 4px;">Reset your password</h1>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">We got a request to reset your Homebase password.</p>
+        </div>
+        <p style="font-size: 15px; color: #1f2937; line-height: 1.6;">
+          Click the button below to choose a new password. This link will expire in 1 hour.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${resetUrl}" style="display: inline-block; background: #5eead4; color: #0f172a; font-weight: 600; font-size: 15px; padding: 12px 32px; border-radius: 8px; text-decoration: none;">
+            Reset Password
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #9ca3af; line-height: 1.5;">
+          If you didn't request this, you can safely ignore this email — your password will stay the same.
         </p>
       </div>
     `,

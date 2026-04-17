@@ -22,6 +22,7 @@ import type {
 import { DEFAULT_DIETARY_RESTRICTIONS } from "@/types/foodlab";
 import { foodlabToHomebaseRecipe } from "@/lib/foodlabParser";
 import { mockBankAccounts, mockTransactions } from "@/data/mockFinance";
+import { push } from "@/lib/sync";
 
 const initialState: FamilyData = {
   familyId: null,
@@ -169,67 +170,100 @@ export const useFamilyStore = create<FamilyStore>()(
       deleteEvent: (id) =>
         set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
 
-      addTaskCategory: (cat) =>
-        set((s) => ({ taskCategories: [...s.taskCategories, cat] })),
+      addTaskCategory: (cat) => {
+        set((s) => ({ taskCategories: [...s.taskCategories, cat] }));
+        push.task.createCategory(get().familyId, cat.name, cat.icon);
+      },
 
-      addTask: (task) => set((s) => ({ tasks: [...s.tasks, task] })),
+      addTask: (task) => {
+        set((s) => ({ tasks: [...s.tasks, task] }));
+        push.task.create(get().familyId, task);
+      },
 
-      updateTask: (id, updates) =>
+      updateTask: (id, updates) => {
         set((s) => ({
           tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-        })),
+        }));
+        push.task.update(get().familyId, id, updates);
+      },
 
-      deleteTask: (id) =>
-        set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
+      deleteTask: (id) => {
+        set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
+        push.task.remove(get().familyId, id);
+      },
 
-      addRecipe: (recipe) => set((s) => ({ recipes: [...s.recipes, recipe] })),
+      addRecipe: (recipe) => {
+        set((s) => ({ recipes: [...s.recipes, recipe] }));
+        push.recipe.create(get().familyId, recipe);
+      },
 
-      updateRecipe: (id, updates) =>
+      updateRecipe: (id, updates) => {
         set((s) => ({
           recipes: s.recipes.map((r) =>
             r.id === id ? { ...r, ...updates } : r,
           ),
-        })),
+        }));
+        push.recipe.update(get().familyId, id, updates);
+      },
 
-      deleteRecipe: (id) =>
-        set((s) => ({ recipes: s.recipes.filter((r) => r.id !== id) })),
+      deleteRecipe: (id) => {
+        set((s) => ({ recipes: s.recipes.filter((r) => r.id !== id) }));
+        push.recipe.remove(get().familyId, id);
+      },
 
-      addMealPlanEntry: (entry) =>
-        set((s) => ({ mealPlan: [...s.mealPlan, entry] })),
+      addMealPlanEntry: (entry) => {
+        set((s) => ({ mealPlan: [...s.mealPlan, entry] }));
+        push.mealPlan.add(get().familyId, entry);
+      },
 
-      removeMealPlanEntry: (id) =>
-        set((s) => ({ mealPlan: s.mealPlan.filter((e) => e.id !== id) })),
+      removeMealPlanEntry: (id) => {
+        set((s) => ({ mealPlan: s.mealPlan.filter((e) => e.id !== id) }));
+        push.mealPlan.remove(get().familyId, id);
+      },
 
-      updateShoppingList: (items) => set({ shoppingList: items }),
+      updateShoppingList: (items) => {
+        set({ shoppingList: items });
+        push.shopping.replace(get().familyId, items);
+      },
 
-      toggleShoppingItem: (id) =>
-        set((s) => ({
-          shoppingList: s.shoppingList.map((i) =>
-            i.id === id ? { ...i, checked: !i.checked } : i,
-          ),
-        })),
+      toggleShoppingItem: (id) => {
+        const next = get().shoppingList.map((i) =>
+          i.id === id ? { ...i, checked: !i.checked } : i,
+        );
+        set({ shoppingList: next });
+        const updated = next.find((i) => i.id === id);
+        if (updated) push.shopping.toggle(get().familyId, id, updated.checked);
+      },
 
-      updateBankAccount: (id, updates) =>
+      updateBankAccount: (id, updates) => {
         set((s) => ({
           bankAccounts: s.bankAccounts.map((a) =>
             a.id === id ? { ...a, ...updates } : a,
           ),
-        })),
+        }));
+        push.bankAccount.update(get().familyId, id, updates);
+      },
 
-      addBankAccount: (account) =>
-        set((s) => ({ bankAccounts: [...s.bankAccounts, account] })),
+      addBankAccount: (account) => {
+        set((s) => ({ bankAccounts: [...s.bankAccounts, account] }));
+        push.bankAccount.create(get().familyId, account);
+      },
 
-      removeBankAccount: (id) =>
+      removeBankAccount: (id) => {
         set((s) => ({
           bankAccounts: s.bankAccounts.filter((a) => a.id !== id),
-        })),
+        }));
+        push.bankAccount.remove(get().familyId, id);
+      },
 
-      updateTransaction: (id, updates) =>
+      updateTransaction: (id, updates) => {
         set((s) => ({
           transactions: s.transactions.map((t) =>
             t.id === id ? { ...t, ...updates } : t,
           ),
-        })),
+        }));
+        push.transaction.update(get().familyId, id, updates);
+      },
 
       // FoodLab actions
       setFoodlabRecipes: (recipes) => set({ foodlabRecipes: recipes }),

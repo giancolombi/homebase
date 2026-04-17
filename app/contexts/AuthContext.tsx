@@ -6,17 +6,20 @@ import {
   type ReactNode,
 } from "react";
 import { auth, type AuthUser } from "@/lib/api";
+import { pullAllData } from "@/lib/sync";
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  setUser: (user: AuthUser | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   signOut: async () => {},
+  setUser: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -30,7 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Sync familyId from backend into Zustand store (lazy import to avoid circular dep)
       if (session?.user?.familyId) {
         import("@/store/familyStore").then(({ useFamilyStore }) => {
-          useFamilyStore.getState().setFamilyId(session.user.familyId!);
+          const store = useFamilyStore.getState();
+          store.setFamilyId(session.user.familyId!);
+          // Hydrate tasks / meals / finance from the backend. No-op in demo mode.
+          pullAllData(session.user.familyId!, (patch) =>
+            useFamilyStore.setState(patch as any),
+          );
         });
       }
       setLoading(false);
@@ -58,17 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  // Expose a way for sign-in/sign-up to update the user in context
-  // We attach it to window so the auth pages can call it after login
-  useEffect(() => {
-    (window as any).__setAuthUser = setUser;
-    return () => {
-      delete (window as any).__setAuthUser;
-    };
-  }, []);
-
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut, setUser }}>
       {children}
     </AuthContext.Provider>
   );

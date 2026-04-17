@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { generateId } from "@/lib/memberColors";
-import { Plus, Trash2, Link } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { RecipeIngredient } from "@/types/family";
 
 interface Props {
@@ -95,20 +95,11 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Recipe URL (optional)</Label>
-            <div className="flex gap-2">
-              <Input
-                value={sourceUrl}
-                onChange={(e) => setSourceUrl(e.target.value)}
-                placeholder="https://..."
-                className="flex-1"
-              />
-              <Button size="sm" variant="outline" disabled>
-                <Link className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              AI recipe scanning coming soon!
-            </p>
+            <Input
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="https://..."
+            />
           </div>
 
           <div className="space-y-1.5">

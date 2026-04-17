@@ -1,4 +1,2 @@
--- Add invite token columns to family_members
-ALTER TABLE public.family_members
-  ADD COLUMN IF NOT EXISTS invite_token TEXT,
-  ADD COLUMN IF NOT EXISTS invite_sent_at TIMESTAMP WITH TIME ZONE;
+-- Merged into 001_initial_schema.sql. Kept as a no-op; see 001 for schema.
+SELECT 1;

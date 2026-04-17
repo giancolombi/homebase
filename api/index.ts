@@ -5,6 +5,9 @@ import onboardingRouter from "./onboarding.js";
 import calendarRouter from "./calendar.js";
 import inviteRouter from "./invite.js";
 import familyRouter from "./family.js";
+import tasksRouter from "./tasks.js";
+import mealsRouter from "./meals.js";
+import financeRouter from "./finance.js";
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || "3001", 10);
@@ -23,6 +26,9 @@ app.use("/api/onboarding", onboardingRouter);
 app.use("/api/calendar", calendarRouter);
 app.use("/api/invite", inviteRouter);
 app.use("/api/family", familyRouter);
+app.use("/api/tasks", tasksRouter);
+app.use("/api/meals", mealsRouter);
+app.use("/api/finance", financeRouter);
 
 app.listen(PORT, () => {
   console.log(`API server running on http://localhost:${PORT}`);

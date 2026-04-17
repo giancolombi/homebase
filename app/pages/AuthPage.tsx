@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { auth } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { Home, ArrowLeft } from "lucide-react";
 
 export default function AuthPage() {
+  const { setUser } = useAuth();
   const [tab, setTab] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,8 +28,7 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const { user } = await auth.signIn(email, password);
-      // Update the AuthContext
-      (window as any).__setAuthUser?.(user);
+      setUser(user);
     } catch (error: any) {
       toast({
         title: "Sign in failed",
@@ -51,8 +52,7 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const { user } = await auth.signUp(email, password, fullName);
-      // Update the AuthContext
-      (window as any).__setAuthUser?.(user);
+      setUser(user);
       toast({ title: "Account created", description: "Welcome to Homebase!" });
     } catch (error: any) {
       toast({

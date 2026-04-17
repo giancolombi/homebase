@@ -14,6 +14,8 @@ import FoodLabRecipeCard from "./FoodLabRecipeCard";
 import IngredientMatcher from "./IngredientMatcher";
 import DietaryEditor from "./DietaryEditor";
 import type { FoodLabRating } from "@/types/foodlab";
+import { fetchFoodlabRecipes } from "@/lib/foodlabSync";
+import { toast } from "@/hooks/use-toast";
 
 export default function FoodLabPanel() {
   const {
@@ -22,10 +24,43 @@ export default function FoodLabPanel() {
     addFoodlabRating,
     currentUserId,
     foodlabLastSynced,
+    setFoodlabRecipes,
+    setFoodlabLastSynced,
   } = useFamilyStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showDietary, setShowDietary] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const recipes = await fetchFoodlabRecipes();
+      if (recipes.length === 0) {
+        toast({
+          title: "No recipes found",
+          description:
+            "The FoodLab repository returned no recipes. Try again later.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setFoodlabRecipes(recipes);
+      setFoodlabLastSynced(new Date().toISOString().split("T")[0]);
+      toast({
+        title: "Synced",
+        description: `Loaded ${recipes.length} recipes from FoodLab.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Sync failed",
+        description: err?.message ?? "Could not reach the FoodLab repository.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const filteredRecipes = useMemo(() => {
     if (!searchQuery.trim()) return foodlabRecipes;
@@ -66,7 +101,7 @@ export default function FoodLabPanel() {
           No FoodLab recipes loaded yet
         </p>
         <p className="text-xs text-muted-foreground mb-4">
-          Clone the{" "}
+          Pull the latest recipes straight from the{" "}
           <a
             href="https://github.com/giancolombi/foodlab"
             target="_blank"
@@ -74,12 +109,15 @@ export default function FoodLabPanel() {
             className="text-primary hover:underline"
           >
             FoodLab repo
-          </a>{" "}
-          and sync recipes to get started.
+          </a>
+          .
         </p>
-        <p className="text-[10px] text-muted-foreground">
-          Or use the demo data below to try it out.
-        </p>
+        <Button size="sm" onClick={handleSync} disabled={syncing}>
+          <RefreshCw
+            className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`}
+          />
+          {syncing ? "Syncing..." : "Sync from GitHub"}
+        </Button>
       </div>
     );
   }
@@ -96,6 +134,18 @@ export default function FoodLabPanel() {
             className="h-8 text-xs pl-7"
           />
         </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8"
+          onClick={handleSync}
+          disabled={syncing}
+          title="Sync from GitHub"
+        >
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`}
+          />
+        </Button>
         <Button
           size="sm"
           variant="outline"
