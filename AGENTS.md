@@ -273,7 +273,7 @@ app/                    # Frontend SPA (React 19)
     settings/           # Settings components
     tasks/              # Task management components
   contexts/             # React contexts (AuthContext)
-  data/                 # Mock data (includes foodlabDemo.ts)
+  data/                 # Shared static reference data (populated lazily from backend)
   hooks/                # Custom hooks
   lib/                  # Utilities (api client, cn(), colors, foodlabParser)
   pages/                # Route pages (one file per route)
@@ -316,7 +316,7 @@ The Meals page includes a **FoodLab** tab that integrates with the [FoodLab reci
 | ---------------------------------------------- | -------------------------------------------------------- |
 | `app/types/foodlab.ts`                         | Types: FoodLabRecipe, DietaryRestrictions, FoodLabRating |
 | `app/lib/foodlabParser.ts`                     | Parse FoodLab markdown recipes into structured data      |
-| `app/data/foodlabDemo.ts`                      | Demo recipe data (loaded when FoodLab repo isn't cloned) |
+| `app/lib/foodlabSync.ts`                       | Fetch live recipes from the public FoodLab GitHub repo   |
 | `app/components/foodlab/FoodLabPanel.tsx`      | Main FoodLab UI (browse + ingredient matcher tabs)       |
 | `app/components/foodlab/FoodLabRecipeCard.tsx` | Recipe card with expand, rate, and import                |
 | `app/components/foodlab/StarRating.tsx`        | Interactive 1-5 star rating component                    |

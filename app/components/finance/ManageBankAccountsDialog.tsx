@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { usePlaidLink } from "react-plaid-link";
 import {
   Dialog,
   DialogContent,
@@ -10,12 +11,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { useFamilyStore } from "@/store/familyStore";
 import { generateId } from "@/lib/memberColors";
-import { Building2, Trash2, Plus, Eye, EyeOff } from "lucide-react";
+import {
+  Building2,
+  Trash2,
+  Plus,
+  Eye,
+  EyeOff,
+  Link as LinkIcon,
+  RefreshCw,
+} from "lucide-react";
 import type { BankAccount } from "@/types/family";
+import { plaid, type PlaidItemResponse } from "@/lib/api";
+import { pullAllData } from "@/lib/sync";
+import { toast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 
 export function ManageBankAccountsDialog() {
   const [open, setOpen] = useState(false);
@@ -23,8 +35,153 @@ export function ManageBankAccountsDialog() {
   const [name, setName] = useState("");
   const [institution, setInstitution] = useState("");
   const [balance, setBalance] = useState("");
-  const { bankAccounts, addBankAccount, removeBankAccount, updateBankAccount } =
-    useFamilyStore();
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [syncingItemId, setSyncingItemId] = useState<string | null>(null);
+  const [plaidItems, setPlaidItems] = useState<PlaidItemResponse[]>([]);
+  const {
+    bankAccounts,
+    addBankAccount,
+    removeBankAccount,
+    updateBankAccount,
+    familyId,
+  } = useFamilyStore();
+
+  const refreshPlaidItems = useCallback(async () => {
+    if (!familyId) return;
+    try {
+      const items = await plaid.listItems(familyId);
+      setPlaidItems(items);
+    } catch (err) {
+      console.warn("Failed to load linked banks:", err);
+    }
+  }, [familyId]);
+
+  useEffect(() => {
+    if (open) refreshPlaidItems();
+  }, [open, refreshPlaidItems]);
+
+  // Request a Plaid link_token when the dialog opens (tokens are short-lived,
+  // ~30min, so we lazy-fetch on demand rather than on every mount).
+  const requestLinkToken = useCallback(async () => {
+    if (!familyId) {
+      toast({
+        title: "Finish onboarding first",
+        description: "You need a family before linking a bank.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setLinking(true);
+      const { linkToken } = await plaid.createLinkToken(familyId);
+      setLinkToken(linkToken);
+    } catch (err) {
+      toast({
+        title: "Could not start bank link",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setLinking(false);
+    }
+  }, [familyId]);
+
+  const onLinkSuccess = useCallback(
+    async (
+      publicToken: string,
+      metadata: {
+        institution?: { institution_id: string; name: string } | null;
+      },
+    ) => {
+      if (!familyId) return;
+      try {
+        await plaid.exchange(
+          familyId,
+          publicToken,
+          metadata.institution
+            ? {
+                institution_id: metadata.institution.institution_id,
+                name: metadata.institution.name,
+              }
+            : undefined,
+        );
+        toast({
+          title: "Bank connected",
+          description: metadata.institution?.name
+            ? `Pulled accounts from ${metadata.institution.name}.`
+            : "Accounts and transactions synced.",
+        });
+        // Refresh local store from backend
+        await pullAllData(familyId, (patch) =>
+          useFamilyStore.setState(patch as any),
+        );
+        await refreshPlaidItems();
+      } catch (err) {
+        toast({
+          title: "Bank link failed",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      } finally {
+        setLinkToken(null);
+      }
+    },
+    [familyId],
+  );
+
+  const { open: openPlaid, ready: plaidReady } = usePlaidLink({
+    token: linkToken,
+    onSuccess: onLinkSuccess,
+    onExit: () => setLinkToken(null),
+  });
+
+  // Auto-open Plaid Link as soon as the token is ready
+  useEffect(() => {
+    if (linkToken && plaidReady) openPlaid();
+  }, [linkToken, plaidReady, openPlaid]);
+
+  const handleSync = async (itemId: string) => {
+    if (!familyId) return;
+    try {
+      setSyncingItemId(itemId);
+      const result = await plaid.sync(familyId, itemId);
+      toast({
+        title: "Synced",
+        description: `+${result.added} / ~${result.modified} / −${result.removed} transactions`,
+      });
+      await pullAllData(familyId, (patch) =>
+        useFamilyStore.setState(patch as any),
+      );
+      await refreshPlaidItems();
+    } catch (err) {
+      toast({
+        title: "Sync failed",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingItemId(null);
+    }
+  };
+
+  const handleUnlink = async (itemId: string) => {
+    if (!familyId) return;
+    try {
+      await plaid.removeItem(familyId, itemId);
+      toast({ title: "Bank unlinked" });
+      await pullAllData(familyId, (patch) =>
+        useFamilyStore.setState(patch as any),
+      );
+      await refreshPlaidItems();
+    } catch (err) {
+      toast({
+        title: "Unlink failed",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleAdd = () => {
     if (!name.trim() || !institution.trim()) return;
@@ -66,6 +223,76 @@ export function ManageBankAccountsDialog() {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+          {/* Plaid linked banks */}
+          {plaidItems.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
+                Linked banks
+              </p>
+              {plaidItems.map((item) => (
+                <Card key={item.id} className="p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {item.institutionName ?? "Bank"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.lastSyncedAt
+                          ? `Synced ${formatDistanceToNow(new Date(item.lastSyncedAt), { addSuffix: true })}`
+                          : "Not synced yet"}
+                      </p>
+                      {item.syncError && (
+                        <p className="text-xs text-destructive truncate">
+                          {item.syncError}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleSync(item.id)}
+                        disabled={syncingItemId === item.id}
+                        className="p-1.5 hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
+                        title="Sync transactions"
+                      >
+                        <RefreshCw
+                          className={`h-4 w-4 ${syncingItemId === item.id ? "animate-spin" : ""}`}
+                        />
+                      </button>
+                      <button
+                        onClick={() => handleUnlink(item.id)}
+                        className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors"
+                        title="Unlink bank"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <Button
+            variant="default"
+            className="w-full"
+            onClick={requestLinkToken}
+            disabled={linking || !!linkToken}
+          >
+            <LinkIcon className="h-4 w-4 mr-1" />
+            {linking
+              ? "Preparing…"
+              : linkToken
+                ? "Opening Plaid…"
+                : plaidItems.length > 0
+                  ? "Connect another bank"
+                  : "Connect a bank"}
+          </Button>
+
+          {bankAccounts.length > 0 && (
+            <p className="text-xs font-semibold text-muted-foreground uppercase pt-2">
+              Accounts
+            </p>
+          )}
           {bankAccounts.map((account) => (
             <Card key={account.id} className="p-3">
               <div className="flex items-start justify-between gap-3">

@@ -21,7 +21,6 @@ import type {
 } from "@/types/foodlab";
 import { DEFAULT_DIETARY_RESTRICTIONS } from "@/types/foodlab";
 import { foodlabToHomebaseRecipe } from "@/lib/foodlabParser";
-import { mockBankAccounts, mockTransactions } from "@/data/mockFinance";
 import { push } from "@/lib/sync";
 
 const initialState: FamilyData = {
@@ -31,19 +30,13 @@ const initialState: FamilyData = {
   currentUserId: null,
   calendarConnections: [],
   events: [],
-  taskCategories: [
-    { id: "cat-1", name: "Home" },
-    { id: "cat-2", name: "School" },
-    { id: "cat-3", name: "Work" },
-    { id: "cat-4", name: "Health" },
-    { id: "cat-5", name: "Errands" },
-  ],
+  taskCategories: [],
   tasks: [],
   recipes: [],
   mealPlan: [],
   shoppingList: [],
-  bankAccounts: mockBankAccounts,
-  transactions: mockTransactions,
+  bankAccounts: [],
+  transactions: [],
   onboardingComplete: false,
   // FoodLab state
   foodlabRecipes: [] as FoodLabRecipe[],

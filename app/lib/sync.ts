@@ -1,10 +1,8 @@
 // Backend sync layer. The Zustand store is the in-memory source of truth;
 // these helpers hydrate the store from the backend on load and mirror local
 // mutations to the backend as fire-and-forget side effects.
-//
-// Demo mode (localStorage-only) short-circuits everything — no network.
 
-import { isDemoMode, tasks, meals, finance } from "./api";
+import { tasks, meals, finance } from "./api";
 import type { FamilyData } from "@/types/family";
 
 type StorePatch = Partial<FamilyData>;
@@ -20,8 +18,6 @@ export async function pullAllData(
   familyId: string,
   apply: ApplyFn,
 ): Promise<void> {
-  if (isDemoMode()) return;
-
   try {
     const [
       taskList,
@@ -126,12 +122,12 @@ export async function pullAllData(
 
 // ---- Fire-and-forget push helpers ----
 //
-// Each one is a no-op in demo mode and swallows errors with a console.warn.
-// The store has already updated the UI optimistically; network hiccups
-// shouldn't break the interaction.
+// The store has already updated the UI optimistically; we swallow errors
+// with a console.warn so a transient network hiccup doesn't break the
+// interaction. Mutations against a null familyId (pre-onboarding) are skipped.
 
 function shouldSync(familyId: string | null | undefined): familyId is string {
-  return !!familyId && !isDemoMode();
+  return !!familyId;
 }
 
 function ignore(err: unknown, label: string) {

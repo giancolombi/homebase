@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import AddRecipeDialog from "@/components/meals/AddRecipeDialog";
 import FoodLabPanel from "@/components/foodlab/FoodLabPanel";
-import { demoFoodlabRecipes } from "@/data/foodlabDemo";
 import type { MealType, Recipe } from "@/types/family";
 import { generateId } from "@/lib/memberColors";
 
@@ -38,16 +37,8 @@ export default function MealsPage() {
     updateShoppingList,
     toggleShoppingItem,
     deleteRecipe,
-    foodlabRecipes,
-    setFoodlabRecipes,
-    setFoodlabLastSynced,
   } = useFamilyStore();
 
-  // Load demo FoodLab recipes if none loaded yet
-  if (foodlabRecipes.length === 0) {
-    setFoodlabRecipes(demoFoodlabRecipes);
-    setFoodlabLastSynced(new Date().toISOString().split("T")[0]);
-  }
   const [showAddRecipe, setShowAddRecipe] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showShopping, setShowShopping] = useState(false);

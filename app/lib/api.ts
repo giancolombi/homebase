@@ -3,19 +3,6 @@
 
 const TOKEN_KEY = "homebase-auth-token";
 
-/**
- * Sentinel token that signals "demo mode" — the app runs entirely from
- * localStorage with seeded mock data and no network calls. The UI sets this
- * token when the user picks "Try the demo"; production sign-in replaces it
- * with a real JWT from the backend. Import this from anywhere that needs to
- * branch on demo vs authenticated behavior.
- */
-export const DEMO_TOKEN = "demo-token";
-
-export function isDemoMode(): boolean {
-  return localStorage.getItem(TOKEN_KEY) === DEMO_TOKEN;
-}
-
 export interface AuthUser {
   id: string;
   email: string;
@@ -93,16 +80,6 @@ export const auth = {
   async getSession(): Promise<{ user: AuthUser } | null> {
     const token = getToken();
     if (!token) return null;
-    // Demo mode — skip the API call and return a fake user
-    if (token === DEMO_TOKEN) {
-      return {
-        user: {
-          id: "demo-user",
-          email: "alex@example.com",
-          full_name: "Alex Johnson",
-        },
-      };
-    }
     try {
       return await request<{ user: AuthUser }>("/api/auth/me");
     } catch {
@@ -578,6 +555,58 @@ export const finance = {
   },
   removeTransaction(familyId: string, id: string): Promise<void> {
     return request(`/api/finance/transactions/${id}?familyId=${familyId}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+// ---- Plaid (bank linking) API ----
+
+export interface PlaidItemResponse {
+  id: string;
+  institutionId: string | null;
+  institutionName: string | null;
+  lastSyncedAt: string | null;
+  syncError: string | null;
+  createdAt: string;
+}
+
+export const plaid = {
+  async createLinkToken(familyId: string): Promise<{ linkToken: string }> {
+    return request<{ linkToken: string }>(`/api/plaid/link-token`, {
+      method: "POST",
+      body: JSON.stringify({ familyId }),
+    });
+  },
+  async exchange(
+    familyId: string,
+    publicToken: string,
+    institution?: { institution_id?: string; name?: string },
+  ): Promise<{ itemId: string }> {
+    return request<{ itemId: string }>(`/api/plaid/exchange`, {
+      method: "POST",
+      body: JSON.stringify({ familyId, publicToken, institution }),
+    });
+  },
+  async sync(
+    familyId: string,
+    itemId: string,
+  ): Promise<{ added: number; modified: number; removed: number }> {
+    return request<{ added: number; modified: number; removed: number }>(
+      `/api/plaid/sync/${itemId}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ familyId }),
+      },
+    );
+  },
+  async listItems(familyId: string): Promise<PlaidItemResponse[]> {
+    return request<PlaidItemResponse[]>(
+      `/api/plaid/items?familyId=${familyId}`,
+    );
+  },
+  async removeItem(familyId: string, itemId: string): Promise<void> {
+    return request(`/api/plaid/items/${itemId}?familyId=${familyId}`, {
       method: "DELETE",
     });
   },

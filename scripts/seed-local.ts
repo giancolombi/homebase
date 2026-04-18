@@ -744,13 +744,14 @@ const storePayload = {
 };
 
 // ---------------------------------------------------------------------------
-// Try to create a real account via the API, fall back to demo-token
+// Create (or sign in to) the developer seed account against the running API.
+// Requires the API to be up — there is no offline fallback.
 // ---------------------------------------------------------------------------
 
-async function tryCreateAccount(): Promise<string> {
+async function createOrSignIn(): Promise<string> {
+  let res: Response;
   try {
-    // Try sign up first
-    let res = await fetch(`${API_URL}/api/auth/signup`, {
+    res = await fetch(`${API_URL}/api/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -759,29 +760,31 @@ async function tryCreateAccount(): Promise<string> {
         full_name: DEMO_NAME,
       }),
     });
-
-    // If account already exists, sign in instead
-    if (res.status === 409) {
-      res = await fetch(`${API_URL}/api/auth/signin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: DEMO_EMAIL, password: DEMO_PASSWORD }),
-      });
-    }
-
-    if (res.ok) {
-      const data = await res.json();
-      return data.token;
-    }
-  } catch {
-    // API not reachable — that's fine
+  } catch (err) {
+    throw new Error(
+      `Could not reach API at ${API_URL}. Start the backend with \`pnpm run server\` first. (${(err as Error).message})`,
+    );
   }
-  return "demo-token";
+
+  if (res.status === 409) {
+    res = await fetch(`${API_URL}/api/auth/signin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: DEMO_EMAIL, password: DEMO_PASSWORD }),
+    });
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`API returned ${res.status}: ${body}`);
+  }
+
+  const data = await res.json();
+  return data.token as string;
 }
 
 async function main() {
-  const token = await tryCreateAccount();
-  const isReal = token !== "demo-token";
+  const token = await createOrSignIn();
 
   const storeJson = JSON.stringify(storePayload);
   const tokenJson = JSON.stringify(token);
@@ -792,15 +795,14 @@ async function main() {
   );
 
   console.error("");
-  if (isReal) {
-    console.error(`Account created: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
-  } else {
-    console.error("API not running — using demo mode (no backend needed).");
-  }
+  console.error(`Account created: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   console.error("");
   console.error("Paste the output above into the browser console (F12),");
   console.error("or pipe to clipboard:  pnpm seed 2>/dev/null | pbcopy");
   console.error("");
 }
 
-main();
+main().catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});
