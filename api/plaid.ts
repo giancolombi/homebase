@@ -67,6 +67,7 @@ router.post(
     try {
       const client = getClient();
       const redirectUri = process.env.PLAID_REDIRECT_URI || undefined;
+      const webhook = process.env.PLAID_WEBHOOK_URL || undefined;
       const resp = await client.linkTokenCreate({
         user: { client_user_id: req.user!.id },
         client_name: "Homebase",
@@ -74,6 +75,7 @@ router.post(
         country_codes: [CountryCode.Us],
         language: "en",
         ...(redirectUri ? { redirect_uri: redirectUri } : {}),
+        ...(webhook ? { webhook } : {}),
       });
       res.json({
         linkToken: resp.data.link_token,
