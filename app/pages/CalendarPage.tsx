@@ -26,7 +26,52 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import AddEventDialog from "@/components/calendar/AddEventDialog";
 import type { CalendarEvent } from "@/types/family";
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6 AM to 9 PM
+const VISIBLE_START_HOUR = 6;
+const VISIBLE_END_HOUR = 22; // exclusive — last slot is 9 PM (21:00–22:00)
+const HOURS = Array.from(
+  { length: VISIBLE_END_HOUR - VISIBLE_START_HOUR },
+  (_, i) => i + VISIBLE_START_HOUR,
+);
+
+function parseTimeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function isAllDayEvent(event: CalendarEvent): boolean {
+  if (event.allDay) return true;
+  // Defensive: providers sometimes send 00:00–23:59 without an allDay flag
+  return event.startTime === "00:00" && event.endTime === "23:59";
+}
+
+interface TimedLayout {
+  top: number;
+  height: number;
+  startsBeforeWindow: boolean;
+  endsAfterWindow: boolean;
+}
+
+function getTimedLayout(event: CalendarEvent, slotHeight: number): TimedLayout {
+  const startMin = parseTimeToMinutes(event.startTime);
+  let endMin = parseTimeToMinutes(event.endTime);
+
+  // Midnight-spanning: end-of-day clip so the event still renders meaningfully
+  if (endMin <= startMin) endMin = 24 * 60 - 1;
+
+  const windowStart = VISIBLE_START_HOUR * 60;
+  const windowEnd = VISIBLE_END_HOUR * 60;
+
+  const startsBeforeWindow = startMin < windowStart;
+  const endsAfterWindow = endMin > windowEnd;
+
+  const clampedStart = Math.max(startMin, windowStart);
+  const clampedEnd = Math.min(endMin, windowEnd);
+
+  const top = ((clampedStart - windowStart) / 60) * slotHeight;
+  const height = Math.max(((clampedEnd - clampedStart) / 60) * slotHeight, 24);
+
+  return { top, height, startsBeforeWindow, endsAfterWindow };
+}
 
 export default function CalendarPage() {
   const { members, events, tasks } = useFamilyStore();
@@ -264,6 +309,8 @@ function DayView({
       {/* Member columns */}
       {members.map((member) => {
         const memberEvents = events.filter((e) => e.memberId === member.id);
+        const allDayEvents = memberEvents.filter(isAllDayEvent);
+        const timedEvents = memberEvents.filter((e) => !isAllDayEvent(e));
         const colorIdx = member.colorIndex;
 
         return (
@@ -288,6 +335,25 @@ function DayView({
               </p>
             </div>
 
+            {/* All-day events strip */}
+            {allDayEvents.length > 0 && (
+              <div className="border-b border-border bg-muted/20 px-1 py-1 space-y-1">
+                {allDayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    title={event.title}
+                    className={cn(
+                      "rounded-sm px-1.5 py-0.5 text-[10px] md:text-xs font-medium truncate border-l-2",
+                      MEMBER_BG_LIGHT[colorIdx],
+                      MEMBER_BORDER_COLORS[colorIdx],
+                    )}
+                  >
+                    {event.title}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Time slots */}
             <div className="relative">
               {HOURS.map((h) => (
@@ -298,32 +364,38 @@ function DayView({
                 />
               ))}
 
-              {/* Events */}
-              {memberEvents.map((event) => {
-                const [sh, sm] = event.startTime.split(":").map(Number);
-                const [eh, em] = event.endTime.split(":").map(Number);
-                const startMin = (sh - 6) * 60 + sm;
-                const duration = (eh - sh) * 60 + (em - sm);
-                const top = (startMin / 60) * slotHeight;
-                const height = Math.max((duration / 60) * slotHeight, 24);
+              {/* Timed events */}
+              {timedEvents.map((event) => {
+                const { top, height, startsBeforeWindow, endsAfterWindow } =
+                  getTimedLayout(event, slotHeight);
 
                 return (
                   <div
                     key={event.id}
+                    title={`${event.title} (${event.startTime}–${event.endTime})`}
                     className={cn(
-                      "absolute left-0.5 right-0.5 rounded-md px-1 py-0.5 overflow-hidden",
+                      "absolute left-0.5 right-0.5 rounded-md px-1 py-0.5 overflow-hidden border-l-2",
                       MEMBER_BG_LIGHT[colorIdx],
                       MEMBER_BORDER_COLORS[colorIdx],
-                      "border-l-2",
                     )}
                     style={{ top: `${top}px`, height: `${height}px` }}
                   >
+                    {startsBeforeWindow && (
+                      <p className="text-[8px] md:text-[10px] text-muted-foreground leading-none">
+                        ↑ starts {event.startTime}
+                      </p>
+                    )}
                     <p className="text-[10px] md:text-xs font-semibold text-foreground truncate">
                       {event.title}
                     </p>
                     <p className="text-[9px] md:text-[11px] text-muted-foreground">
                       {event.startTime}–{event.endTime}
                     </p>
+                    {endsAfterWindow && (
+                      <p className="text-[8px] md:text-[10px] text-muted-foreground leading-none">
+                        ↓ ends {event.endTime}
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -416,7 +488,9 @@ function WeekView({
                         {e.title}
                       </p>
                       <p className="text-[10px] md:text-xs text-muted-foreground">
-                        {e.startTime}–{e.endTime}
+                        {isAllDayEvent(e)
+                          ? "All day"
+                          : `${e.startTime}–${e.endTime}`}
                       </p>
                     </div>
                   </div>
