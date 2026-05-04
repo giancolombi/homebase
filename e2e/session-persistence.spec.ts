@@ -99,7 +99,7 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
     const pageB = await context.newPage();
 
     // Clear auth on both
-    await pageA.goto("/");
+    await pageA.goto("/auth");
     await clearAuth(pageA);
     await pageA.reload();
 
@@ -112,7 +112,7 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
     });
 
     // Page B should share the same localStorage (same context)
-    await pageB.goto("/");
+    await pageB.goto("/auth");
     await pageB.waitForSelector('button:has-text("Sign In")', {
       state: "hidden",
     });

@@ -122,7 +122,7 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     const pageB = await context.newPage();
 
     // Clear and sign in on page A
-    await pageA.goto("/");
+    await pageA.goto("/auth");
     await clearAuth(pageA);
     await pageA.reload();
 
@@ -134,7 +134,7 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     });
 
     // Page B should be logged in too
-    await pageB.goto("/");
+    await pageB.goto("/auth");
     await pageB.waitForSelector('button:has-text("Sign In")', {
       state: "hidden",
     });
@@ -143,7 +143,7 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     await pageA.evaluate(() => {
       localStorage.removeItem("homebase-auth-token");
     });
-    await pageA.goto("/");
+    await pageA.goto("/auth");
     await expect(pageA.getByRole("button", { name: "Sign In" })).toBeVisible();
 
     // Page B should also be logged out on reload
