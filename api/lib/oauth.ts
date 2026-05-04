@@ -37,8 +37,8 @@ function getProviderConfig(provider: string): OAuthConfig {
 
   if (provider === "outlook") {
     return {
-      authUrl: "https://login.microsoftonline.com/common/oauth2/v2/authorize",
-      tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2/token",
+      authUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       scopes: ["Calendars.Read", "User.Read", "offline_access"],
       clientId: process.env.MICROSOFT_CLIENT_ID || "",
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
