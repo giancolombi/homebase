@@ -3,7 +3,7 @@ import { uniqueEmail, TEST_PASSWORD, TEST_NAME, clearAuth } from "./helpers";
 
 test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
   });
@@ -47,7 +47,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
 
     // Clear auth and go back
     await clearAuth(page);
-    await page.goto("/");
+    await page.goto("/auth");
 
     // Second signup with same email
     await page.getByRole("tab", { name: "Sign Up" }).click();
@@ -84,7 +84,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
     await page.getByRole("button", { name: "Create Account" }).click();
 
     // Should not navigate — browser validation blocks submission
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-SU-05: Sign up with missing password", async ({ page }) => {
@@ -95,7 +95,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
     // Leave password empty
     await page.getByRole("button", { name: "Create Account" }).click();
 
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-SU-06: Sign up with missing full name", async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
     // Leave name empty
     await page.getByRole("button", { name: "Create Account" }).click();
 
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-SU-07: Sign up with invalid email format", async ({ page }) => {
@@ -117,7 +117,7 @@ test.describe("Sign Up (QA: specs/qa/qa-sign-up.md)", () => {
     await page.getByRole("button", { name: "Create Account" }).click();
 
     // Browser validation blocks — stays on page
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-SU-08: Network error during sign up", async ({ page }) => {

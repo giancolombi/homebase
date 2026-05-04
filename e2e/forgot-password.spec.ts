@@ -11,7 +11,7 @@ test.describe("Forgot Password (QA: specs/qa/qa-forgot-password.md)", () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
   });
@@ -63,7 +63,7 @@ test.describe("Forgot Password (QA: specs/qa/qa-forgot-password.md)", () => {
     await page.getByRole("button", { name: "Send Reset Link" }).click();
 
     // Browser validation blocks — stays on page
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-FP-05: Back to sign in from forgot password", async ({ page }) => {

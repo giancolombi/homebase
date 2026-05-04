@@ -17,7 +17,7 @@ export async function signUp(
   const password = options?.password ?? TEST_PASSWORD;
   const name = options?.name ?? TEST_NAME;
 
-  await page.goto("/");
+  await page.goto("/auth");
   await page.getByRole("tab", { name: "Sign Up" }).click();
   await page.getByLabel("Full Name").fill(name);
   await page.getByLabel("Email").fill(email);
@@ -37,7 +37,7 @@ export async function signIn(
   email: string,
   password: string = TEST_PASSWORD,
 ): Promise<void> {
-  await page.goto("/");
+  await page.goto("/auth");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign In" }).click();

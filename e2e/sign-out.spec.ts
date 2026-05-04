@@ -17,7 +17,7 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
   });
 
   test("TC-SO-01: Successful sign out", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
 
@@ -45,7 +45,7 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
     } else {
       // Fallback: clear auth manually to test the state transition
       await clearAuth(page);
-      await page.goto("/");
+      await page.goto("/auth");
     }
 
     // Should be on auth page
@@ -59,7 +59,7 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
   });
 
   test("TC-SO-03: Sign out requires fresh login", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
 
@@ -84,7 +84,7 @@ test.describe("Sign Out (QA: specs/qa/qa-sign-out.md)", () => {
   });
 
   test("TC-SO-04: Sign out clears only auth state", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
 

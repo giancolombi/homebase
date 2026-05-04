@@ -18,7 +18,7 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
   });
@@ -50,7 +50,7 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
     await expect(
       page.getByText("Invalid email or password").first(),
     ).toBeVisible();
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-SI-03: Sign in with non-existent email", async ({ page }) => {
@@ -68,14 +68,14 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
     await page.getByLabel("Password").fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
 
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-SI-05: Sign in with missing password", async ({ page }) => {
     await page.getByLabel("Email").fill(email);
     await page.getByRole("button", { name: "Sign In" }).click();
 
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/auth");
   });
 
   test("TC-SI-06: Sign in button disabled during loading", async ({ page }) => {
@@ -126,7 +126,7 @@ test.describe("Sign In (QA: specs/qa/qa-sign-in.md)", () => {
 
     // Clear auth (simulates sign out)
     await clearAuth(page);
-    await page.goto("/");
+    await page.goto("/auth");
 
     // Sign in again
     await page.getByLabel("Email").fill(email);

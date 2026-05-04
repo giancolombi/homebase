@@ -11,7 +11,7 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
   });
 
   test("TC-SP-01: Session survives page refresh", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
 
@@ -39,7 +39,7 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
   test("TC-SP-04: Session loads user data from the server", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
 
@@ -65,7 +65,7 @@ test.describe("Session Persistence (QA: specs/qa/qa-session-persistence.md)", ()
   });
 
   test("TC-SP-05: Expired token redirects to login", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/auth");
     await clearAuth(page);
     await page.reload();
 
