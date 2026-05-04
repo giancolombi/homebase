@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Homebase logo preview</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 40px;
+        font-family: -apple-system, system-ui, sans-serif;
+        background: #fafafa;
+        color: #333;
+      }
+      .wrap {
+        display: flex;
+        gap: 60px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .swatch {
+        text-align: center;
+      }
+      .swatch img,
+      .swatch object {
+        display: block;
+        margin-bottom: 12px;
+      }
+      .label {
+        font-size: 12px;
+        color: #888;
+      }
+      .download {
+        margin-top: 40px;
+        padding: 16px;
+        background: #fff;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        max-width: 600px;
+      }
+      .download a {
+        color: #4fb8ae;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 style="font-size: 18px; margin-bottom: 20px">Homebase logo preview</h1>
+    <div class="wrap">
+      <div class="swatch">
+        <object
+          data="/logo.svg"
+          type="image/svg+xml"
+          width="120"
+          height="120"
+        ></object>
+        <div class="label">120×120 (upload size)</div>
+      </div>
+      <div class="swatch">
+        <object
+          data="/logo.svg"
+          type="image/svg+xml"
+          width="64"
+          height="64"
+        ></object>
+        <div class="label">64×64 (favicon scale)</div>
+      </div>
+      <div class="swatch">
+        <object
+          data="/logo.svg"
+          type="image/svg+xml"
+          width="240"
+          height="240"
+        ></object>
+        <div class="label">240×240 (large preview)</div>
+      </div>
+      <div
+        class="swatch"
+        style="background: #1a1a1a; padding: 16px; border-radius: 12px"
+      >
+        <object
+          data="/logo.svg"
+          type="image/svg+xml"
+          width="120"
+          height="120"
+        ></object>
+        <div class="label" style="color: #aaa">on dark</div>
+      </div>
+    </div>
+    <div class="download">
+      <strong>To upload to Google:</strong> right-click the 120×120 logo → Save
+      Image As → save as PNG. Or use one of the conversion methods listed in the
+      chat.
+    </div>
+  </body>
+</html>
