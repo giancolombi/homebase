@@ -88,7 +88,7 @@ pnpm run test:e2e:ui           # Playwright interactive UI mode
 Run against a different environment:
 
 ```bash
-E2E_BASE_URL=https://homebase.up.railway.app pnpm test:e2e
+E2E_BASE_URL=https://gethomebase.dev pnpm test:e2e
 ```
 
 E2E test files live in `e2e/` and map 1:1 to QA specs in `specs/qa/`.

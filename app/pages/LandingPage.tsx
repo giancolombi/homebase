@@ -80,9 +80,13 @@ export default function LandingPage() {
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground space-y-2">
-          <p>
+          <p className="space-x-3">
             <Link to="/privacy" className="underline hover:text-foreground">
               Privacy Policy
+            </Link>
+            <span aria-hidden>·</span>
+            <Link to="/terms" className="underline hover:text-foreground">
+              Terms of Service
             </Link>
           </p>
           <p>Built for families, by families.</p>

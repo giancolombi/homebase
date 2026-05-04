@@ -1,7 +1,7 @@
 # QA Test Plan: Family Invites
 
 **Feature:** Invite adult family members via email, accept/decline invites
-**URL:** `https://homebase.up.railway.app/`
+**URL:** `https://gethomebase.dev/`
 **Precondition:** Resend API key is configured. At least one user account exists with a family.
 
 ---

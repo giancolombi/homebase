@@ -1,7 +1,7 @@
 # QA Test Plan: Calendar Integration (Google & Outlook)
 
 **Feature:** Read-only calendar sync from external providers
-**URL:** `https://homebase.up.railway.app/`
+**URL:** `https://gethomebase.dev/`
 **Precondition:** User is signed in with a real account (not demo mode). Google OAuth credentials are configured on Railway.
 
 ---

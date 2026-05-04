@@ -1,7 +1,7 @@
 # QA Test Plan: Sign Up
 
 **Feature:** Account creation
-**URL:** `https://homebase.up.railway.app/`
+**URL:** `https://gethomebase.dev/`
 **Precondition:** User is not logged in (no token in localStorage)
 
 ---

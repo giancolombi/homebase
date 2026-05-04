@@ -16,6 +16,7 @@ import AuthPage from "@/pages/AuthPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import AcceptInvitePage from "@/pages/AcceptInvitePage";
 import PrivacyPage from "@/pages/PrivacyPage";
+import TermsPage from "@/pages/TermsPage";
 import LandingPage from "@/pages/LandingPage";
 import NotFound from "@/pages/NotFound";
 
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -102,6 +104,7 @@ function AppRoutes() {
       />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

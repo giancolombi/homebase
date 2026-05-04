@@ -1,7 +1,7 @@
 # QA Test Plan: Sign Out
 
 **Feature:** User logout
-**URL:** `https://homebase.up.railway.app/`
+**URL:** `https://gethomebase.dev/`
 **Precondition:** User is signed in
 
 ---

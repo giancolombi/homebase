@@ -1,7 +1,7 @@
 # QA Test Plan: Sign In
 
 **Feature:** User authentication (login)
-**URL:** `https://homebase.up.railway.app/`
+**URL:** `https://gethomebase.dev/`
 **Precondition:** A user account already exists (complete sign-up first)
 
 ---

@@ -1,7 +1,7 @@
 # QA Test Plan: Forgot Password / Reset Password
 
 **Feature:** Password reset flow
-**URL:** `https://homebase.up.railway.app/`
+**URL:** `https://gethomebase.dev/`
 **Precondition:** A user account already exists
 
 ---

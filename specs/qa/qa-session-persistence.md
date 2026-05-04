@@ -1,7 +1,7 @@
 # QA Test Plan: Session Persistence
 
 **Feature:** Returning users stay logged in across page reloads and browser restarts
-**URL:** `https://homebase.up.railway.app/`
+**URL:** `https://gethomebase.dev/`
 **Precondition:** A user account exists and credentials are known
 
 ---

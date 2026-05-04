@@ -256,7 +256,7 @@ pnpm test:e2e:ui       # Interactive Playwright UI
 E2E tests use Playwright and run against `localhost:8080` by default. To run against production:
 
 ```sh
-E2E_BASE_URL=https://homebase.up.railway.app pnpm test:e2e
+E2E_BASE_URL=https://gethomebase.dev pnpm test:e2e
 ```
 
 ### QA test plans
@@ -285,7 +285,7 @@ The app is deployed on **Railway** with 3 services:
 
 | Service    | URL                              | Type    |
 | ---------- | -------------------------------- | ------- |
-| Frontend   | `homebase.up.railway.app`        | Public  |
+| Frontend   | `gethomebase.dev`                | Public  |
 | API        | `homebase.railway.internal:3001` | Private |
 | PostgreSQL | `postgres.railway.internal`      | Private |
 
