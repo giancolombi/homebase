@@ -84,14 +84,44 @@ function sanitizeReturnTo(returnTo: string | undefined): string {
   return returnTo;
 }
 
+// Build the URL the popup should send the parent to. Encodes everything via
+// URLSearchParams so error_description payloads (often multi-word, with
+// punctuation, sometimes containing AADSTS codes) can't break out into HTML
+// or query syntax.
+function buildReturnUrl(
+  returnTo: string,
+  params: Record<string, string | undefined>,
+): string {
+  const search = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v) search.set(k, v);
+  }
+  return `${APP_URL}${returnTo}?${search.toString()}`;
+}
+
+// HTML page that hands a URL to the parent window and closes the popup.
+// `url` MUST already be a fully-encoded absolute URL — we still JSON.stringify
+// it to be defense-in-depth against breaking out of the string literal.
+function popupRedirectHtml(url: string, message: string): string {
+  return `<!DOCTYPE html><html><body><script>
+  if (window.opener) {
+    window.opener.location.href = ${JSON.stringify(url)};
+  }
+  window.close();
+</script><p>${message}</p></body></html>`;
+}
+
 // GET /api/calendar/callback/:provider — OAuth callback
 router.get("/callback/:provider", async (req: Request, res: Response) => {
   const { provider } = req.params;
-  const { code, state, error } = req.query as {
-    code?: string;
-    state?: string;
-    error?: string;
-  };
+  const { code, state, error, error_description, error_subcode } =
+    req.query as {
+      code?: string;
+      state?: string;
+      error?: string;
+      error_description?: string;
+      error_subcode?: string;
+    };
 
   // Best-effort: pull returnTo out of state up front so error paths can
   // redirect the user back to where they started. Falls back to /settings.
@@ -106,18 +136,27 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
   }
 
   if (error) {
-    console.error("OAuth callback error:", error);
-    res.send(`<!DOCTYPE html><html><body><script>
-      if (window.opener) {
-        window.opener.location.href = "${APP_URL}${returnTo}?calendarError=${error}";
-      }
-      window.close();
-    </script><p>Connection cancelled. You can close this window.</p></body></html>`);
+    console.error("OAuth callback error:", {
+      error,
+      error_subcode,
+      error_description,
+    });
+    const url = buildReturnUrl(returnTo, {
+      calendarError: error,
+      calendarErrorDescription: error_description,
+      calendarErrorSubcode: error_subcode,
+    });
+    res.send(
+      popupRedirectHtml(
+        url,
+        "Connection cancelled. You can close this window.",
+      ),
+    );
     return;
   }
 
   if (!code || !state) {
-    res.redirect(`${APP_URL}${returnTo}?calendarError=missing_params`);
+    res.redirect(buildReturnUrl(returnTo, { calendarError: "missing_params" }));
     return;
   }
 
@@ -126,7 +165,9 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
     if (stateData.returnTo) returnTo = stateData.returnTo;
 
     if (stateData.provider !== provider) {
-      res.redirect(`${APP_URL}${returnTo}?calendarError=provider_mismatch`);
+      res.redirect(
+        buildReturnUrl(returnTo, { calendarError: "provider_mismatch" }),
+      );
       return;
     }
 
@@ -174,20 +215,27 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
     );
 
     // Send a page that closes the popup and notifies the opener
-    res.send(`<!DOCTYPE html><html><body><script>
-      if (window.opener) {
-        window.opener.location.href = "${APP_URL}${returnTo}?calendarConnected=${provider}";
-      }
-      window.close();
-    </script><p>Calendar connected! You can close this window.</p></body></html>`);
+    const successUrl = buildReturnUrl(returnTo, {
+      calendarConnected: provider,
+    });
+    res.send(
+      popupRedirectHtml(
+        successUrl,
+        "Calendar connected! You can close this window.",
+      ),
+    );
   } catch (err: any) {
     console.error("OAuth callback error:", err);
-    res.send(`<!DOCTYPE html><html><body><script>
-      if (window.opener) {
-        window.opener.location.href = "${APP_URL}${returnTo}?calendarError=exchange_failed";
-      }
-      window.close();
-    </script><p>Connection failed. You can close this window.</p></body></html>`);
+    const failUrl = buildReturnUrl(returnTo, {
+      calendarError: "exchange_failed",
+      calendarErrorDescription: err?.message,
+    });
+    res.send(
+      popupRedirectHtml(
+        failUrl,
+        "Connection failed. You can close this window.",
+      ),
+    );
   }
 });
 

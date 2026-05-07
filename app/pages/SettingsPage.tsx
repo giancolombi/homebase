@@ -34,6 +34,7 @@ import {
 } from "@/hooks/use-calendar-sync";
 import { useFamilyMembers, useToggleAdmin } from "@/hooks/use-family-members";
 import { toast } from "@/hooks/use-toast";
+import { formatCalendarError } from "@/lib/calendarErrors";
 
 const providers = [
   { id: "google" as const, name: "Google", icon: "🔵" },
@@ -83,11 +84,12 @@ export default function SettingsPage() {
       setSearchParams({}, { replace: true });
     }
     if (error) {
-      toast({
-        title: "Calendar connection failed",
-        description: `Could not connect calendar: ${error}`,
-        variant: "destructive",
+      const t = formatCalendarError({
+        error,
+        description: searchParams.get("calendarErrorDescription"),
+        subcode: searchParams.get("calendarErrorSubcode"),
       });
+      toast({ ...t, variant: "destructive" });
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);

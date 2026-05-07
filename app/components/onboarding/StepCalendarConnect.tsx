@@ -18,6 +18,7 @@ import {
   useDisconnectCalendar,
 } from "@/hooks/use-calendar-sync";
 import { toast } from "@/hooks/use-toast";
+import { formatCalendarError } from "@/lib/calendarErrors";
 
 const externalProviders = [
   { id: "google" as const, name: "Google Calendar", icon: "🔵" },
@@ -59,11 +60,12 @@ export default function StepCalendarConnect({
       setSearchParams({}, { replace: true });
     }
     if (error) {
-      toast({
-        title: "Calendar connection failed",
-        description: `Could not connect calendar: ${error}`,
-        variant: "destructive",
+      const t = formatCalendarError({
+        error,
+        description: searchParams.get("calendarErrorDescription"),
+        subcode: searchParams.get("calendarErrorSubcode"),
       });
+      toast({ ...t, variant: "destructive" });
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
