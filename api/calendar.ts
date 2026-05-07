@@ -257,7 +257,8 @@ router.get(
         `SELECT id, member_id, provider, email, external_email,
                 connected, last_synced_at, sync_error
          FROM calendar_connections
-         WHERE family_id = $1`,
+         WHERE family_id = $1
+           AND access_token_encrypted IS NOT NULL`,
         [familyId],
       );
 
