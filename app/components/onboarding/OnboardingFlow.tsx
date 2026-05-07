@@ -10,22 +10,29 @@ import StepMembers from "./StepMembers";
 import StepCalendarConnect from "./StepCalendarConnect";
 
 export default function OnboardingFlow() {
-  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const store = useFamilyStore();
+  const step = useFamilyStore((s) => s.onboardingStep);
+  const setStep = useFamilyStore((s) => s.setOnboardingStep);
 
-  const handleComplete = async () => {
+  // Called when transitioning from Step 2 (Members) → Step 3 (Calendar).
+  // Creates the family + members in the DB so the calendar step has a real
+  // familyId to use with the OAuth flow. Idempotent on the server.
+  const handleSetupAndAdvance = async () => {
     if (!user) return;
+    if (store.familyId) {
+      // Family already created (e.g. user navigated back and forward) — skip.
+      setStep(3);
+      return;
+    }
     setSaving(true);
-
     try {
       const currentMember = store.members.find(
         (m) => m.id === store.currentUserId,
       );
 
-      // Build the members array for the API
       const ownerPayload = {
         local_id: store.currentUserId || "",
         name: currentMember?.name || user.email || "Me",
@@ -46,16 +53,6 @@ export default function OnboardingFlow() {
           is_owner: false,
         }));
 
-      // Build calendar connections
-      const calConnections = store.calendarConnections
-        .filter((c) => c.connected)
-        .map((c) => ({
-          member_id: c.memberId,
-          provider: c.provider,
-          email: c.email || "",
-          connected: true,
-        }));
-
       const result = await onboarding.complete({
         profile: {
           display_name: currentMember?.name || user.full_name || "",
@@ -63,27 +60,31 @@ export default function OnboardingFlow() {
         },
         familyName: store.familyName,
         members: [ownerPayload, ...otherMembers],
-        calendarConnections: calConnections,
+        calendarConnections: [],
       });
 
-      // Save the family ID from the backend
       if (result?.familyId) {
         store.setFamilyId(result.familyId);
       }
-
-      // Mark onboarding complete locally
-      store.completeOnboarding();
-      navigate("/calendar");
+      setStep(3);
     } catch (err: any) {
-      console.error("Onboarding save error:", err);
+      console.error("Onboarding setup error:", err);
       toast({
-        title: "Error saving data",
+        title: "Error setting up family",
         description: err?.message || "Please try again",
         variant: "destructive",
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  // Called from the final calendar step. Calendar connections were written
+  // by the OAuth callback as the user clicked "Connect" — nothing to save here.
+  const handleComplete = () => {
+    store.completeOnboarding();
+    setStep(0);
+    navigate("/calendar");
   };
 
   const totalSteps = 4;
@@ -116,13 +117,16 @@ export default function OnboardingFlow() {
           />
         )}
         {step === 2 && (
-          <StepMembers onNext={() => setStep(3)} onBack={() => setStep(1)} />
+          <StepMembers
+            onNext={handleSetupAndAdvance}
+            onBack={() => setStep(1)}
+            saving={saving}
+          />
         )}
         {step === 3 && (
           <StepCalendarConnect
             onComplete={handleComplete}
             onBack={() => setStep(2)}
-            saving={saving}
           />
         )}
       </div>

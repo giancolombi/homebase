@@ -17,9 +17,11 @@ import { cn } from "@/lib/utils";
 export default function StepMembers({
   onNext,
   onBack,
+  saving = false,
 }: {
   onNext: () => void;
   onBack: () => void;
+  saving?: boolean;
 }) {
   const { members, currentUserId, addMember, removeMember } = useFamilyStore();
   const [name, setName] = useState("");
@@ -228,8 +230,8 @@ export default function StepMembers({
         </Button>
       </div>
 
-      <Button onClick={onNext} className="w-full" size="lg">
-        Continue
+      <Button onClick={onNext} className="w-full" size="lg" disabled={saving}>
+        {saving ? "Setting up family..." : "Continue"}
       </Button>
     </div>
   );

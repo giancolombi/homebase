@@ -20,9 +20,10 @@ const APP_URL = process.env.APP_URL || "http://localhost:8080";
 // The user's identity is verified via the JWT token passed as a query param.
 router.get("/auth/:provider", async (req: Request, res: Response) => {
   const { provider } = req.params;
-  const { token, familyId } = req.query as {
+  const { token, familyId, returnTo } = req.query as {
     token?: string;
     familyId?: string;
+    returnTo?: string;
   };
 
   if (!token || !familyId) {
@@ -63,6 +64,7 @@ router.get("/auth/:provider", async (req: Request, res: Response) => {
       memberId,
       familyId,
       provider,
+      returnTo: sanitizeReturnTo(returnTo),
     });
 
     const url = getAuthUrl(provider, state);
@@ -73,6 +75,15 @@ router.get("/auth/:provider", async (req: Request, res: Response) => {
   }
 });
 
+// Only allow returnTo values that are same-origin app paths to avoid
+// open-redirect risk. Defaults to /settings to match the legacy behavior.
+function sanitizeReturnTo(returnTo: string | undefined): string {
+  if (!returnTo) return "/settings";
+  if (!returnTo.startsWith("/") || returnTo.startsWith("//"))
+    return "/settings";
+  return returnTo;
+}
+
 // GET /api/calendar/callback/:provider — OAuth callback
 router.get("/callback/:provider", async (req: Request, res: Response) => {
   const { provider } = req.params;
@@ -82,11 +93,23 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
     error?: string;
   };
 
+  // Best-effort: pull returnTo out of state up front so error paths can
+  // redirect the user back to where they started. Falls back to /settings.
+  let returnTo = "/settings";
+  if (state) {
+    try {
+      const peek = verifyOAuthState(state);
+      if (peek.returnTo) returnTo = peek.returnTo;
+    } catch {
+      // state may be expired/invalid — leave returnTo as default
+    }
+  }
+
   if (error) {
     console.error("OAuth callback error:", error);
     res.send(`<!DOCTYPE html><html><body><script>
       if (window.opener) {
-        window.opener.location.href = "${APP_URL}/settings?calendarError=${error}";
+        window.opener.location.href = "${APP_URL}${returnTo}?calendarError=${error}";
       }
       window.close();
     </script><p>Connection cancelled. You can close this window.</p></body></html>`);
@@ -94,15 +117,16 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
   }
 
   if (!code || !state) {
-    res.redirect(`${APP_URL}/settings?calendarError=missing_params`);
+    res.redirect(`${APP_URL}${returnTo}?calendarError=missing_params`);
     return;
   }
 
   try {
     const stateData = verifyOAuthState(state);
+    if (stateData.returnTo) returnTo = stateData.returnTo;
 
     if (stateData.provider !== provider) {
-      res.redirect(`${APP_URL}/settings?calendarError=provider_mismatch`);
+      res.redirect(`${APP_URL}${returnTo}?calendarError=provider_mismatch`);
       return;
     }
 
@@ -152,7 +176,7 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
     // Send a page that closes the popup and notifies the opener
     res.send(`<!DOCTYPE html><html><body><script>
       if (window.opener) {
-        window.opener.location.href = "${APP_URL}/settings?calendarConnected=${provider}";
+        window.opener.location.href = "${APP_URL}${returnTo}?calendarConnected=${provider}";
       }
       window.close();
     </script><p>Calendar connected! You can close this window.</p></body></html>`);
@@ -160,7 +184,7 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
     console.error("OAuth callback error:", err);
     res.send(`<!DOCTYPE html><html><body><script>
       if (window.opener) {
-        window.opener.location.href = "${APP_URL}/settings?calendarError=exchange_failed";
+        window.opener.location.href = "${APP_URL}${returnTo}?calendarError=exchange_failed";
       }
       window.close();
     </script><p>Connection failed. You can close this window.</p></body></html>`);

@@ -5,20 +5,24 @@ import pool from "./db.js";
 const router = Router();
 
 // POST /api/onboarding/complete
-// Handles the entire onboarding flow in a single transaction
+// Creates the user's profile, family, members, and default task categories.
+// Calendar connections are NOT created here — they're written by the
+// /api/calendar/callback/:provider OAuth callback as the user connects each
+// provider during the calendar step. This endpoint is idempotent: if the user
+// already owns a family, it returns the existing family + member map.
 router.post(
   "/complete",
   requireAuth as any,
   async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
-    const { profile, familyName, members, calendarConnections } = req.body;
+    const { profile, familyName, members } = req.body;
 
     const client = await pool.connect();
 
     try {
       await client.query("BEGIN");
 
-      // 1. Update/insert profile
+      // Update/insert profile
       if (profile) {
         await client.query(
           `INSERT INTO profiles (id, display_name, color_index)
@@ -31,7 +35,33 @@ router.post(
         );
       }
 
-      // 2. Create family
+      // Idempotency: if this user already owns a family, return it instead
+      // of creating a duplicate. Lets the user navigate back/forward through
+      // onboarding steps without spawning extra families.
+      const existing = await client.query(
+        `SELECT id FROM families WHERE owner_id = $1 ORDER BY created_at ASC LIMIT 1`,
+        [userId],
+      );
+
+      if (existing.rows.length > 0) {
+        const familyId = existing.rows[0].id;
+        const ownerRow = await client.query(
+          `SELECT id FROM family_members WHERE family_id = $1 AND user_id = $2 LIMIT 1`,
+          [familyId, userId],
+        );
+        const ownerDbId = ownerRow.rows[0]?.id ?? null;
+
+        await client.query("COMMIT");
+        res.json({
+          familyId,
+          ownerMemberId: ownerDbId,
+          memberIdMap: {},
+          alreadyExisted: true,
+        });
+        return;
+      }
+
+      // Create family
       const familyResult = await client.query(
         `INSERT INTO families (name, owner_id)
          VALUES ($1, $2)
@@ -40,7 +70,7 @@ router.post(
       );
       const familyId = familyResult.rows[0].id;
 
-      // 3. Create family members — owner first
+      // Create owner member
       const ownerMember = members.find((m: any) => m.is_owner);
       const ownerResult = await client.query(
         `INSERT INTO family_members (family_id, user_id, name, role, email, color_index, is_owner, invite_status)
@@ -57,7 +87,6 @@ router.post(
       );
       const ownerDbId = ownerResult.rows[0].id;
 
-      // Build a map from local IDs to DB IDs
       const idMap: Record<string, string> = {};
       if (ownerMember?.local_id) {
         idMap[ownerMember.local_id] = ownerDbId;
@@ -84,26 +113,7 @@ router.post(
         }
       }
 
-      // 4. Create calendar connections
-      if (calendarConnections && calendarConnections.length > 0) {
-        for (const c of calendarConnections) {
-          const memberId = idMap[c.member_id] || c.member_id;
-          if (!memberId) continue;
-          await client.query(
-            `INSERT INTO calendar_connections (family_id, member_id, provider, email, connected)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [
-              familyId,
-              memberId,
-              c.provider,
-              c.email || "",
-              c.connected ?? true,
-            ],
-          );
-        }
-      }
-
-      // 5. Create default task categories
+      // Default task categories
       const defaultCategories = ["Home", "School", "Work", "Health", "Errands"];
       for (const name of defaultCategories) {
         await client.query(
@@ -118,6 +128,7 @@ router.post(
         familyId,
         ownerMemberId: ownerDbId,
         memberIdMap: idMap,
+        alreadyExisted: false,
       });
     } catch (err: any) {
       await client.query("ROLLBACK");

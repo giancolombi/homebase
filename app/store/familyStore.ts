@@ -38,6 +38,7 @@ const initialState: FamilyData = {
   bankAccounts: [],
   transactions: [],
   onboardingComplete: false,
+  onboardingStep: 0,
   // FoodLab state
   foodlabRecipes: [] as FoodLabRecipe[],
   foodlabRatings: [] as FoodLabRating[],
@@ -56,6 +57,7 @@ interface FamilyStore extends FamilyData {
   toggleCalendarConnection: (id: string) => void;
   completeOnboarding: () => void;
   resetOnboarding: () => void;
+  setOnboardingStep: (step: number) => void;
 
   addEvent: (event: CalendarEvent) => void;
   updateEvent: (id: string, updates: Partial<CalendarEvent>) => void;
@@ -152,6 +154,7 @@ export const useFamilyStore = create<FamilyStore>()(
       completeOnboarding: () => set({ onboardingComplete: true }),
       resetOnboarding: () =>
         set({ ...initialState, onboardingComplete: false }),
+      setOnboardingStep: (step) => set({ onboardingStep: step }),
 
       addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
 

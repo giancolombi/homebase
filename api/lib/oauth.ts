@@ -56,6 +56,7 @@ export function createOAuthState(data: {
   memberId: string;
   familyId: string;
   provider: string;
+  returnTo?: string;
 }): string {
   return jwt.sign(data, JWT_SECRET, { expiresIn: "10m" });
 }
@@ -65,6 +66,7 @@ export function verifyOAuthState(state: string): {
   memberId: string;
   familyId: string;
   provider: string;
+  returnTo?: string;
 } {
   return jwt.verify(state, JWT_SECRET) as any;
 }

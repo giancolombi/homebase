@@ -187,9 +187,14 @@ export interface CalendarEventResponse {
 }
 
 export const calendar = {
-  getAuthUrl(provider: string, familyId: string): string {
+  getAuthUrl(provider: string, familyId: string, returnTo?: string): string {
     const token = getToken();
-    return `/api/calendar/auth/${provider}?familyId=${familyId}&token=${token}`;
+    const params = new URLSearchParams({
+      familyId,
+      token: token || "",
+    });
+    if (returnTo) params.set("returnTo", returnTo);
+    return `/api/calendar/auth/${provider}?${params.toString()}`;
   },
 
   async getConnections(

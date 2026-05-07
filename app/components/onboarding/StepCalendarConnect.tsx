@@ -1,8 +1,23 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useFamilyStore } from "@/store/familyStore";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, Calendar, Shield, Home } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Calendar,
+  Shield,
+  Home,
+  Loader2,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateId } from "@/lib/memberColors";
+import { calendar as calendarApi } from "@/lib/api";
+import {
+  useCalendarSync,
+  useDisconnectCalendar,
+} from "@/hooks/use-calendar-sync";
+import { toast } from "@/hooks/use-toast";
 
 const externalProviders = [
   { id: "google" as const, name: "Google Calendar", icon: "🔵" },
@@ -13,19 +28,18 @@ const externalProviders = [
 export default function StepCalendarConnect({
   onComplete,
   onBack,
-  saving = false,
 }: {
   onComplete: () => void;
   onBack: () => void;
-  saving?: boolean;
 }) {
-  const {
-    currentUserId,
-    members,
-    calendarConnections,
-    addCalendarConnection,
-    toggleCalendarConnection,
-  } = useFamilyStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { currentUserId, members, calendarConnections } = useFamilyStore();
+  const familyId = useFamilyStore((s) => s.familyId);
+
+  const { connections: apiConnections, isSyncing } = useCalendarSync(
+    familyId || null,
+  );
+  const disconnectMutation = useDisconnectCalendar();
 
   const currentUser = members.find((m) => m.id === currentUserId);
   const childMembers = members.filter((m) => m.role === "child");
@@ -33,56 +47,135 @@ export default function StepCalendarConnect({
     (m) => m.role === "adult" && m.id !== currentUserId,
   );
 
-  const handleConnect = (
-    memberId: string,
-    provider: "google" | "outlook" | "apple",
-  ) => {
-    const existing = calendarConnections.find(
-      (c) => c.memberId === memberId && c.provider === provider,
-    );
-    if (existing) {
-      toggleCalendarConnection(existing.id);
-    } else {
-      addCalendarConnection({
-        id: generateId(),
-        provider,
-        email: `${provider}@example.com`,
-        connected: true,
-        memberId,
+  // Surface OAuth result via toast after the popup redirects the parent back.
+  useEffect(() => {
+    const connected = searchParams.get("calendarConnected");
+    const error = searchParams.get("calendarError");
+    if (connected) {
+      toast({
+        title: "Calendar connected",
+        description: `Your ${connected} calendar has been connected.`,
       });
+      setSearchParams({}, { replace: true });
     }
+    if (error) {
+      toast({
+        title: "Calendar connection failed",
+        description: `Could not connect calendar: ${error}`,
+        variant: "destructive",
+      });
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const handleConnect = (provider: "google" | "outlook" | "apple") => {
+    if (!familyId) {
+      toast({
+        title: "Family not set up yet",
+        description: "Please go back and finish adding family members first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (provider === "apple") {
+      toast({
+        title: "Apple Calendar coming soon",
+        description: "Apple Calendar integration isn't available yet.",
+      });
+      return;
+    }
+
+    const url = calendarApi.getAuthUrl(provider, familyId, "/");
+    const popup = window.open(url, "calendar-auth", "width=500,height=700");
+    const interval = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(interval);
+        window.location.reload();
+      }
+    }, 500);
   };
 
-  const isConnected = (memberId: string, provider: string) =>
-    calendarConnections.some(
-      (c) => c.memberId === memberId && c.provider === provider && c.connected,
+  const handleDisconnect = (connectionId: string) => {
+    disconnectMutation.mutate(connectionId);
+  };
+
+  const isConnected = (memberId: string, provider: string) => {
+    // Real OAuth connections are tied to the current user's member row in the
+    // DB. Show them on the current user's row only.
+    if (provider === "homebase") {
+      return calendarConnections.some(
+        (c) =>
+          c.memberId === memberId && c.provider === provider && c.connected,
+      );
+    }
+    if (memberId !== currentUser?.id) return false;
+    return (
+      apiConnections?.some((c) => c.provider === provider && c.connected) ??
+      false
     );
+  };
+
+  const getApiConnection = (provider: string) =>
+    apiConnections?.find((c) => c.provider === provider);
 
   const renderProviderList = (memberId: string) => (
     <div className="space-y-1.5">
       {externalProviders.map((p) => {
         const connected = isConnected(memberId, p.id);
+        const apiConn =
+          memberId === currentUser?.id ? getApiConnection(p.id) : undefined;
         return (
-          <button
-            key={p.id}
-            onClick={() => handleConnect(memberId, p.id)}
-            className={cn(
-              "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
-              connected
-                ? "bg-primary/5 border-primary/25"
-                : "bg-card border-border hover:border-primary/15",
-            )}
-          >
-            <span className="text-sm">{p.icon}</span>
-            <span className="flex-1 text-sm font-medium text-foreground">
-              {p.name}
-            </span>
-            {connected && (
-              <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                <Check className="h-3 w-3 text-primary-foreground" />
+          <div key={p.id} className="space-y-1">
+            <button
+              onClick={() => handleConnect(p.id)}
+              disabled={!familyId}
+              className={cn(
+                "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
+                connected
+                  ? "bg-primary/5 border-primary/25"
+                  : "bg-card border-border hover:border-primary/15",
+                !familyId && "opacity-50 cursor-not-allowed",
+              )}
+            >
+              <span className="text-sm">{p.icon}</span>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-foreground">
+                  {p.name}
+                </span>
+                {apiConn?.externalEmail && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {apiConn.externalEmail}
+                  </p>
+                )}
               </div>
+              {connected && apiConn ? (
+                <div className="flex items-center gap-1.5">
+                  {isSyncing && (
+                    <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDisconnect(apiConn.id);
+                    }}
+                    className="p-1 hover:bg-destructive/10 rounded"
+                    title="Disconnect"
+                  >
+                    <X className="h-3.5 w-3.5 text-destructive" />
+                  </button>
+                </div>
+              ) : connected ? (
+                <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                  <Check className="h-3 w-3 text-primary-foreground" />
+                </div>
+              ) : null}
+            </button>
+            {apiConn?.syncError && (
+              <p className="text-[11px] text-destructive px-2.5">
+                Sync error: {apiConn.syncError}
+              </p>
             )}
-          </button>
+          </div>
         );
       })}
     </div>
@@ -133,7 +226,7 @@ export default function StepCalendarConnect({
             {childMembers.map((child) => {
               const hasHomebase = isConnected(child.id, "homebase");
               return (
-                <div key={child.id} className="space-y-2">
+                <div key={child.id} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">
                       {child.name}
@@ -145,10 +238,8 @@ export default function StepCalendarConnect({
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Managed through Homebase. You can also link an external
-                    calendar below.
+                    Managed through Homebase — no external account needed.
                   </p>
-                  {renderProviderList(child.id)}
                 </div>
               );
             })}
@@ -170,22 +261,15 @@ export default function StepCalendarConnect({
       )}
 
       <div className="space-y-2 pt-2">
-        <Button
-          onClick={onComplete}
-          className="w-full"
-          size="lg"
-          disabled={saving}
-        >
-          {saving ? "Setting up..." : "Get Started"}
+        <Button onClick={onComplete} className="w-full" size="lg">
+          Get Started
         </Button>
-        {!saving && (
-          <button
-            onClick={onComplete}
-            className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-          >
-            I'll do this later
-          </button>
-        )}
+        <button
+          onClick={onComplete}
+          className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+        >
+          I'll do this later
+        </button>
       </div>
     </div>
   );

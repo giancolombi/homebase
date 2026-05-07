@@ -135,4 +135,5 @@ export interface FamilyData {
   bankAccounts: BankAccount[];
   transactions: Transaction[];
   onboardingComplete: boolean;
+  onboardingStep: number;
 }
