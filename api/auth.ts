@@ -64,6 +64,32 @@ function signToken(user: {
   );
 }
 
+// Build the user payload returned by signin / signup / me. Including familyId
+// and onboardingComplete on every auth response is what lets the frontend's
+// AuthContext sync route the user correctly without waiting for a separate
+// /me call.
+async function userPayload(user: {
+  id: string;
+  email: string;
+  full_name: string | null;
+}) {
+  const familyResult = await pool.query(
+    `SELECT f.id, f.onboarding_completed_at FROM families f
+     JOIN family_members fm ON fm.family_id = f.id
+     WHERE fm.user_id = $1
+     LIMIT 1`,
+    [user.id],
+  );
+  const familyRow = familyResult.rows[0];
+  return {
+    id: user.id,
+    email: user.email,
+    full_name: user.full_name,
+    familyId: familyRow?.id ?? null,
+    onboardingComplete: !!familyRow?.onboarding_completed_at,
+  };
+}
+
 // POST /api/auth/signup
 router.post("/signup", async (req: Request, res: Response) => {
   const { email, password, full_name } = req.body;
@@ -106,7 +132,7 @@ router.post("/signup", async (req: Request, res: Response) => {
 
     const token = signToken(user);
     res.status(201).json({
-      user: { id: user.id, email: user.email, full_name: user.full_name },
+      user: await userPayload(user),
       token,
     });
   } catch (err) {
@@ -142,7 +168,7 @@ router.post("/signin", async (req: Request, res: Response) => {
 
     const token = signToken(user);
     res.json({
-      user: { id: user.id, email: user.email, full_name: user.full_name },
+      user: await userPayload(user),
       token,
     });
   } catch (err) {
@@ -177,29 +203,7 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const user = result.rows[0];
-
-    // Look up the user's family + onboarding-completion timestamp.
-    const familyResult = await pool.query(
-      `SELECT f.id, f.onboarding_completed_at FROM families f
-       JOIN family_members fm ON fm.family_id = f.id
-       WHERE fm.user_id = $1
-       LIMIT 1`,
-      [user.id],
-    );
-    const familyRow = familyResult.rows[0];
-    const familyId = familyRow?.id || null;
-    const onboardingComplete = !!familyRow?.onboarding_completed_at;
-
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        familyId,
-        onboardingComplete,
-      },
-    });
+    res.json({ user: await userPayload(result.rows[0]) });
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
   }
