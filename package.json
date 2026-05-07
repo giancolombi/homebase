@@ -20,7 +20,7 @@
     "test:e2e:ui": "playwright test --ui",
     "server": "tsx api/index.ts",
     "server:dev": "tsx watch api/index.ts",
-    "db:migrate": "for f in api/migrations/*.sql; do psql $DATABASE_URL -f $f; done",
+    "db:migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed-local.ts",
     "prepare": "husky"
   },

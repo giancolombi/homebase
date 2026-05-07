@@ -8,6 +8,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY api/ ./api/
+COPY scripts/ ./scripts/
 COPY tsconfig.json tsconfig.node.json ./
 
 EXPOSE 3001
