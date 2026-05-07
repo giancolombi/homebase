@@ -103,8 +103,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
-        {/* Mobile header — hidden on desktop */}
-        <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-card/95 backdrop-blur-sm border-b border-border md:hidden">
+        {/* Mobile header — hidden on desktop. safe-area-top clears the iOS
+            status bar (the Capacitor StatusBar plugin overlays the WebView). */}
+        <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-card/95 backdrop-blur-sm border-b border-border md:hidden safe-area-top">
           <div>
             <h1 className="text-base font-semibold tracking-tight text-foreground">
               {familyName || "Homebase"}
@@ -144,8 +145,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
+        {/* Main content. Bottom padding clears the floating mobile nav AND
+            the home-indicator safe area on iPhone X+. md:pb-0 zeroes it on
+            desktop where there's no fixed bottom nav. */}
+        <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+          {children}
+        </main>
 
         {/* Mobile bottom nav — hidden on desktop */}
         <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border z-30 safe-area-bottom md:hidden">

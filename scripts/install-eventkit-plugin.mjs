@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copy capacitor/EventKitPlugin/* into ios/App/App/Plugins/ and register
+// Copy every plugin under capacitor/ into ios/App/App/Plugins/ and register
 // them in the App Xcode target. `cap add ios` regenerates the iOS project,
 // so we keep the plugin source in capacitor/ under git and re-install it on
 // every iOS scaffold.
@@ -20,11 +20,11 @@ import { spawnSync } from "node:child_process";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 
-const SRC = join(root, "capacitor", "EventKitPlugin");
+const PLUGINS_ROOT = join(root, "capacitor");
 const DEST = join(root, "ios", "App", "App", "Plugins");
 
-if (!existsSync(SRC)) {
-  console.error(`EventKit plugin source missing: ${SRC}`);
+if (!existsSync(PLUGINS_ROOT)) {
+  console.error(`Plugin source root missing: ${PLUGINS_ROOT}`);
   process.exit(1);
 }
 if (!existsSync(join(root, "ios"))) {
@@ -36,9 +36,18 @@ if (!existsSync(join(root, "ios"))) {
 
 mkdirSync(DEST, { recursive: true });
 
-for (const file of readdirSync(SRC)) {
-  copyFileSync(join(SRC, file), join(DEST, file));
-  console.log(`Copied ${file} → ios/App/App/Plugins/`);
+// Each subdirectory under capacitor/ is one plugin (EventKitPlugin/,
+// SecureStoragePlugin/, etc.). Flatten all .swift/.m files into
+// ios/App/App/Plugins/ — Xcode's source build phase doesn't care about
+// subfolders, and the simple flat layout makes the project.pbxproj edits
+// trivially idempotent.
+for (const pluginDir of readdirSync(PLUGINS_ROOT)) {
+  const dirPath = join(PLUGINS_ROOT, pluginDir);
+  const stats = readdirSync(dirPath);
+  for (const file of stats) {
+    copyFileSync(join(dirPath, file), join(DEST, file));
+    console.log(`Copied ${pluginDir}/${file} → ios/App/App/Plugins/`);
+  }
 }
 
 // Add to the App Xcode target. CocoaPods bundles a Ruby + xcodeproj gem at
