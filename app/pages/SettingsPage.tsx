@@ -26,6 +26,7 @@ import {
 import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
+import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
 import { calendar, invite } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -385,6 +386,7 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5">
+            <EventKitConnectCard />
             {currentUser &&
               providers.map((p) => {
                 const connected = isConnected(currentUser.id, p.id);

@@ -20,6 +20,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { formatCalendarError } from "@/lib/calendarErrors";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
+import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
 
 const externalProviders = [
   { id: "google" as const, name: "Google Calendar", icon: "🔵" },
@@ -216,6 +217,7 @@ export default function StepCalendarConnect({
               Your calendars
             </p>
           </div>
+          <EventKitConnectCard />
           {renderProviderList(currentUser.id)}
         </div>
       )}
