@@ -1,13 +1,21 @@
 #!/usr/bin/env node
-// Copy capacitor/EventKitPlugin/* into ios/App/App/Plugins/ after `cap add ios`.
-// `cap add ios` regenerates the iOS project, so we keep our custom Swift
-// plugin source in capacitor/ (under git) and copy it on each install.
+// Copy capacitor/EventKitPlugin/* into ios/App/App/Plugins/ and register
+// them in the App Xcode target. `cap add ios` regenerates the iOS project,
+// so we keep the plugin source in capacitor/ under git and re-install it on
+// every iOS scaffold.
 //
-// Idempotent — overwrites existing files.
+// Two steps:
+//   1. Copy the .swift / .m files into ios/App/App/Plugins/.
+//   2. Run scripts/add-eventkit-to-xcode.rb (uses CocoaPods' bundled
+//      xcodeproj gem) to add the files to the App target's Sources build
+//      phase. Idempotent — re-running is a no-op once they're members.
+//
+// Both steps are idempotent.
 
 import { existsSync, mkdirSync, readdirSync, copyFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -33,8 +41,36 @@ for (const file of readdirSync(SRC)) {
   console.log(`Copied ${file} → ios/App/App/Plugins/`);
 }
 
-console.log(
-  "EventKit plugin staged. Open ios/App/App.xcworkspace in Xcode and add",
-  "the Plugins folder to the App target if Xcode does not pick them up",
-  "automatically.",
-);
+// Add to the App Xcode target. CocoaPods bundles a Ruby + xcodeproj gem at
+// /opt/homebrew/Cellar/cocoapods/<v>/libexec; we don't want to require a
+// separate gem install on each developer's machine, so we shell out via the
+// pod-bundled ruby.
+const podBin = "/opt/homebrew/bin/pod";
+const podRuby = "/opt/homebrew/opt/ruby/bin/ruby";
+if (!existsSync(podBin) || !existsSync(podRuby)) {
+  console.warn(
+    "CocoaPods (and its bundled xcodeproj gem) not found. Install with",
+    "`brew install cocoapods` and re-run, or open the workspace in Xcode",
+    "and drag ios/App/App/Plugins into the App target manually.",
+  );
+  process.exit(0);
+}
+
+const podPrefix = "/opt/homebrew/Cellar/cocoapods";
+let gemHome;
+try {
+  const versions = readdirSync(podPrefix);
+  gemHome = join(podPrefix, versions[0], "libexec");
+} catch {
+  console.warn(
+    "Could not locate CocoaPods gem home — skipping Xcode target wiring.",
+    "Open the workspace and drag ios/App/App/Plugins into the App target.",
+  );
+  process.exit(0);
+}
+
+const result = spawnSync(podRuby, [join(here, "add-eventkit-to-xcode.rb")], {
+  stdio: "inherit",
+  env: { ...process.env, GEM_HOME: gemHome },
+});
+process.exit(result.status ?? 0);
