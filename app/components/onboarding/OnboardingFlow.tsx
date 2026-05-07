@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useFamilyStore } from "@/store/familyStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { onboarding } from "@/lib/api";
+import { pullAllData } from "@/lib/sync";
 import { toast } from "@/hooks/use-toast";
 import StepFamilyName from "./StepFamilyName";
 import StepYourProfile from "./StepYourProfile";
@@ -90,6 +91,20 @@ export default function OnboardingFlow() {
       // Non-fatal — mark complete locally regardless. Worst case the user
       // sees the wizard once more on their next login.
       console.error("onboarding.finish failed:", err);
+    }
+    // Pull server-seeded data (default task categories, members, etc.) into
+    // the local store. AuthContext only triggers pullAllData on `user` changes,
+    // so without this the post-onboarding store is missing default categories.
+    if (store.familyId && user) {
+      try {
+        await pullAllData(
+          store.familyId,
+          (patch) => useFamilyStore.setState(patch),
+          user.email,
+        );
+      } catch (err) {
+        console.error("post-onboarding sync failed:", err);
+      }
     }
     store.completeOnboarding();
     setStep(0);

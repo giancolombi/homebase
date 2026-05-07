@@ -1,0 +1,45 @@
+import { test, expect } from "@playwright/test";
+import { signUpAndOnboard } from "./helpers";
+
+// Maps to scenarios in specs/features/calendar.feature.
+
+test.describe("Calendar", () => {
+  test("create a timed event and see it on the day view", async ({ page }) => {
+    await signUpAndOnboard(page);
+
+    // Open the AddEventDialog from the header.
+    await page.getByRole("button", { name: /Event/ }).click();
+
+    // Fill the dialog. Use the placeholder selector to avoid the
+    // "Add Event" button (same text). Title field has placeholder "Event title".
+    await page.getByPlaceholder("Event title").fill("Coffee with Alex");
+    // Default date = today (preselected). Times default to 09:00 / 10:00 in
+    // the dialog. Just save.
+    await page.getByRole("button", { name: "Add Event" }).click();
+
+    // Event chip renders on the day view.
+    await expect(page.getByText("Coffee with Alex")).toBeVisible();
+  });
+
+  test("week view toggles 7 days", async ({ page }) => {
+    await signUpAndOnboard(page);
+
+    await page.getByRole("button", { name: "Week" }).click();
+
+    // Week view shows date range like "Mon X – Sun Y"
+    await expect(page.locator("text=/–/")).toBeVisible();
+  });
+
+  test("navigate forward by day", async ({ page }) => {
+    await signUpAndOnboard(page);
+
+    // Initial label: "Today"
+    await expect(page.getByText("Today")).toBeVisible();
+
+    // Click forward chevron — find the second nav button (right chevron).
+    await page.locator("button:has(svg.lucide-chevron-right)").first().click();
+
+    // "Today" tag goes away when not viewing today.
+    await expect(page.getByText("Today", { exact: true })).toHaveCount(0);
+  });
+});

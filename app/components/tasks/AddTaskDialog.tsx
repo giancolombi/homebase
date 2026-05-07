@@ -32,7 +32,11 @@ export default function AddTaskDialog({ open, onOpenChange }: Props) {
     useFamilyStore();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState(taskCategories[0]?.id || "");
+  // selectedCategoryId tracks the user's explicit choice; we fall back to the
+  // first available category when nothing is selected. This makes the dialog
+  // submittable even if categories hydrate after the dialog mounts.
+  const [selectedCategoryId, setCategoryId] = useState("");
+  const categoryId = selectedCategoryId || taskCategories[0]?.id || "";
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [deadline, setDeadline] = useState("");
   const [recurrence, setRecurrence] = useState<Recurrence>("none");

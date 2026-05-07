@@ -65,6 +65,30 @@ export async function signOut(page: Page): Promise<void> {
   }
 }
 
+/**
+ * Sign up + walk the 4-step onboarding wizard with no extra members and no
+ * calendar connections. Leaves the page on /calendar. Used as setup for
+ * tests that exercise the post-onboarding app.
+ */
+export async function signUpAndOnboard(
+  page: Page,
+  options?: { email?: string; familyName?: string },
+): Promise<string> {
+  const email = await signUp(page, options ? { email: options.email } : {});
+  await page
+    .getByPlaceholder("e.g. The Johnsons")
+    .fill(options?.familyName ?? "E2E Family");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click(); // Profile → Members
+  await page.getByRole("button", { name: "Continue" }).click(); // Members → Calendar
+  await expect(
+    page.getByRole("heading", { name: "Connect Your Calendars" }),
+  ).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Get Started" }).click();
+  await expect(page).toHaveURL(/\/calendar/, { timeout: 10_000 });
+  return email;
+}
+
 /** Clear auth state from localStorage */
 export async function clearAuth(page: Page): Promise<void> {
   await page.evaluate(() => {
