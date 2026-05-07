@@ -10,6 +10,8 @@ RUN pnpm install --frozen-lockfile
 COPY vite.config.ts tsconfig.json tsconfig.node.json postcss.config.js ./
 COPY app/ ./app/
 COPY scripts/ ./scripts/
+# pre-deploy hook (railway.json) runs db:migrate, which reads from this dir
+COPY api/migrations/ ./api/migrations/
 COPY serve.ts ./
 
 RUN pnpm run build
