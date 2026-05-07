@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calendar as calendarApi } from "@/lib/api";
+import { openOAuth } from "@/lib/oauthBrowser";
 import {
   useCalendarSync,
   useDisconnectCalendar,
@@ -89,13 +90,10 @@ export default function StepCalendarConnect({
     }
 
     const url = calendarApi.getAuthUrl(provider, familyId, "/");
-    const popup = window.open(url, "calendar-auth", "width=500,height=700");
-    const interval = setInterval(() => {
-      if (popup?.closed) {
-        clearInterval(interval);
-        window.location.reload();
-      }
-    }, 500);
+    openOAuth({
+      url,
+      onClose: () => window.location.reload(),
+    });
   };
 
   const handleDisconnect = (connectionId: string) => {

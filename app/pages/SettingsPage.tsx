@@ -28,6 +28,7 @@ import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
 import { calendar, invite } from "@/lib/api";
+import { openOAuth } from "@/lib/oauthBrowser";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCalendarSync,
@@ -111,13 +112,10 @@ export default function SettingsPage() {
     }
 
     const url = calendar.getAuthUrl(provider, familyId);
-    const popup = window.open(url, "calendar-auth", "width=500,height=700");
-    const interval = setInterval(() => {
-      if (popup?.closed) {
-        clearInterval(interval);
-        window.location.reload();
-      }
-    }, 500);
+    openOAuth({
+      url,
+      onClose: () => window.location.reload(),
+    });
   };
 
   const handleDisconnect = (connectionId: string) => {
