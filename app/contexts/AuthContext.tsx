@@ -26,21 +26,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Restore session on mount.
   useEffect(() => {
-    // Check for an existing session on mount
     auth.getSession().then((session) => {
       setUser(session?.user ?? null);
-      // Sync familyId from backend into Zustand store (lazy import to avoid circular dep)
-      if (session?.user?.familyId) {
-        import("@/store/familyStore").then(({ useFamilyStore }) => {
-          const store = useFamilyStore.getState();
-          store.setFamilyId(session.user.familyId!);
-          // Hydrate tasks / meals / finance from the backend. No-op in demo mode.
-          pullAllData(session.user.familyId!, (patch) =>
-            useFamilyStore.setState(patch as any),
-          );
-        });
-      }
       setLoading(false);
     });
 
@@ -60,6 +49,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
+
+  // Keep the family store in sync with the authenticated user's server-side
+  // state. The persisted store is browser-local, so without this a user who
+  // signs in on a new device (or after clearing storage) would get routed to
+  // onboarding even though their family already exists on the server.
+  useEffect(() => {
+    // Lazy import to avoid a circular dep with the store.
+    import("@/store/familyStore").then(({ useFamilyStore }) => {
+      const store = useFamilyStore.getState();
+
+      if (!user) {
+        // Signed out — clear per-family state so the next user on this
+        // browser doesn't inherit it. Auth token is already cleared by signOut.
+        if (store.familyId || store.onboardingComplete) {
+          store.resetOnboarding();
+        }
+        return;
+      }
+
+      if (user.familyId) {
+        store.setFamilyId(user.familyId);
+        if (!store.onboardingComplete) {
+          useFamilyStore.setState({ onboardingComplete: true });
+        }
+        pullAllData(user.familyId, (patch) =>
+          useFamilyStore.setState(patch as any),
+        );
+      } else {
+        // Logged in but no family on the server yet — still needs onboarding.
+        if (store.onboardingComplete) {
+          useFamilyStore.setState({ onboardingComplete: false });
+        }
+      }
+    });
+  }, [user]);
 
   const signOut = async () => {
     await auth.signOut();
