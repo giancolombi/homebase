@@ -68,19 +68,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // The server is the source of truth for onboarding state — derive it
+      // from /api/auth/me.onboardingComplete, not the persisted local flag.
+      const serverComplete = !!user.onboardingComplete;
+
       if (user.familyId) {
         store.setFamilyId(user.familyId);
-        if (!store.onboardingComplete) {
-          useFamilyStore.setState({ onboardingComplete: true });
-        }
         pullAllData(user.familyId, (patch) =>
           useFamilyStore.setState(patch as any),
         );
-      } else {
-        // Logged in but no family on the server yet — still needs onboarding.
-        if (store.onboardingComplete) {
-          useFamilyStore.setState({ onboardingComplete: false });
-        }
+      }
+
+      if (store.onboardingComplete !== serverComplete) {
+        useFamilyStore.setState({ onboardingComplete: serverComplete });
       }
     });
   }, [user]);

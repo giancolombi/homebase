@@ -182,15 +182,17 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
 
     const user = result.rows[0];
 
-    // Look up the user's family
+    // Look up the user's family + onboarding-completion timestamp.
     const familyResult = await pool.query(
-      `SELECT f.id FROM families f
+      `SELECT f.id, f.onboarding_completed_at FROM families f
        JOIN family_members fm ON fm.family_id = f.id
        WHERE fm.user_id = $1
        LIMIT 1`,
       [user.id],
     );
-    const familyId = familyResult.rows[0]?.id || null;
+    const familyRow = familyResult.rows[0];
+    const familyId = familyRow?.id || null;
+    const onboardingComplete = !!familyRow?.onboarding_completed_at;
 
     res.json({
       user: {
@@ -198,6 +200,7 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
         email: user.email,
         full_name: user.full_name,
         familyId,
+        onboardingComplete,
       },
     });
   } catch {

@@ -140,4 +140,29 @@ router.post(
   },
 );
 
+// POST /api/onboarding/finish
+// Marks the user's owned family as onboarding-complete. Called when the user
+// finishes (or skips) the calendar step. Idempotent.
+router.post(
+  "/finish",
+  requireAuth as any,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    try {
+      await pool.query(
+        `UPDATE families
+         SET onboarding_completed_at = COALESCE(onboarding_completed_at, now())
+         WHERE owner_id = $1`,
+        [userId],
+      );
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("Onboarding finish error:", err);
+      res
+        .status(500)
+        .json({ error: err?.message || "Failed to finish onboarding" });
+    }
+  },
+);
+
 export default router;

@@ -80,8 +80,17 @@ export default function OnboardingFlow() {
   };
 
   // Called from the final calendar step. Calendar connections were written
-  // by the OAuth callback as the user clicked "Connect" — nothing to save here.
-  const handleComplete = () => {
+  // by the OAuth callback as the user clicked "Connect" — nothing to save here
+  // beyond marking onboarding complete on the server so future logins don't
+  // bounce the user back into the wizard.
+  const handleComplete = async () => {
+    try {
+      await onboarding.finish();
+    } catch (err: any) {
+      // Non-fatal — mark complete locally regardless. Worst case the user
+      // sees the wizard once more on their next login.
+      console.error("onboarding.finish failed:", err);
+    }
     store.completeOnboarding();
     setStep(0);
     navigate("/calendar");

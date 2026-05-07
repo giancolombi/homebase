@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string;
   full_name: string | null;
   familyId?: string | null;
+  onboardingComplete?: boolean;
 }
 
 function getToken(): string | null {
@@ -155,6 +156,12 @@ export const onboarding = {
     }>("/api/onboarding/complete", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+
+  async finish() {
+    return request<{ ok: true }>("/api/onboarding/finish", {
+      method: "POST",
     });
   },
 };
