@@ -19,7 +19,7 @@ const APP_URL = process.env.APP_URL || "http://localhost:8080";
 // No requireAuth — this is a browser redirect (popup), not XHR.
 // The user's identity is verified via the JWT token passed as a query param.
 router.get("/auth/:provider", async (req: Request, res: Response) => {
-  const { provider } = req.params;
+  const provider = req.params.provider as string;
   const { token, familyId, returnTo } = req.query as {
     token?: string;
     familyId?: string;
@@ -113,7 +113,7 @@ function popupRedirectHtml(url: string, message: string): string {
 
 // GET /api/calendar/callback/:provider — OAuth callback
 router.get("/callback/:provider", async (req: Request, res: Response) => {
-  const { provider } = req.params;
+  const provider = req.params.provider as string;
   const { code, state, error, error_description, error_subcode } =
     req.query as {
       code?: string;
@@ -348,7 +348,7 @@ router.post(
   "/sync/:connectionId",
   requireAuth as any,
   async (req: AuthRequest, res: Response) => {
-    const { connectionId } = req.params;
+    const connectionId = req.params.connectionId as string;
 
     try {
       const { accessToken, provider, memberId, familyId } =

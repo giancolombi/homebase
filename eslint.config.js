@@ -23,9 +23,48 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
-      "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-explicit-any": "off",
+
+      // Type safety — surface (but don't yet block) every use of `any`.
+      // Existing usages are still in the tree; once cleaned up we can
+      // promote this to "error" + add --max-warnings 0 to the lint script.
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
       "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-non-null-assertion": "warn",
+
+      // Common-bug guardrails — already clean, enforce going forward.
+      "prefer-const": "error",
+      "no-var": "error",
+      "no-debugger": "error",
+      eqeqeq: ["error", "always", { null: "ignore" }],
+    },
+  },
+  // Backend / scripts use Node globals, not browser
+  {
+    files: ["api/**/*.ts", "scripts/**/*.ts", "serve.ts"],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  // Tests get to be loose
+  {
+    files: [
+      "**/*.test.{ts,tsx}",
+      "**/*.spec.{ts,tsx}",
+      "e2e/**/*.ts",
+      "scripts/seed-local.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
     },
   },
 );

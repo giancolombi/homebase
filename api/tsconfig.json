@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "declaration": true,
+    "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true
   },
