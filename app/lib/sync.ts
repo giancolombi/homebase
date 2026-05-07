@@ -2,8 +2,13 @@
 // these helpers hydrate the store from the backend on load and mirror local
 // mutations to the backend as fire-and-forget side effects.
 
-import { tasks, meals, finance } from "./api";
-import type { FamilyData } from "@/types/family";
+import { tasks, meals, finance, family } from "./api";
+import type {
+  FamilyData,
+  FamilyMember,
+  CalendarConnection,
+  MemberRole,
+} from "@/types/family";
 
 type StorePatch = Partial<FamilyData>;
 type ApplyFn = (patch: StorePatch) => void;
@@ -13,13 +18,20 @@ type ApplyFn = (patch: StorePatch) => void;
  * Called once after auth resolves with a familyId. Errors are logged but
  * don't surface — if sync is down, users still see whatever is persisted in
  * localStorage.
+ *
+ * `currentUserEmail` is used to identify which DB family_member row is the
+ * current user (their member.email matches the auth user's email). Without
+ * it, currentUserId stays whatever localStorage had — empty on a fresh
+ * browser, which makes Settings/Calendar look blank.
  */
 export async function pullAllData(
   familyId: string,
   apply: ApplyFn,
+  currentUserEmail?: string | null,
 ): Promise<void> {
   try {
     const [
+      memberList,
       taskList,
       categoryList,
       recipeList,
@@ -28,6 +40,7 @@ export async function pullAllData(
       accountList,
       transactionList,
     ] = await Promise.all([
+      family.getMembers(familyId).catch(() => null),
       tasks.list(familyId).catch(() => null),
       tasks.listCategories(familyId).catch(() => null),
       meals.listRecipes(familyId).catch(() => null),
@@ -38,6 +51,48 @@ export async function pullAllData(
     ]);
 
     const patch: StorePatch = {};
+
+    if (memberList) {
+      const members: FamilyMember[] = memberList.map((m) => ({
+        id: m.id,
+        name: m.name,
+        role: (m.role as MemberRole) ?? "adult",
+        email: m.email ?? undefined,
+        colorIndex: m.colorIndex ?? 0,
+        isCurrentUser: false,
+        inviteStatus:
+          (m.inviteStatus as "pending" | "accepted" | undefined) ?? undefined,
+      }));
+
+      // Find current user by email match (the only stable cross-device key).
+      let currentUserId: string | null = null;
+      if (currentUserEmail) {
+        const me = members.find(
+          (m) => m.email?.toLowerCase() === currentUserEmail.toLowerCase(),
+        );
+        if (me) {
+          me.isCurrentUser = true;
+          currentUserId = me.id;
+        }
+      }
+
+      // Children get a Homebase-managed pseudo-connection (matches
+      // familyStore.addMember). Without this, the calendar UI's "Children's
+      // calendars" section won't render the green Homebase badge.
+      const calendarConnections: CalendarConnection[] = members
+        .filter((m) => m.role === "child")
+        .map((m) => ({
+          id: `hb-${m.id}`,
+          provider: "homebase",
+          email: "",
+          connected: true,
+          memberId: m.id,
+        }));
+
+      patch.members = members;
+      if (currentUserId) patch.currentUserId = currentUserId;
+      patch.calendarConnections = calendarConnections;
+    }
     if (taskList) {
       patch.tasks = taskList.map((t) => ({
         id: t.id,

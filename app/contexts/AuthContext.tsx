@@ -74,8 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (user.familyId) {
         store.setFamilyId(user.familyId);
-        pullAllData(user.familyId, (patch) =>
-          useFamilyStore.setState(patch as any),
+        pullAllData(
+          user.familyId,
+          (patch) => useFamilyStore.setState(patch as any),
+          user.email,
         );
       }
 
