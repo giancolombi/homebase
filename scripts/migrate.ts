@@ -15,8 +15,11 @@ const MIGRATIONS_DIR = join(__dirname, "..", "api", "migrations");
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    console.error("DATABASE_URL is required");
-    process.exit(1);
+    // Both Railway services (api + frontend) share the repo-root railway.json
+    // and both run this command during pre-deploy. Only the api service has
+    // DATABASE_URL — silently skip on the frontend so its deploy doesn't fail.
+    console.log("DATABASE_URL not set; skipping migrations.");
+    return;
   }
 
   const files = readdirSync(MIGRATIONS_DIR)
