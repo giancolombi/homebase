@@ -111,6 +111,46 @@ The pre-commit hook runs all four checks in sequence — a commit will be reject
 3. **If any test fails, fix the regression before moving on.** Do not leave broken tests for later.
 4. **QA specs** — the `specs/qa/` directory contains manual QA test plans. Reference these when writing or updating E2E tests to ensure coverage stays aligned.
 
+### Test coverage required for every push
+
+**Every push that adds or changes user-facing behavior MUST include both a Gherkin scenario and a Playwright E2E test. This is a hard rule — not aspirational.**
+
+Why both:
+
+- **Gherkin (`specs/features/<area>.feature`)** is the spec — it describes the behavior in user-readable language that a non-engineer (the designer, a stakeholder, future-you) can read and confirm matches intent.
+- **Playwright (`e2e/<area>.spec.ts`)** is the proof — it executes the scenario in a real browser and fails CI if the behavior regresses. Tests reference the scenario they implement with a comment like `// Maps to scenarios in specs/features/calendar.feature`.
+
+The two together are the contract: the feature file says what the product does, the spec file proves it actually does it.
+
+**When this rule applies:**
+
+| Change type                                                      | Need Gherkin?                      | Need Playwright?                             |
+| ---------------------------------------------------------------- | ---------------------------------- | -------------------------------------------- |
+| New page, dialog, form, or button user can interact with         | Yes                                | Yes                                          |
+| New API endpoint that the frontend calls                         | Yes                                | Yes (cover via the UI surface that calls it) |
+| Renamed copy, restyled component, refactored internals (no UX Δ) | No                                 | Update existing tests if selectors break     |
+| Bug fix that restores intended behavior                          | Update existing scenario if needed | Yes — add a regression test                  |
+| Internal infra (CI, build scripts, dev tooling)                  | No                                 | No                                           |
+
+**Coverage gaps that intentionally don't have Playwright tests** are documented in the issue/PR — for example, `external-calendar-sync.feature` and `emails.feature` exist as Gherkin scenarios but have no Playwright equivalents because they require external sandboxes (real OAuth providers, an email inbox sink). If you ship something in that bucket, say so explicitly in the commit message.
+
+**Where things live:**
+
+- `specs/features/*.feature` — Gherkin scenarios, one file per feature area
+- `specs/qa/qa-*.md` — manual QA test plans (older format, keep aligned with `specs/features/`)
+- `e2e/*.spec.ts` — Playwright tests, one file per feature area, mapping 1:1 to a `.feature` file
+
+**Spec checklist before pushing:**
+
+1. Did this change add a user-visible feature, change a flow, or fix a bug? If yes, continue.
+2. Is there a `specs/features/<area>.feature` file for this area? If not, create one.
+3. Add a `Scenario:` for the new/changed behavior.
+4. Add or update the corresponding test in `e2e/<area>.spec.ts`.
+5. Run `pnpm test:e2e` locally and confirm it passes.
+6. Reference both files in the commit message.
+
+The pre-commit hook does not run E2E tests (they're slow). It's on you to run them — see "How to commit changes" below.
+
 ### How to commit changes
 
 Follow this process every time you commit code to the repository:
@@ -125,6 +165,12 @@ Follow this process every time you commit code to the repository:
 
    ```bash
    pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test
+   ```
+
+   **Then run E2E** if your change is user-facing — the pre-commit hook does NOT run Playwright. See "Test coverage required for every push" above; user-visible changes need both a `specs/features/*.feature` scenario and an `e2e/*.spec.ts` test.
+
+   ```bash
+   pnpm run test:e2e
    ```
 
 3. **Stage your changes** — be specific, do not use `git add .` or `git add -A`:

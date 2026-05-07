@@ -206,13 +206,18 @@ pnpm format
 # 2. Run all checks (catches issues before the hook does)
 pnpm typecheck && pnpm lint && pnpm format:check && pnpm test
 
-# 3. Stage specific files (never use git add . or git add -A)
+# 3. If your change is user-facing, run E2E too — the pre-commit hook
+#    does NOT run Playwright. See "Test coverage required for every push"
+#    below; user-visible changes need both a feature spec and an E2E test.
+pnpm test:e2e
+
+# 4. Stage specific files (never use git add . or git add -A)
 git add app/pages/CalendarPage.tsx app/components/calendar/AddEventDialog.tsx
 
-# 4. Commit with a clear message
+# 5. Commit with a clear message
 git commit -m "Fix event overlap detection on weekly calendar view"
 
-# 5. Push to deploy (auto-deploys to Railway)
+# 6. Push to deploy (auto-deploys to Railway)
 git push
 ```
 
@@ -278,6 +283,36 @@ After making any code changes, run both test suites to catch regressions:
 ```sh
 pnpm test && pnpm test:e2e
 ```
+
+### Test coverage required for every push
+
+**Every push that adds or changes user-facing behavior must include both a Gherkin scenario and a Playwright E2E test.** This isn't aspirational — it's the contract for landing on `main`.
+
+| Change type                                                      | Need Gherkin?                      | Need Playwright?                             |
+| ---------------------------------------------------------------- | ---------------------------------- | -------------------------------------------- |
+| New page, dialog, form, or button user can interact with         | Yes                                | Yes                                          |
+| New API endpoint that the frontend calls                         | Yes                                | Yes (cover via the UI surface that calls it) |
+| Renamed copy, restyled component, refactored internals (no UX Δ) | No                                 | Update existing tests if selectors break     |
+| Bug fix that restores intended behavior                          | Update existing scenario if needed | Yes — add a regression test                  |
+| Internal infra (CI, build scripts, dev tooling)                  | No                                 | No                                           |
+
+Why both:
+
+- **Gherkin (`specs/features/<area>.feature`)** is the spec. It describes the behavior in plain language a non-engineer can read and confirm matches intent. One file per feature area (auth, calendar, tasks, meals, finance, settings, invites, foodlab, onboarding, external-calendar-sync, emails).
+- **Playwright (`e2e/<area>.spec.ts`)** is the proof. It runs the scenario in a real browser and fails CI on regression. Each test file references the matching feature with a comment like `// Maps to scenarios in specs/features/calendar.feature`.
+
+**Coverage gaps that intentionally don't have Playwright tests** (currently `external-calendar-sync.feature` and `emails.feature`) require external sandboxes — real OAuth providers and an email-inbox sink — and live as Gherkin specs only. If your change touches one of those areas, call it out in the commit message.
+
+**Checklist before pushing user-facing changes:**
+
+1. Open or create `specs/features/<area>.feature`. Add a `Scenario:` for the new behavior.
+2. Open or create `e2e/<area>.spec.ts`. Add a test that exercises the scenario through the UI.
+3. Run `pnpm test:e2e` locally and confirm it passes.
+4. Reference both files in the commit message.
+
+The pre-commit hook runs typecheck, lint, format, and unit tests — but **not** Playwright (it's slow). It's on you to run E2E before pushing.
+
+See `AGENTS.md` for the full contributor guide that AI coding agents use; the rules above are mirrored there.
 
 ## Hosting
 
