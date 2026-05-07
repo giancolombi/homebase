@@ -11,16 +11,37 @@ export interface AuthUser {
   onboardingComplete?: boolean;
 }
 
+// Pluggable token storage. The web build reads/writes localStorage; the iOS
+// (Capacitor) build can swap in a Keychain-backed adapter at boot time so
+// the JWT lands in Secure Enclave-backed storage instead of the WebView.
+export interface TokenStorage {
+  get(): string | null;
+  set(token: string): void;
+  clear(): void;
+}
+
+const localStorageTokenStorage: TokenStorage = {
+  get: () => localStorage.getItem(TOKEN_KEY),
+  set: (token) => localStorage.setItem(TOKEN_KEY, token),
+  clear: () => localStorage.removeItem(TOKEN_KEY),
+};
+
+let tokenStorage: TokenStorage = localStorageTokenStorage;
+
+export function setTokenStorage(impl: TokenStorage) {
+  tokenStorage = impl;
+}
+
 function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return tokenStorage.get();
 }
 
 function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+  tokenStorage.set(token);
 }
 
 function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  tokenStorage.clear();
 }
 
 async function request<T = unknown>(
@@ -247,6 +268,48 @@ export const calendar = {
         body: JSON.stringify({ familyId, appleId, appPassword }),
       },
     );
+  },
+  async syncEventKit(
+    familyId: string,
+    events: Array<{
+      externalId: string;
+      title: string;
+      description?: string | null;
+      date: string;
+      startTime?: string | null;
+      endTime?: string | null;
+      allDay?: boolean;
+      location?: string | null;
+      sourceTitle?: string | null;
+    }>,
+  ): Promise<{ ok: true; count: number; connectionId: string }> {
+    return request<{ ok: true; count: number; connectionId: string }>(
+      "/api/calendar/eventkit/sync",
+      {
+        method: "POST",
+        body: JSON.stringify({ familyId, events }),
+      },
+    );
+  },
+};
+
+// ---- Devices API (push tokens) ----
+
+export const devices = {
+  async register(
+    token: string,
+    platform: "ios" | "android",
+    appVersion?: string,
+  ): Promise<{ ok: true }> {
+    return request<{ ok: true }>("/api/devices/register", {
+      method: "POST",
+      body: JSON.stringify({ token, platform, appVersion }),
+    });
+  },
+  async unregister(token: string): Promise<{ ok: true }> {
+    return request<{ ok: true }>(`/api/devices/${encodeURIComponent(token)}`, {
+      method: "DELETE",
+    });
   },
 };
 

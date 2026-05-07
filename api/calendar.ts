@@ -650,4 +650,121 @@ router.delete(
   },
 );
 
+// POST /api/calendar/eventkit/sync — replace the iOS user's EventKit-sourced
+// calendar events for this family with the supplied batch.
+//
+// The iOS app reads the device's Calendar app (which already aggregates
+// iCloud, Google, Outlook, and any other calendar accounts the user has
+// added) via EventKit, normalizes each event, and ships the batch here on
+// app open + on EKEventStoreChanged. We mirror them into
+// synced_calendar_events under a per-(family, member) "eventkit" connection
+// so other family members see the iOS user's calendar without each having
+// to connect the same accounts independently.
+router.post(
+  "/eventkit/sync",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const { familyId, events } = req.body as {
+      familyId?: string;
+      events?: Array<{
+        externalId: string;
+        title: string;
+        description?: string | null;
+        date: string;
+        startTime?: string | null;
+        endTime?: string | null;
+        allDay?: boolean;
+        location?: string | null;
+        sourceTitle?: string | null;
+      }>;
+    };
+
+    if (!familyId || !Array.isArray(events)) {
+      res.status(400).json({ error: "familyId and events[] are required" });
+      return;
+    }
+
+    const memberResult = await pool.query(
+      `SELECT id FROM family_members
+       WHERE family_id = $1 AND user_id = $2
+       LIMIT 1`,
+      [familyId, userId],
+    );
+    if (memberResult.rows.length === 0) {
+      res.status(404).json({ error: "Member not found in family" });
+      return;
+    }
+    const memberId = memberResult.rows[0].id;
+
+    const farFuture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 50);
+
+    try {
+      // Get-or-create the eventkit connection row. Distinct from OAuth
+      // connections — provider='eventkit', no token, no refresh.
+      const upsertConn = await pool.query(
+        `INSERT INTO calendar_connections
+           (family_id, member_id, provider, email, connected,
+            access_token_encrypted, token_expires_at, external_email)
+         VALUES ($1, $2, 'eventkit', $3, true, $4, $5, $3)
+         ON CONFLICT ON CONSTRAINT calendar_connections_member_provider_unique
+         DO UPDATE SET connected = true, updated_at = now()
+         RETURNING id`,
+        [familyId, memberId, req.user!.email, "device", farFuture],
+      );
+      const connectionId = upsertConn.rows[0].id;
+
+      for (const event of events) {
+        await pool.query(
+          `INSERT INTO synced_calendar_events
+             (connection_id, family_id, member_id, external_id,
+              title, description, date, start_time, end_time,
+              all_day, location, source_provider, raw_data)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'eventkit', $12)
+           ON CONFLICT (connection_id, external_id)
+           DO UPDATE SET
+             title = $5, description = $6, date = $7,
+             start_time = $8, end_time = $9, all_day = $10,
+             location = $11, raw_data = $12, updated_at = now()`,
+          [
+            connectionId,
+            familyId,
+            memberId,
+            event.externalId,
+            event.title,
+            event.description ?? null,
+            event.date,
+            event.startTime ?? null,
+            event.endTime ?? null,
+            !!event.allDay,
+            event.location ?? null,
+            JSON.stringify({ sourceTitle: event.sourceTitle ?? null }),
+          ],
+        );
+      }
+
+      // Drop events that aren't in this batch — the iOS app sends the
+      // canonical current view of the calendar each time.
+      const externalIds = events.map((e) => e.externalId);
+      if (externalIds.length > 0) {
+        await pool.query(
+          `DELETE FROM synced_calendar_events
+           WHERE connection_id = $1 AND external_id != ALL($2::text[])`,
+          [connectionId, externalIds],
+        );
+      } else {
+        await pool.query(
+          `DELETE FROM synced_calendar_events WHERE connection_id = $1`,
+          [connectionId],
+        );
+      }
+
+      res.json({ ok: true, count: events.length, connectionId });
+    } catch (err) {
+      console.error("EventKit sync error:", err);
+      res.status(500).json({ error: "Failed to sync EventKit events" });
+    }
+  },
+);
+
 export default router;

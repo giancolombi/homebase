@@ -8,3 +8,11 @@ dist
 .vscode
 .idea
 .husky
+
+# iOS / Capacitor — Railway builds the web SPA + API. Native iOS code has
+# no business in the Docker image and would balloon it by hundreds of MB.
+ios
+capacitor
+e2e
+test-results
+playwright-report

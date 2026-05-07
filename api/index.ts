@@ -9,6 +9,8 @@ import tasksRouter from "./tasks.js";
 import mealsRouter from "./meals.js";
 import financeRouter from "./finance.js";
 import plaidRouter from "./plaid.js";
+import devicesRouter from "./devices.js";
+import { aasaHandler } from "./lib/aasa.js";
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || "3001", 10);
@@ -31,6 +33,14 @@ app.use("/api/tasks", tasksRouter);
 app.use("/api/meals", mealsRouter);
 app.use("/api/finance", financeRouter);
 app.use("/api/plaid", plaidRouter);
+app.use("/api/devices", devicesRouter);
+
+// Apple App Site Association — enables iOS Universal Links to open the
+// native Homebase app instead of Safari for /accept-invite, /reset-password,
+// etc. Served from the API root, NOT under /api/ (Apple requires .well-known
+// at the domain root).
+app.get("/.well-known/apple-app-site-association", aasaHandler);
+app.get("/apple-app-site-association", aasaHandler);
 
 app.listen(PORT, () => {
   console.log(`API server running on http://localhost:${PORT}`);
