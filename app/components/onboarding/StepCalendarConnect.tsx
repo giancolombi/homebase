@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useFamilyStore } from "@/store/familyStore";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
 } from "@/hooks/use-calendar-sync";
 import { toast } from "@/hooks/use-toast";
 import { formatCalendarError } from "@/lib/calendarErrors";
+import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 
 const externalProviders = [
   { id: "google" as const, name: "Google Calendar", icon: "🔵" },
@@ -70,6 +71,8 @@ export default function StepCalendarConnect({
     }
   }, [searchParams, setSearchParams]);
 
+  const [appleDialogOpen, setAppleDialogOpen] = useState(false);
+
   const handleConnect = (provider: "google" | "outlook" | "apple") => {
     if (!familyId) {
       toast({
@@ -80,10 +83,7 @@ export default function StepCalendarConnect({
       return;
     }
     if (provider === "apple") {
-      toast({
-        title: "Apple Calendar coming soon",
-        description: "Apple Calendar integration isn't available yet.",
-      });
+      setAppleDialogOpen(true);
       return;
     }
 
@@ -185,6 +185,11 @@ export default function StepCalendarConnect({
 
   return (
     <div className="flex flex-col gap-6">
+      <AppleConnectDialog
+        familyId={familyId ?? null}
+        open={appleDialogOpen}
+        onOpenChange={setAppleDialogOpen}
+      />
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}

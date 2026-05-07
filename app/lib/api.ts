@@ -234,6 +234,20 @@ export const calendar = {
       method: "DELETE",
     });
   },
+
+  async connectApple(
+    familyId: string,
+    appleId: string,
+    appPassword: string,
+  ): Promise<{ ok: true; externalEmail: string }> {
+    return request<{ ok: true; externalEmail: string }>(
+      "/api/calendar/apple/connect",
+      {
+        method: "POST",
+        body: JSON.stringify({ familyId, appleId, appPassword }),
+      },
+    );
+  },
 };
 
 // ---- Invite API ----

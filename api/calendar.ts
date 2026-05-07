@@ -11,6 +11,7 @@ import {
   getUserEmail,
 } from "./lib/oauth.js";
 import { fetchEvents } from "./lib/calendarProviders.js";
+import { validateAppleCredentials, fetchAppleEvents } from "./lib/caldav.js";
 import { errorMessage } from "./lib/errors.js";
 
 const router = Router();
@@ -240,6 +241,87 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/calendar/apple/connect — connect an iCloud Calendar via CalDAV.
+// Apple doesn't support OAuth for iCloud, so the user enters their Apple ID
+// and an app-specific password generated at appleid.apple.com. We validate
+// against iCloud, then store the encrypted password in the same column as
+// Google/Outlook access tokens (provider='apple' distinguishes the row).
+router.post(
+  "/apple/connect",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const { familyId, appleId, appPassword } = req.body as {
+      familyId?: string;
+      appleId?: string;
+      appPassword?: string;
+    };
+
+    if (!familyId || !appleId || !appPassword) {
+      res
+        .status(400)
+        .json({ error: "familyId, appleId, and appPassword are required" });
+      return;
+    }
+
+    // Resolve the user's member row in this family (mirrors the OAuth flow).
+    const memberResult = await pool.query(
+      `SELECT id FROM family_members
+       WHERE family_id = $1 AND user_id = $2
+       LIMIT 1`,
+      [familyId, userId],
+    );
+    if (memberResult.rows.length === 0) {
+      res.status(404).json({ error: "Member not found in family" });
+      return;
+    }
+    const memberId = memberResult.rows[0].id;
+
+    // Validate against iCloud before persisting anything.
+    try {
+      await validateAppleCredentials(appleId, appPassword);
+    } catch (err) {
+      console.warn("iCloud auth rejected:", err);
+      res.status(401).json({
+        error:
+          "Apple rejected those credentials. Make sure you're using an app-specific password from appleid.apple.com (not your regular Apple ID password).",
+      });
+      return;
+    }
+
+    const encryptedPassword = encrypt(appPassword);
+    // App-specific passwords don't expire on a fixed schedule — set far-future
+    // so the existing isExpired check in getValidAccessToken never triggers
+    // for Apple rows (we'll branch around it anyway).
+    const farFuture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 50);
+
+    try {
+      await pool.query(
+        `INSERT INTO calendar_connections
+           (family_id, member_id, provider, email, connected,
+            access_token_encrypted, token_expires_at, external_email)
+         VALUES ($1, $2, 'apple', $3, true, $4, $5, $3)
+         ON CONFLICT ON CONSTRAINT calendar_connections_member_provider_unique
+         DO UPDATE SET
+           connected = true,
+           access_token_encrypted = $4,
+           token_expires_at = $5,
+           email = $3,
+           external_email = $3,
+           sync_error = NULL,
+           updated_at = now()`,
+        [familyId, memberId, appleId, encryptedPassword, farFuture],
+      );
+      res.json({ ok: true, externalEmail: appleId });
+    } catch (err) {
+      console.error("Apple connect error:", err);
+      res
+        .status(500)
+        .json({ error: errorMessage(err, "Failed to save iCloud connection") });
+    }
+  },
+);
+
 // GET /api/calendar/connections — list connections for a family
 router.get(
   "/connections",
@@ -287,9 +369,10 @@ async function getValidAccessToken(connectionId: string): Promise<{
   provider: string;
   memberId: string;
   familyId: string;
+  externalEmail: string | null;
 }> {
   const result = await pool.query(
-    `SELECT id, provider, member_id, family_id,
+    `SELECT id, provider, member_id, family_id, external_email,
             access_token_encrypted, refresh_token_encrypted, token_expires_at
      FROM calendar_connections
      WHERE id = $1 AND connected = true`,
@@ -301,6 +384,20 @@ async function getValidAccessToken(connectionId: string): Promise<{
   }
 
   const conn = result.rows[0];
+
+  // Apple stores an app-specific password in access_token_encrypted; it
+  // doesn't expire on a token clock and there's no refresh flow. Just decrypt
+  // and return.
+  if (conn.provider === "apple") {
+    return {
+      accessToken: decrypt(conn.access_token_encrypted),
+      provider: conn.provider,
+      memberId: conn.member_id,
+      familyId: conn.family_id,
+      externalEmail: conn.external_email,
+    };
+  }
+
   const now = new Date();
   const expiresAt = new Date(conn.token_expires_at);
 
@@ -311,6 +408,7 @@ async function getValidAccessToken(connectionId: string): Promise<{
       provider: conn.provider,
       memberId: conn.member_id,
       familyId: conn.family_id,
+      externalEmail: conn.external_email,
     };
   }
 
@@ -342,6 +440,7 @@ async function getValidAccessToken(connectionId: string): Promise<{
     provider: conn.provider,
     memberId: conn.member_id,
     familyId: conn.family_id,
+    externalEmail: conn.external_email,
   };
 }
 
@@ -353,7 +452,7 @@ router.post(
     const connectionId = req.params.connectionId as string;
 
     try {
-      const { accessToken, provider, memberId, familyId } =
+      const { accessToken, provider, memberId, familyId, externalEmail } =
         await getValidAccessToken(connectionId);
 
       // Fetch 30 days back, 60 days forward
@@ -365,7 +464,15 @@ router.post(
         now.getTime() + 60 * 24 * 60 * 60 * 1000,
       ).toISOString();
 
-      const events = await fetchEvents(provider, accessToken, timeMin, timeMax);
+      const events =
+        provider === "apple"
+          ? await fetchAppleEvents(
+              externalEmail ?? "",
+              accessToken,
+              timeMin,
+              timeMax,
+            )
+          : await fetchEvents(provider, accessToken, timeMin, timeMax);
 
       // Upsert events
       for (const event of events) {

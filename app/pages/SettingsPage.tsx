@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
+import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 import { calendar, invite } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -99,8 +100,14 @@ export default function SettingsPage() {
     (m) => m.role === "adult" && m.id !== currentUserId,
   );
 
+  const [appleDialogOpen, setAppleDialogOpen] = useState(false);
+
   const handleConnect = (provider: "google" | "outlook" | "apple") => {
-    if (!familyId || provider === "apple") return;
+    if (!familyId) return;
+    if (provider === "apple") {
+      setAppleDialogOpen(true);
+      return;
+    }
 
     const url = calendar.getAuthUrl(provider, familyId);
     const popup = window.open(url, "calendar-auth", "width=500,height=700");
@@ -154,6 +161,11 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
+      <AppleConnectDialog
+        familyId={familyId ?? null}
+        open={appleDialogOpen}
+        onOpenChange={setAppleDialogOpen}
+      />
       <header className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 md:px-6 md:py-4 bg-card/95 backdrop-blur-sm border-b border-border">
         <button
           onClick={() => navigate(-1)}

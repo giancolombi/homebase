@@ -74,6 +74,101 @@ export async function sendInviteEmail(options: {
   });
 }
 
+export async function sendWelcomeEmail(options: {
+  to: string;
+  fullName: string | null;
+  appUrl: string;
+}): Promise<{ sent: boolean }> {
+  const { to, fullName, appUrl } = options;
+  const greeting = fullName ? `Hi ${fullName.split(" ")[0]},` : "Hi,";
+
+  return sendOrLog({
+    to,
+    subject: "Welcome to Homebase",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="display: inline-block; width: 48px; height: 48px; background: #e0f2f1; border-radius: 12px; line-height: 48px; font-size: 24px;">🏠</div>
+          <h1 style="font-size: 20px; font-weight: 600; margin: 12px 0 4px;">Welcome to Homebase</h1>
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">Your family's command center</p>
+        </div>
+        <p style="font-size: 15px; color: #1f2937; line-height: 1.6;">${greeting}</p>
+        <p style="font-size: 15px; color: #1f2937; line-height: 1.6;">
+          Thanks for signing up. Homebase keeps your family's calendar, tasks,
+          meals, and finances in one shared place. From here, you can finish
+          setting up your family and connect your calendars.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${appUrl}" style="display: inline-block; background: #5eead4; color: #0f172a; font-weight: 600; font-size: 15px; padding: 12px 32px; border-radius: 8px; text-decoration: none;">
+            Open Homebase
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #9ca3af; line-height: 1.5;">
+          Didn't sign up? Reply to this email and we'll sort it out.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendPasswordChangedEmail(options: {
+  to: string;
+}): Promise<{ sent: boolean }> {
+  const { to } = options;
+
+  return sendOrLog({
+    to,
+    subject: "Your Homebase password was changed",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="display: inline-block; width: 48px; height: 48px; background: #e0f2f1; border-radius: 12px; line-height: 48px; font-size: 24px;">🔒</div>
+          <h1 style="font-size: 20px; font-weight: 600; margin: 12px 0 4px;">Password updated</h1>
+        </div>
+        <p style="font-size: 15px; color: #1f2937; line-height: 1.6;">
+          Your Homebase password was just changed. If this was you, you're
+          all set.
+        </p>
+        <p style="font-size: 15px; color: #1f2937; line-height: 1.6;">
+          If you <strong>didn't</strong> make this change, reset your
+          password immediately and email us — your account may be at risk.
+        </p>
+        <p style="font-size: 13px; color: #9ca3af; line-height: 1.5; margin-top: 32px;">
+          You're receiving this because someone changed the password on the
+          Homebase account associated with this email.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendInviteAcceptedEmail(options: {
+  to: string;
+  inviteeName: string;
+  inviteeEmail: string;
+  familyName: string;
+}): Promise<{ sent: boolean }> {
+  const { to, inviteeName, inviteeEmail, familyName } = options;
+
+  return sendOrLog({
+    to,
+    subject: `${inviteeName} joined ${familyName} on Homebase`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="display: inline-block; width: 48px; height: 48px; background: #e0f2f1; border-radius: 12px; line-height: 48px; font-size: 24px;">🎉</div>
+          <h1 style="font-size: 20px; font-weight: 600; margin: 12px 0 4px;">${inviteeName} just joined</h1>
+        </div>
+        <p style="font-size: 15px; color: #1f2937; line-height: 1.6;">
+          <strong>${inviteeName}</strong> (${inviteeEmail}) accepted their
+          invite and is now part of <strong>${familyName}</strong>. They can
+          start sharing calendars, tasks, and meal plans with you right away.
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(options: {
   to: string;
   resetUrl: string;

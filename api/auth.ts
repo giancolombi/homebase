@@ -7,7 +7,11 @@ import {
 import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import pool from "./db.js";
-import { sendPasswordResetEmail } from "./lib/email.js";
+import {
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  sendPasswordChangedEmail,
+} from "./lib/email.js";
 const APP_URL = process.env.APP_URL || "http://localhost:8080";
 
 const router = Router();
@@ -130,6 +134,13 @@ router.post("/signup", async (req: Request, res: Response) => {
       [user.id, user.full_name],
     );
 
+    // Fire-and-forget welcome email — failure here shouldn't block signup.
+    sendWelcomeEmail({
+      to: user.email,
+      fullName: user.full_name,
+      appUrl: APP_URL,
+    }).catch((err) => console.warn("Welcome email failed:", err));
+
     const token = signToken(user);
     res.status(201).json({
       user: await userPayload(user),
@@ -226,6 +237,11 @@ router.post(
         passwordHash,
         req.user!.id,
       ]);
+      // Notify (async). Email is the most reliable signal of unauthorized
+      // password changes, so always send even if it slows the response.
+      sendPasswordChangedEmail({ to: req.user!.email }).catch((err) =>
+        console.warn("Password-changed email failed:", err),
+      );
       res.json({ message: "Password updated" });
     } catch (err) {
       console.error("Update password error:", err);
@@ -314,10 +330,17 @@ router.post("/reset-password", async (req: Request, res: Response) => {
     }
 
     const passwordHash = await argon2.hash(password);
-    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
-      passwordHash,
-      payload.sub,
-    ]);
+    const updated = await pool.query(
+      "UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING email",
+      [passwordHash, payload.sub],
+    );
+
+    const updatedEmail = updated.rows[0]?.email;
+    if (updatedEmail) {
+      sendPasswordChangedEmail({ to: updatedEmail }).catch((err) =>
+        console.warn("Password-changed email failed:", err),
+      );
+    }
 
     res.json({ message: "Password has been reset. You can now sign in." });
   } catch {

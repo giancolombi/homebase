@@ -2,7 +2,7 @@ import { Router, type Response } from "express";
 import jwt from "jsonwebtoken";
 import { requireAuth, type AuthRequest } from "./auth.js";
 import pool from "./db.js";
-import { sendInviteEmail } from "./lib/email.js";
+import { sendInviteEmail, sendInviteAcceptedEmail } from "./lib/email.js";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
@@ -177,6 +177,35 @@ router.post("/accept", async (req, res) => {
        WHERE id = $2`,
       [userId, payload.memberId],
     );
+
+    // Notify the family owner that the invite was accepted. Best-effort —
+    // accept response shouldn't fail if email or lookup fails.
+    try {
+      const ownerInfo = await pool.query(
+        `SELECT u.email AS owner_email, f.name AS family_name,
+                fm_invitee.name AS invitee_name, u_invitee.email AS invitee_email
+         FROM families f
+         JOIN users u ON u.id = f.owner_id
+         JOIN family_members fm_invitee ON fm_invitee.id = $1
+         JOIN users u_invitee ON u_invitee.id = $2
+         WHERE f.id = $3`,
+        [payload.memberId, userId, payload.familyId],
+      );
+      const row = ownerInfo.rows[0];
+      if (row?.owner_email && row.owner_email !== row.invitee_email) {
+        sendInviteAcceptedEmail({
+          to: row.owner_email,
+          inviteeName: row.invitee_name ?? "A new member",
+          inviteeEmail: row.invitee_email ?? payload.email,
+          familyName: row.family_name ?? "your family",
+        }).catch((err) => console.warn("Invite-accepted email failed:", err));
+      }
+    } catch (notifyErr) {
+      console.warn(
+        "Could not look up owner for invite notification:",
+        notifyErr,
+      );
+    }
 
     res.json({
       familyId: payload.familyId,
