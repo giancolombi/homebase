@@ -4,9 +4,20 @@
 // → App-Specific Passwords). We store the password encrypted alongside
 // Google/Outlook OAuth tokens.
 
-import { createDAVClient, type DAVCalendar } from "tsdav";
-import * as ical from "node-ical";
+import { createRequire } from "module";
 import type { NormalizedEvent } from "./calendarProviders.js";
+import type { DAVCalendar } from "tsdav";
+import type * as IcalNS from "node-ical";
+
+// tsdav publishes both CJS and ESM but its ESM build's named exports don't
+// resolve consistently under Node 24 (works on Node 25 locally, crashes
+// in Railway's Node 24 alpine image). createRequire forces CJS resolution,
+// which is reliable across Node versions. Same precaution for node-ical
+// which is CJS-only.
+const require = createRequire(import.meta.url);
+const tsdav = require("tsdav") as typeof import("tsdav");
+const ical = require("node-ical") as typeof IcalNS;
+const { createDAVClient } = tsdav;
 
 const ICLOUD_CALDAV_URL = "https://caldav.icloud.com/";
 
@@ -101,7 +112,7 @@ export async function fetchAppleEvents(
 
     for (const obj of objects) {
       if (!obj.data) continue;
-      let parsed: ical.CalendarResponse;
+      let parsed: IcalNS.CalendarResponse;
       try {
         parsed = ical.sync.parseICS(obj.data);
       } catch {
@@ -109,8 +120,9 @@ export async function fetchAppleEvents(
       }
 
       for (const component of Object.values(parsed)) {
-        if (!component || component.type !== "VEVENT") continue;
-        const ev = component;
+        if (!component || (component as { type?: string }).type !== "VEVENT")
+          continue;
+        const ev = component as IcalNS.VEvent;
 
         const start = ev.start;
         const end = ev.end;
