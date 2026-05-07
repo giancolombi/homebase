@@ -3,6 +3,26 @@
 
 const TOKEN_KEY = "homebase-auth-token";
 
+// Base URL for /api/* requests.
+//
+// Web (production + dev): relative paths resolve against the current origin
+// (gethomebase.dev in prod, localhost:8080 in dev with the Vite proxy).
+//
+// iOS Capacitor: the WebView origin is `capacitor://localhost`, so relative
+// `/api/...` URLs would 404. setApiBaseUrl() is called from capacitorBoot
+// at app start to point fetch() at https://gethomebase.dev. Pulled out into
+// a setter rather than a build-time env var so the same dist/ bundle works
+// both as the live web app and as the iOS WebView payload.
+let apiBaseUrl = "";
+
+export function setApiBaseUrl(url: string) {
+  apiBaseUrl = url.replace(/\/$/, "");
+}
+
+export function getApiBaseUrl(): string {
+  return apiBaseUrl;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -57,7 +77,10 @@ async function request<T = unknown>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(path, {
+  // Prefix the absolute base URL when one is configured (Capacitor iOS).
+  // On web, apiBaseUrl is "" so the path stays relative.
+  const url = path.startsWith("http") ? path : `${apiBaseUrl}${path}`;
+  const res = await fetch(url, {
     ...options,
     headers,
   });
@@ -222,7 +245,9 @@ export const calendar = {
       token: token || "",
     });
     if (returnTo) params.set("returnTo", returnTo);
-    return `/api/calendar/auth/${provider}?${params.toString()}`;
+    // Same base-URL logic as request() — Capacitor needs an absolute URL
+    // so SafariViewController can navigate to the OAuth provider.
+    return `${apiBaseUrl}/api/calendar/auth/${provider}?${params.toString()}`;
   },
 
   async getConnections(
