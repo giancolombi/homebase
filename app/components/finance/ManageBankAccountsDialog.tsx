@@ -113,9 +113,7 @@ export function ManageBankAccountsDialog() {
             : "Accounts and transactions synced.",
         });
         // Refresh local store from backend
-        await pullAllData(familyId, (patch) =>
-          useFamilyStore.setState(patch as any),
-        );
+        await pullAllData(familyId, (patch) => useFamilyStore.setState(patch));
         await refreshPlaidItems();
       } catch (err) {
         toast({
@@ -127,7 +125,7 @@ export function ManageBankAccountsDialog() {
         setLinkToken(null);
       }
     },
-    [familyId],
+    [familyId, refreshPlaidItems],
   );
 
   const { open: openPlaid, ready: plaidReady } = usePlaidLink({
@@ -150,9 +148,7 @@ export function ManageBankAccountsDialog() {
         title: "Synced",
         description: `+${result.added} / ~${result.modified} / −${result.removed} transactions`,
       });
-      await pullAllData(familyId, (patch) =>
-        useFamilyStore.setState(patch as any),
-      );
+      await pullAllData(familyId, (patch) => useFamilyStore.setState(patch));
       await refreshPlaidItems();
     } catch (err) {
       toast({
@@ -170,9 +166,7 @@ export function ManageBankAccountsDialog() {
     try {
       await plaid.removeItem(familyId, itemId);
       toast({ title: "Bank unlinked" });
-      await pullAllData(familyId, (patch) =>
-        useFamilyStore.setState(patch as any),
-      );
+      await pullAllData(familyId, (patch) => useFamilyStore.setState(patch));
       await refreshPlaidItems();
     } catch (err) {
       toast({

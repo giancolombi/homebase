@@ -4,7 +4,7 @@ import pool from "./db.js";
 import { resolveFamilyId } from "./lib/familyAuth.js";
 
 const router = Router();
-router.use(requireAuth as any);
+router.use(requireAuth);
 
 // ============ Recipes ============
 
@@ -17,11 +17,25 @@ interface RecipeInput {
   imageUrl?: string | null;
   sourceUrl?: string | null;
   tags?: string[];
-  ingredients?: any[];
+  ingredients?: unknown[];
   steps?: string[];
 }
 
-function recipeRowToDTO(row: any) {
+interface RecipeRow {
+  id: string;
+  title: string;
+  description: string | null;
+  prep_time: number | null;
+  cook_time: number | null;
+  servings: number | null;
+  image_url: string | null;
+  source_url: string | null;
+  tags: string[] | null;
+  ingredients: unknown[] | null;
+  steps: string[] | null;
+}
+
+function recipeRowToDTO(row: RecipeRow) {
   return {
     id: row.id,
     title: row.title,
@@ -47,7 +61,7 @@ router.get("/recipes", async (req: AuthRequest, res: Response) => {
       [familyId],
     );
     res.json(r.rows.map(recipeRowToDTO));
-  } catch (err: any) {
+  } catch (err) {
     console.error("List recipes error:", err);
     res.status(500).json({ error: "Failed to list recipes" });
   }
@@ -82,7 +96,7 @@ router.post("/recipes", async (req: AuthRequest, res: Response) => {
       ],
     );
     res.status(201).json(recipeRowToDTO(r.rows[0]));
-  } catch (err: any) {
+  } catch (err) {
     console.error("Create recipe error:", err);
     res.status(500).json({ error: "Failed to create recipe" });
   }
@@ -94,8 +108,8 @@ router.put("/recipes/:id", async (req: AuthRequest, res: Response) => {
   if (!familyId) return;
   const body = req.body as Partial<RecipeInput>;
   const fields: string[] = [];
-  const values: any[] = [];
-  const push = (sql: string, value: any) => {
+  const values: unknown[] = [];
+  const push = (sql: string, value: unknown) => {
     values.push(value);
     fields.push(`${sql} = $${values.length}`);
   };
@@ -129,7 +143,7 @@ router.put("/recipes/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json(recipeRowToDTO(r.rows[0]));
-  } catch (err: any) {
+  } catch (err) {
     console.error("Update recipe error:", err);
     res.status(500).json({ error: "Failed to update recipe" });
   }
@@ -145,7 +159,7 @@ router.delete("/recipes/:id", async (req: AuthRequest, res: Response) => {
       familyId,
     ]);
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Delete recipe error:", err);
     res.status(500).json({ error: "Failed to delete recipe" });
   }
@@ -170,7 +184,7 @@ router.get("/plan", async (req: AuthRequest, res: Response) => {
         mealType: row.meal_type,
       })),
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("List meal plan error:", err);
     res.status(500).json({ error: "Failed to list meal plan" });
   }
@@ -203,7 +217,7 @@ router.post("/plan", async (req: AuthRequest, res: Response) => {
       date: row.date,
       mealType: row.meal_type,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Create meal plan entry error:", err);
     res.status(500).json({ error: "Failed to add meal plan entry" });
   }
@@ -219,7 +233,7 @@ router.delete("/plan/:id", async (req: AuthRequest, res: Response) => {
       familyId,
     ]);
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Delete meal plan entry error:", err);
     res.status(500).json({ error: "Failed to delete meal plan entry" });
   }
@@ -238,7 +252,7 @@ router.get("/shopping", async (req: AuthRequest, res: Response) => {
       [familyId],
     );
     res.json(r.rows);
-  } catch (err: any) {
+  } catch (err) {
     console.error("List shopping error:", err);
     res.status(500).json({ error: "Failed to list shopping list" });
   }
@@ -249,7 +263,14 @@ router.get("/shopping", async (req: AuthRequest, res: Response) => {
 router.put("/shopping", async (req: AuthRequest, res: Response) => {
   const familyId = await resolveFamilyId(req, res);
   if (!familyId) return;
-  const items = (req.body as { items?: any[] }).items;
+  interface ShoppingItem {
+    name: string;
+    amount?: number | null;
+    unit?: string | null;
+    category?: string | null;
+    checked?: boolean;
+  }
+  const items = (req.body as { items?: ShoppingItem[] }).items;
   if (!Array.isArray(items)) {
     res.status(400).json({ error: "items array is required" });
     return;
@@ -277,7 +298,7 @@ router.put("/shopping", async (req: AuthRequest, res: Response) => {
     }
     await client.query("COMMIT");
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     await client.query("ROLLBACK");
     console.error("Update shopping error:", err);
     res.status(500).json({ error: "Failed to update shopping list" });
@@ -297,7 +318,7 @@ router.patch("/shopping/:id", async (req: AuthRequest, res: Response) => {
       [!!checked, req.params.id, familyId],
     );
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Toggle shopping error:", err);
     res.status(500).json({ error: "Failed to toggle item" });
   }

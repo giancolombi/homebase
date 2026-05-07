@@ -2,13 +2,12 @@ import {
   Router,
   type Request,
   type Response,
-  type NextFunction,
+  type RequestHandler,
 } from "express";
 import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import pool from "./db.js";
 import { sendPasswordResetEmail } from "./lib/email.js";
-
 const APP_URL = process.env.APP_URL || "http://localhost:8080";
 
 const router = Router();
@@ -21,16 +20,14 @@ export interface AuthUser {
   full_name: string | null;
 }
 
-export interface AuthRequest extends Request {
-  user?: AuthUser;
-}
+// Kept as an alias so existing route signatures don't have to churn. The
+// `req.user?: AuthUser` shape itself lives in api/types/express.d.ts and is
+// applied to every Express Request.
+export type AuthRequest = Request;
 
-// Middleware to verify JWT and attach user to request
-export async function requireAuth(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) {
+// Middleware to verify JWT and attach user to request. Typed as RequestHandler
+// so it satisfies Express's overloads without `as any` at every use site.
+export const requireAuth: RequestHandler = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing or invalid authorization header" });
@@ -53,7 +50,7 @@ export async function requireAuth(
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
   }
-}
+};
 
 function signToken(user: {
   id: string;
@@ -112,7 +109,7 @@ router.post("/signup", async (req: Request, res: Response) => {
       user: { id: user.id, email: user.email, full_name: user.full_name },
       token,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Signup error:", err);
     res.status(500).json({ error: "Failed to create account" });
   }
@@ -148,7 +145,7 @@ router.post("/signin", async (req: Request, res: Response) => {
       user: { id: user.id, email: user.email, full_name: user.full_name },
       token,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Signin error:", err);
     res.status(500).json({ error: "Sign in failed" });
   }
@@ -211,7 +208,7 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
 // POST /api/auth/update-password
 router.post(
   "/update-password",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const { password } = req.body;
     if (!password || password.length < 8) {
@@ -226,7 +223,7 @@ router.post(
         req.user!.id,
       ]);
       res.json({ message: "Password updated" });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Update password error:", err);
       res.status(500).json({ error: "Failed to update password" });
     }
@@ -284,7 +281,7 @@ router.post("/request-reset", async (req: Request, res: Response) => {
       // SMTP/Resend is configured.
       ...(!sent && process.env.NODE_ENV !== "production" && { resetToken }),
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Request reset error:", err);
     res.status(500).json({ error: "Failed to process reset request" });
   }

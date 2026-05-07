@@ -51,7 +51,7 @@ export default function FoodLabPanel() {
         title: "Synced",
         description: `Loaded ${recipes.length} recipes from FoodLab.`,
       });
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Sync failed",
         description: err?.message ?? "Could not reach the FoodLab repository.",

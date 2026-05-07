@@ -19,12 +19,11 @@ import {
   MEMBER_BG_LIGHT,
   MEMBER_BORDER_COLORS,
   getMemberInitials,
-  generateId,
 } from "@/lib/memberColors";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import AddEventDialog from "@/components/calendar/AddEventDialog";
-import type { CalendarEvent } from "@/types/family";
+import type { CalendarEvent, FamilyMember } from "@/types/family";
 
 const VISIBLE_START_HOUR = 6;
 const VISIBLE_END_HOUR = 22; // exclusive — last slot is 9 PM (21:00–22:00)
@@ -262,15 +261,13 @@ export default function CalendarPage() {
 }
 
 function DayView({
-  date,
   members,
   events,
-  getMemberColor,
   onSlotClick,
   slotHeight,
 }: {
   date: Date;
-  members: any[];
+  members: FamilyMember[];
   events: CalendarEvent[];
   getMemberColor: (id: string) => number;
   onSlotClick: (hour: number) => void;
@@ -415,7 +412,7 @@ function WeekView({
 }: {
   weekDays: Date[];
   allEvents: CalendarEvent[];
-  members: any[];
+  members: FamilyMember[];
   getMemberColor: (id: string) => number;
 }) {
   return (

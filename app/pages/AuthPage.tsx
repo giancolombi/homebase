@@ -29,7 +29,7 @@ export default function AuthPage() {
     try {
       const { user } = await auth.signIn(email, password);
       setUser(user);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Sign in failed",
         description: error.message,
@@ -54,7 +54,7 @@ export default function AuthPage() {
       const { user } = await auth.signUp(email, password, fullName);
       setUser(user);
       toast({ title: "Account created", description: "Welcome to Homebase!" });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Sign up failed",
         description: error.message,
@@ -73,7 +73,7 @@ export default function AuthPage() {
         title: "Check your email",
         description: "If that email is registered, we sent a reset link.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: error.message,

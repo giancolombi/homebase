@@ -68,7 +68,13 @@ export function verifyOAuthState(state: string): {
   provider: string;
   returnTo?: string;
 } {
-  return jwt.verify(state, JWT_SECRET) as any;
+  return jwt.verify(state, JWT_SECRET) as {
+    userId: string;
+    memberId: string;
+    familyId: string;
+    provider: string;
+    returnTo?: string;
+  };
 }
 
 export function getAuthUrl(provider: string, state: string): string {

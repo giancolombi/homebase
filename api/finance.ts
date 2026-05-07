@@ -4,11 +4,21 @@ import pool from "./db.js";
 import { resolveFamilyId } from "./lib/familyAuth.js";
 
 const router = Router();
-router.use(requireAuth as any);
+router.use(requireAuth);
 
 // ============ Bank accounts ============
 
-function accountRowToDTO(row: any) {
+interface BankAccountRow {
+  id: string;
+  name: string;
+  institution: string;
+  balance: string | number;
+  is_featured: boolean;
+  savings_goal: string | number | null;
+  monthly_balances: unknown[] | null;
+}
+
+function accountRowToDTO(row: BankAccountRow) {
   return {
     id: row.id,
     name: row.name,
@@ -31,7 +41,7 @@ router.get("/accounts", async (req: AuthRequest, res: Response) => {
       [familyId],
     );
     res.json(r.rows.map(accountRowToDTO));
-  } catch (err: any) {
+  } catch (err) {
     console.error("List accounts error:", err);
     res.status(500).json({ error: "Failed to list accounts" });
   }
@@ -43,7 +53,7 @@ interface AccountInput {
   balance?: number;
   isFeatured?: boolean;
   savingsGoal?: number | null;
-  monthlyBalances?: any[];
+  monthlyBalances?: unknown[];
 }
 
 // POST /api/finance/accounts { familyId, ...AccountInput }
@@ -71,7 +81,7 @@ router.post("/accounts", async (req: AuthRequest, res: Response) => {
       ],
     );
     res.status(201).json(accountRowToDTO(r.rows[0]));
-  } catch (err: any) {
+  } catch (err) {
     console.error("Create account error:", err);
     res.status(500).json({ error: "Failed to create account" });
   }
@@ -83,8 +93,8 @@ router.put("/accounts/:id", async (req: AuthRequest, res: Response) => {
   if (!familyId) return;
   const body = req.body as Partial<AccountInput>;
   const fields: string[] = [];
-  const values: any[] = [];
-  const push = (sql: string, value: any) => {
+  const values: unknown[] = [];
+  const push = (sql: string, value: unknown) => {
     values.push(value);
     fields.push(`${sql} = $${values.length}`);
   };
@@ -113,7 +123,7 @@ router.put("/accounts/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json(accountRowToDTO(r.rows[0]));
-  } catch (err: any) {
+  } catch (err) {
     console.error("Update account error:", err);
     res.status(500).json({ error: "Failed to update account" });
   }
@@ -129,7 +139,7 @@ router.delete("/accounts/:id", async (req: AuthRequest, res: Response) => {
       [req.params.id, familyId],
     );
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Delete account error:", err);
     res.status(500).json({ error: "Failed to delete account" });
   }
@@ -137,7 +147,16 @@ router.delete("/accounts/:id", async (req: AuthRequest, res: Response) => {
 
 // ============ Transactions ============
 
-function txRowToDTO(row: any) {
+interface TransactionRow {
+  id: string;
+  account_id: string;
+  description: string;
+  amount: string | number;
+  date: string;
+  category: string | null;
+}
+
+function txRowToDTO(row: TransactionRow) {
   return {
     id: row.id,
     accountId: row.account_id,
@@ -159,7 +178,7 @@ router.get("/transactions", async (req: AuthRequest, res: Response) => {
       [familyId],
     );
     res.json(r.rows.map(txRowToDTO));
-  } catch (err: any) {
+  } catch (err) {
     console.error("List transactions error:", err);
     res.status(500).json({ error: "Failed to list transactions" });
   }
@@ -199,7 +218,7 @@ router.post("/transactions", async (req: AuthRequest, res: Response) => {
       ],
     );
     res.status(201).json(txRowToDTO(r.rows[0]));
-  } catch (err: any) {
+  } catch (err) {
     console.error("Create transaction error:", err);
     res.status(500).json({ error: "Failed to create transaction" });
   }
@@ -211,8 +230,8 @@ router.put("/transactions/:id", async (req: AuthRequest, res: Response) => {
   if (!familyId) return;
   const body = req.body as Partial<TxInput>;
   const fields: string[] = [];
-  const values: any[] = [];
-  const push = (sql: string, value: any) => {
+  const values: unknown[] = [];
+  const push = (sql: string, value: unknown) => {
     values.push(value);
     fields.push(`${sql} = $${values.length}`);
   };
@@ -239,7 +258,7 @@ router.put("/transactions/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
     res.json(txRowToDTO(r.rows[0]));
-  } catch (err: any) {
+  } catch (err) {
     console.error("Update transaction error:", err);
     res.status(500).json({ error: "Failed to update transaction" });
   }
@@ -255,7 +274,7 @@ router.delete("/transactions/:id", async (req: AuthRequest, res: Response) => {
       [req.params.id, familyId],
     );
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Delete transaction error:", err);
     res.status(500).json({ error: "Failed to delete transaction" });
   }

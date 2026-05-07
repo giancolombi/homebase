@@ -13,7 +13,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   MEMBER_COLORS,
-  MEMBER_BG_LIGHT,
   getMemberInitials,
   generateId,
 } from "@/lib/memberColors";

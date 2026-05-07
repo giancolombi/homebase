@@ -5,7 +5,7 @@ import { resolveFamilyId } from "./lib/familyAuth.js";
 
 const router = Router();
 
-router.use(requireAuth as any);
+router.use(requireAuth);
 
 // ============ Task categories ============
 
@@ -19,7 +19,7 @@ router.get("/categories", async (req: AuthRequest, res: Response) => {
       [familyId],
     );
     res.json(r.rows);
-  } catch (err: any) {
+  } catch (err) {
     console.error("List task categories error:", err);
     res.status(500).json({ error: "Failed to list categories" });
   }
@@ -41,7 +41,7 @@ router.post("/categories", async (req: AuthRequest, res: Response) => {
       [familyId, name.trim(), icon ?? null],
     );
     res.status(201).json(r.rows[0]);
-  } catch (err: any) {
+  } catch (err) {
     console.error("Create task category error:", err);
     res.status(500).json({ error: "Failed to create category" });
   }
@@ -57,7 +57,7 @@ router.delete("/categories/:id", async (req: AuthRequest, res: Response) => {
       [req.params.id, familyId],
     );
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Delete task category error:", err);
     res.status(500).json({ error: "Failed to delete category" });
   }
@@ -146,7 +146,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
         createdAt: row.created_at,
       })),
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("List tasks error:", err);
     res.status(500).json({ error: "Failed to list tasks" });
   }
@@ -192,7 +192,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     await client.query("COMMIT");
     const task = await loadTask(familyId, taskId);
     res.status(201).json(task);
-  } catch (err: any) {
+  } catch (err) {
     await client.query("ROLLBACK");
     console.error("Create task error:", err);
     res.status(500).json({ error: "Failed to create task" });
@@ -224,8 +224,8 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
 
     // Dynamically build an UPDATE using whichever fields are present.
     const fields: string[] = [];
-    const values: any[] = [];
-    const pushField = (sql: string, value: any) => {
+    const values: unknown[] = [];
+    const pushField = (sql: string, value: unknown) => {
       values.push(value);
       fields.push(`${sql} = $${values.length}`);
     };
@@ -264,7 +264,7 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
     await client.query("COMMIT");
     const task = await loadTask(familyId, id);
     res.json(task);
-  } catch (err: any) {
+  } catch (err) {
     await client.query("ROLLBACK");
     console.error("Update task error:", err);
     res.status(500).json({ error: "Failed to update task" });
@@ -283,7 +283,7 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
       familyId,
     ]);
     res.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Delete task error:", err);
     res.status(500).json({ error: "Failed to delete task" });
   }

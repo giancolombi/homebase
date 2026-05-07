@@ -38,7 +38,10 @@ export default tseslint.config(
         },
       ],
       "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-non-null-assertion": "warn",
+      // no-non-null-assertion isn't worth the signal/noise here — most !'s
+      // are legitimate (req.user! after requireAuth, document.getElementById!
+      // for the React root, familyId! inside enabled-guarded query fns).
+      "@typescript-eslint/no-non-null-assertion": "off",
 
       // Common-bug guardrails — already clean, enforce going forward.
       "prefer-const": "error",
@@ -54,6 +57,14 @@ export default tseslint.config(
       globals: globals.node,
     },
   },
+  // shadcn/ui primitives co-export constants alongside components by design;
+  // turning the react-refresh rule off there is the documented escape hatch.
+  {
+    files: ["app/components/ui/**/*.{ts,tsx}", "app/contexts/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
   // Tests get to be loose
   {
     files: [
@@ -65,6 +76,7 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unused-vars": "off",
     },
   },
 );

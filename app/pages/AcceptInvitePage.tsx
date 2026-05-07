@@ -86,7 +86,7 @@ export default function AcceptInvitePage() {
 
       // Reload to get fresh auth state with new familyId
       window.location.href = "/";
-    } catch (err: any) {
+    } catch (err) {
       // If signup says "already exists", try signing in
       if (err.message?.includes("already exists")) {
         try {
@@ -94,7 +94,7 @@ export default function AcceptInvitePage() {
           await invite.accept(token, user.id);
           window.location.href = "/";
           return;
-        } catch (signInErr: any) {
+        } catch (signInErr) {
           toast({
             title: "Could not accept invite",
             description: signInErr.message,

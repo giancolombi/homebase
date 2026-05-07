@@ -3,8 +3,8 @@ echo "Running pre-commit checks..."
 echo "→ Type checking..."
 pnpm run typecheck || exit 1
 
-echo "→ Linting..."
-pnpm run lint || exit 1
+echo "→ Linting (strict — zero warnings allowed)..."
+pnpm run lint:strict || exit 1
 
 echo "→ Format check..."
 pnpm run format:check || exit 1

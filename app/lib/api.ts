@@ -23,7 +23,7 @@ function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-async function request<T = any>(
+async function request<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {

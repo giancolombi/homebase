@@ -12,6 +12,18 @@ import { requireAuth, type AuthRequest } from "./auth.js";
 import pool from "./db.js";
 import { resolveFamilyId } from "./lib/familyAuth.js";
 import { encrypt, decrypt } from "./lib/encryption.js";
+import { errorMessage } from "./lib/errors.js";
+
+// Plaid SDK errors carry .response.data with rich diagnostics — narrow safely.
+function plaidErrorPayload(err: unknown): unknown {
+  if (err && typeof err === "object" && "response" in err) {
+    const response = (err as { response?: { data?: unknown } }).response;
+    if (response && typeof response === "object" && "data" in response) {
+      return response.data;
+    }
+  }
+  return err;
+}
 
 // ---------------------------------------------------------------------------
 // Plaid client. Configured once from env. In production, PLAID_ENV must be
@@ -60,7 +72,7 @@ const router = Router();
 
 router.post(
   "/link-token",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const familyId = await resolveFamilyId(req, res);
     if (!familyId) return;
@@ -81,11 +93,11 @@ router.post(
         linkToken: resp.data.link_token,
         expiration: resp.data.expiration,
       });
-    } catch (err: any) {
-      console.error("Plaid link-token error:", err?.response?.data ?? err);
+    } catch (err) {
+      console.error("Plaid link-token error:", plaidErrorPayload(err));
       res
         .status(500)
-        .json({ error: err?.message ?? "Failed to create link token" });
+        .json({ error: errorMessage(err, "Failed to create link token") });
     }
   },
 );
@@ -107,7 +119,7 @@ interface ExchangeBody {
 
 router.post(
   "/exchange",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const familyId = await resolveFamilyId(req, res);
     if (!familyId) return;
@@ -203,12 +215,12 @@ router.post(
       }
 
       res.status(201).json({ itemId: plaidItemDbId });
-    } catch (err: any) {
+    } catch (err) {
       await db.query("ROLLBACK").catch(() => {});
-      console.error("Plaid exchange error:", err?.response?.data ?? err);
+      console.error("Plaid exchange error:", plaidErrorPayload(err));
       res
         .status(500)
-        .json({ error: err?.message ?? "Failed to exchange public token" });
+        .json({ error: errorMessage(err, "Failed to exchange public token") });
     } finally {
       db.release();
     }
@@ -224,7 +236,7 @@ router.post(
 
 router.post(
   "/sync/:itemId",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const familyId = await resolveFamilyId(req, res);
     if (!familyId) return;
@@ -243,9 +255,9 @@ router.post(
     try {
       const counts = await syncItemTransactions(plaidItemDbId);
       res.json(counts);
-    } catch (err: any) {
-      console.error("Plaid sync error:", err?.response?.data ?? err);
-      res.status(500).json({ error: err?.message ?? "Failed to sync" });
+    } catch (err) {
+      console.error("Plaid sync error:", plaidErrorPayload(err));
+      res.status(500).json({ error: errorMessage(err, "Failed to sync") });
     }
   },
 );
@@ -259,7 +271,7 @@ router.post(
 
 router.delete(
   "/items/:itemId",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const familyId = await resolveFamilyId(req, res);
     if (!familyId) return;
@@ -292,7 +304,7 @@ router.delete(
         plaidItemDbId,
       ]);
       res.json({ ok: true });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Plaid item delete error:", err);
       res.status(500).json({ error: "Failed to remove item" });
     }
@@ -377,10 +389,10 @@ async function syncItemTransactions(
       hasMore = resp.data.has_more;
       cursor = resp.data.next_cursor;
     }
-  } catch (err: any) {
+  } catch (err) {
     await pool.query(
       `UPDATE plaid_items SET sync_error = $2, updated_at = now() WHERE id = $1`,
-      [plaidItemDbId, err?.message?.slice(0, 500) ?? "sync failed"],
+      [plaidItemDbId, errorMessage(err, "sync failed").slice(0, 500)],
     );
     throw err;
   }
@@ -498,33 +510,29 @@ async function syncItemTransactions(
 // "manage linked banks" view.
 // ---------------------------------------------------------------------------
 
-router.get(
-  "/items",
-  requireAuth as any,
-  async (req: AuthRequest, res: Response) => {
-    const familyId = await resolveFamilyId(req, res);
-    if (!familyId) return;
-    try {
-      const r = await pool.query(
-        `SELECT id, institution_id, institution_name, last_synced_at, sync_error, created_at
+router.get("/items", requireAuth, async (req: AuthRequest, res: Response) => {
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+  try {
+    const r = await pool.query(
+      `SELECT id, institution_id, institution_name, last_synced_at, sync_error, created_at
        FROM plaid_items WHERE family_id = $1 ORDER BY created_at DESC`,
-        [familyId],
-      );
-      res.json(
-        r.rows.map((row) => ({
-          id: row.id,
-          institutionId: row.institution_id,
-          institutionName: row.institution_name,
-          lastSyncedAt: row.last_synced_at,
-          syncError: row.sync_error,
-          createdAt: row.created_at,
-        })),
-      );
-    } catch (err: any) {
-      console.error("List plaid items error:", err);
-      res.status(500).json({ error: "Failed to list linked banks" });
-    }
-  },
-);
+      [familyId],
+    );
+    res.json(
+      r.rows.map((row) => ({
+        id: row.id,
+        institutionId: row.institution_id,
+        institutionName: row.institution_name,
+        lastSyncedAt: row.last_synced_at,
+        syncError: row.sync_error,
+        createdAt: row.created_at,
+      })),
+    );
+  } catch (err) {
+    console.error("List plaid items error:", err);
+    res.status(500).json({ error: "Failed to list linked banks" });
+  }
+});
 
 export default router;

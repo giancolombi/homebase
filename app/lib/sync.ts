@@ -8,6 +8,12 @@ import type {
   FamilyMember,
   CalendarConnection,
   MemberRole,
+  Task,
+  Recipe,
+  MealPlanEntry,
+  ShoppingListItem,
+  BankAccount,
+  Transaction,
 } from "@/types/family";
 
 type StorePatch = Partial<FamilyData>;
@@ -122,7 +128,7 @@ export async function pullAllData(
         prepTime: r.prepTime ?? undefined,
         cookTime: r.cookTime ?? undefined,
         servings: r.servings ?? undefined,
-        ingredients: (r.ingredients ?? []) as any,
+        ingredients: (r.ingredients ?? []) as Recipe["ingredients"],
         steps: r.steps ?? [],
         imageUrl: r.imageUrl ?? undefined,
         tags: r.tags ?? [],
@@ -191,7 +197,7 @@ function ignore(err: unknown, label: string) {
 
 export const push = {
   task: {
-    create: (familyId: string | null, task: any) => {
+    create: (familyId: string | null, task: Task) => {
       if (!shouldSync(familyId)) return;
       tasks
         .create(familyId, {
@@ -206,7 +212,7 @@ export const push = {
         })
         .catch((e) => ignore(e, "task.create"));
     },
-    update: (familyId: string | null, id: string, updates: any) => {
+    update: (familyId: string | null, id: string, updates: Partial<Task>) => {
       if (!shouldSync(familyId)) return;
       tasks
         .update(familyId, id, {
@@ -227,7 +233,7 @@ export const push = {
     },
   },
   recipe: {
-    create: (familyId: string | null, r: any) => {
+    create: (familyId: string | null, r: Recipe) => {
       if (!shouldSync(familyId)) return;
       meals
         .createRecipe(familyId, {
@@ -244,7 +250,7 @@ export const push = {
         })
         .catch((e) => ignore(e, "recipe.create"));
     },
-    update: (familyId: string | null, id: string, updates: any) => {
+    update: (familyId: string | null, id: string, updates: Partial<Recipe>) => {
       if (!shouldSync(familyId)) return;
       meals
         .updateRecipe(familyId, id, updates)
@@ -256,7 +262,7 @@ export const push = {
     },
   },
   mealPlan: {
-    add: (familyId: string | null, entry: any) => {
+    add: (familyId: string | null, entry: MealPlanEntry) => {
       if (!shouldSync(familyId)) return;
       meals
         .addPlanEntry(familyId, {
@@ -274,7 +280,7 @@ export const push = {
     },
   },
   shopping: {
-    replace: (familyId: string | null, items: any[]) => {
+    replace: (familyId: string | null, items: ShoppingListItem[]) => {
       if (!shouldSync(familyId)) return;
       meals
         .replaceShopping(
@@ -297,7 +303,7 @@ export const push = {
     },
   },
   bankAccount: {
-    create: (familyId: string | null, a: any) => {
+    create: (familyId: string | null, a: BankAccount) => {
       if (!shouldSync(familyId)) return;
       finance
         .createAccount(familyId, {
@@ -310,7 +316,11 @@ export const push = {
         })
         .catch((e) => ignore(e, "account.create"));
     },
-    update: (familyId: string | null, id: string, updates: any) => {
+    update: (
+      familyId: string | null,
+      id: string,
+      updates: Partial<BankAccount>,
+    ) => {
       if (!shouldSync(familyId)) return;
       finance
         .updateAccount(familyId, id, updates)
@@ -324,7 +334,11 @@ export const push = {
     },
   },
   transaction: {
-    update: (familyId: string | null, id: string, updates: any) => {
+    update: (
+      familyId: string | null,
+      id: string,
+      updates: Partial<Transaction>,
+    ) => {
       if (!shouldSync(familyId)) return;
       finance
         .updateTransaction(familyId, id, updates)

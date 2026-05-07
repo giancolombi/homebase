@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { auth } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
         description: "You can now sign in with your new password.",
       });
       navigate("/");
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: error.message,

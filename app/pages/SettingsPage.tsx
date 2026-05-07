@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Mail,
   Check,
-  Plus,
   Home,
   RefreshCw,
   Loader2,
@@ -45,7 +44,7 @@ const providers = [
 export default function SettingsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const {
     familyName,
     members,
@@ -143,7 +142,7 @@ export default function SettingsPage() {
           ? `Email sent to ${result.email}`
           : result.message,
       });
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Failed to send invite",
         description: err.message,
@@ -281,7 +280,7 @@ export default function SettingsPage() {
                         )}
                         onClick={() =>
                           toggleAdminMutation.mutate(apiMember.id, {
-                            onError: (err: any) => {
+                            onError: (err: Error) => {
                               toast({
                                 title: "Cannot remove admin",
                                 description: err.message,

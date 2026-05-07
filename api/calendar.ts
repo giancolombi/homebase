@@ -11,6 +11,7 @@ import {
   getUserEmail,
 } from "./lib/oauth.js";
 import { fetchEvents } from "./lib/calendarProviders.js";
+import { errorMessage } from "./lib/errors.js";
 
 const router = Router();
 const APP_URL = process.env.APP_URL || "http://localhost:8080";
@@ -69,7 +70,7 @@ router.get("/auth/:provider", async (req: Request, res: Response) => {
 
     const url = getAuthUrl(provider, state);
     res.redirect(url);
-  } catch (err: any) {
+  } catch (err) {
     console.error("OAuth auth error:", err);
     res.status(500).json({ error: "Failed to start OAuth flow" });
   }
@@ -224,11 +225,11 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
         "Calendar connected! You can close this window.",
       ),
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("OAuth callback error:", err);
     const failUrl = buildReturnUrl(returnTo, {
       calendarError: "exchange_failed",
-      calendarErrorDescription: err?.message,
+      calendarErrorDescription: errorMessage(err, ""),
     });
     res.send(
       popupRedirectHtml(
@@ -242,7 +243,7 @@ router.get("/callback/:provider", async (req: Request, res: Response) => {
 // GET /api/calendar/connections — list connections for a family
 router.get(
   "/connections",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const { familyId } = req.query as { familyId: string };
 
@@ -272,7 +273,7 @@ router.get(
           syncError: row.sync_error,
         })),
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error("Get connections error:", err);
       res.status(500).json({ error: "Failed to get connections" });
     }
@@ -346,7 +347,7 @@ async function getValidAccessToken(connectionId: string): Promise<{
 // POST /api/calendar/sync/:connectionId — sync events from provider
 router.post(
   "/sync/:connectionId",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const connectionId = req.params.connectionId as string;
 
@@ -422,8 +423,9 @@ router.post(
       );
 
       res.json({ syncedCount: events.length });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Sync error:", err);
+      const msg = errorMessage(err);
 
       // Mark sync error on the connection
       await pool
@@ -431,15 +433,12 @@ router.post(
           `UPDATE calendar_connections
            SET sync_error = $1, updated_at = now()
            WHERE id = $2`,
-          [err.message, connectionId],
+          [msg, connectionId],
         )
         .catch(() => {});
 
       // If token was revoked, disconnect
-      if (
-        err.message.includes("401") ||
-        err.message.includes("invalid_grant")
-      ) {
+      if (msg.includes("401") || msg.includes("invalid_grant")) {
         await pool
           .query(
             `UPDATE calendar_connections
@@ -456,82 +455,78 @@ router.post(
 );
 
 // GET /api/calendar/events — get merged events for a family
-router.get(
-  "/events",
-  requireAuth as any,
-  async (req: AuthRequest, res: Response) => {
-    const { familyId, startDate, endDate } = req.query as {
-      familyId: string;
-      startDate: string;
-      endDate: string;
-    };
+router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
+  const { familyId, startDate, endDate } = req.query as {
+    familyId: string;
+    startDate: string;
+    endDate: string;
+  };
 
-    if (!familyId || !startDate || !endDate) {
-      res
-        .status(400)
-        .json({ error: "familyId, startDate, and endDate are required" });
-      return;
-    }
+  if (!familyId || !startDate || !endDate) {
+    res
+      .status(400)
+      .json({ error: "familyId, startDate, and endDate are required" });
+    return;
+  }
 
-    try {
-      // Homebase events
-      const homebaseResult = await pool.query(
-        `SELECT id, member_id, title, description,
+  try {
+    // Homebase events
+    const homebaseResult = await pool.query(
+      `SELECT id, member_id, title, description,
                 date, start_time, end_time, recurrence
          FROM calendar_events
          WHERE family_id = $1 AND date BETWEEN $2 AND $3`,
-        [familyId, startDate, endDate],
-      );
+      [familyId, startDate, endDate],
+    );
 
-      // Synced external events
-      const syncedResult = await pool.query(
-        `SELECT id, member_id, title, description,
+    // Synced external events
+    const syncedResult = await pool.query(
+      `SELECT id, member_id, title, description,
                 date, start_time, end_time, all_day,
                 location, source_provider
          FROM synced_calendar_events
          WHERE family_id = $1 AND date BETWEEN $2 AND $3`,
-        [familyId, startDate, endDate],
-      );
+      [familyId, startDate, endDate],
+    );
 
-      const events = [
-        ...homebaseResult.rows.map((row) => ({
-          id: row.id,
-          memberId: row.member_id,
-          title: row.title,
-          description: row.description,
-          date: row.date.toISOString().split("T")[0],
-          startTime: row.start_time,
-          endTime: row.end_time,
-          recurrence: row.recurrence,
-          source: "homebase" as const,
-        })),
-        ...syncedResult.rows.map((row) => ({
-          id: row.id,
-          memberId: row.member_id,
-          title: row.title,
-          description: row.description,
-          date: row.date.toISOString().split("T")[0],
-          startTime: row.start_time,
-          endTime: row.end_time,
-          recurrence: "none" as const,
-          allDay: row.all_day,
-          location: row.location,
-          source: row.source_provider as "google" | "outlook",
-        })),
-      ];
+    const events = [
+      ...homebaseResult.rows.map((row) => ({
+        id: row.id,
+        memberId: row.member_id,
+        title: row.title,
+        description: row.description,
+        date: row.date.toISOString().split("T")[0],
+        startTime: row.start_time,
+        endTime: row.end_time,
+        recurrence: row.recurrence,
+        source: "homebase" as const,
+      })),
+      ...syncedResult.rows.map((row) => ({
+        id: row.id,
+        memberId: row.member_id,
+        title: row.title,
+        description: row.description,
+        date: row.date.toISOString().split("T")[0],
+        startTime: row.start_time,
+        endTime: row.end_time,
+        recurrence: "none" as const,
+        allDay: row.all_day,
+        location: row.location,
+        source: row.source_provider as "google" | "outlook",
+      })),
+    ];
 
-      res.json(events);
-    } catch (err: any) {
-      console.error("Get events error:", err);
-      res.status(500).json({ error: "Failed to get events" });
-    }
-  },
-);
+    res.json(events);
+  } catch (err) {
+    console.error("Get events error:", err);
+    res.status(500).json({ error: "Failed to get events" });
+  }
+});
 
 // DELETE /api/calendar/connections/:connectionId — disconnect
 router.delete(
   "/connections/:connectionId",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const { connectionId } = req.params;
 
@@ -540,7 +535,7 @@ router.delete(
         connectionId,
       ]);
       res.json({ success: true });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Delete connection error:", err);
       res.status(500).json({ error: "Failed to delete connection" });
     }

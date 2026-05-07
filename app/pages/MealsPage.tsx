@@ -1,10 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { format, startOfWeek, addDays, addWeeks } from "date-fns";
 import { useFamilyStore } from "@/store/familyStore";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
@@ -13,11 +12,10 @@ import {
   ShoppingCart,
   ExternalLink,
   BookOpen,
-  UtensilsCrossed,
 } from "lucide-react";
 import AddRecipeDialog from "@/components/meals/AddRecipeDialog";
 import FoodLabPanel from "@/components/foodlab/FoodLabPanel";
-import type { MealType, Recipe } from "@/types/family";
+import type { MealType } from "@/types/family";
 import { generateId } from "@/lib/memberColors";
 
 const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner"];
@@ -41,7 +39,7 @@ export default function MealsPage() {
 
   const [showAddRecipe, setShowAddRecipe] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
-  const [showShopping, setShowShopping] = useState(false);
+  const [, setShowShopping] = useState(false);
 
   const weekStart = startOfWeek(addWeeks(new Date(), weekOffset), {
     weekStartsOn: 1,

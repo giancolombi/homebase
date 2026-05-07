@@ -1,9 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  calendar,
-  type CalendarConnectionResponse,
-  type CalendarEventResponse,
-} from "@/lib/api";
+import { calendar } from "@/lib/api";
 import { useEffect } from "react";
 
 const STALE_MINUTES = 15;

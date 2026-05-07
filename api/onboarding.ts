@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import { requireAuth, type AuthRequest } from "./auth.js";
 import pool from "./db.js";
+import { errorMessage } from "./lib/errors.js";
 
 const router = Router();
 
@@ -12,10 +13,22 @@ const router = Router();
 // already owns a family, it returns the existing family + member map.
 router.post(
   "/complete",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
-    const { profile, familyName, members } = req.body;
+    interface OnboardingMember {
+      local_id?: string;
+      name: string;
+      role: string;
+      email?: string;
+      color_index?: number;
+      is_owner: boolean;
+    }
+    const { profile, familyName, members } = req.body as {
+      profile?: { display_name: string; color_index?: number };
+      familyName: string;
+      members: OnboardingMember[];
+    };
 
     const client = await pool.connect();
 
@@ -71,7 +84,7 @@ router.post(
       const familyId = familyResult.rows[0].id;
 
       // Create owner member
-      const ownerMember = members.find((m: any) => m.is_owner);
+      const ownerMember = members.find((m) => m.is_owner);
       const ownerResult = await client.query(
         `INSERT INTO family_members (family_id, user_id, name, role, email, color_index, is_owner, invite_status)
          VALUES ($1, $2, $3, $4, $5, $6, true, 'accepted')
@@ -93,7 +106,7 @@ router.post(
       }
 
       // Other members
-      const otherMembers = members.filter((m: any) => !m.is_owner);
+      const otherMembers = members.filter((m) => !m.is_owner);
       for (const m of otherMembers) {
         const result = await client.query(
           `INSERT INTO family_members (family_id, name, role, email, color_index, is_owner, invite_status)
@@ -130,10 +143,10 @@ router.post(
         memberIdMap: idMap,
         alreadyExisted: false,
       });
-    } catch (err: any) {
+    } catch (err) {
       await client.query("ROLLBACK");
       console.error("Onboarding error:", err);
-      res.status(500).json({ error: err?.message || "Onboarding failed" });
+      res.status(500).json({ error: errorMessage(err, "Onboarding failed") });
     } finally {
       client.release();
     }
@@ -143,26 +156,22 @@ router.post(
 // POST /api/onboarding/finish
 // Marks the user's owned family as onboarding-complete. Called when the user
 // finishes (or skips) the calendar step. Idempotent.
-router.post(
-  "/finish",
-  requireAuth as any,
-  async (req: AuthRequest, res: Response) => {
-    const userId = req.user!.id;
-    try {
-      await pool.query(
-        `UPDATE families
+router.post("/finish", requireAuth, async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.id;
+  try {
+    await pool.query(
+      `UPDATE families
          SET onboarding_completed_at = COALESCE(onboarding_completed_at, now())
          WHERE owner_id = $1`,
-        [userId],
-      );
-      res.json({ ok: true });
-    } catch (err: any) {
-      console.error("Onboarding finish error:", err);
-      res
-        .status(500)
-        .json({ error: err?.message || "Failed to finish onboarding" });
-    }
-  },
-);
+      [userId],
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Onboarding finish error:", err);
+    res
+      .status(500)
+      .json({ error: errorMessage(err, "Failed to finish onboarding") });
+  }
+});
 
 export default router;

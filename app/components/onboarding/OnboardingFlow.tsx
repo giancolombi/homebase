@@ -67,7 +67,7 @@ export default function OnboardingFlow() {
         store.setFamilyId(result.familyId);
       }
       setStep(3);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Onboarding setup error:", err);
       toast({
         title: "Error setting up family",
@@ -86,7 +86,7 @@ export default function OnboardingFlow() {
   const handleComplete = async () => {
     try {
       await onboarding.finish();
-    } catch (err: any) {
+    } catch (err) {
       // Non-fatal — mark complete locally regardless. Worst case the user
       // sees the wizard once more on their next login.
       console.error("onboarding.finish failed:", err);

@@ -5,52 +5,48 @@ import pool from "./db.js";
 const router = Router();
 
 // GET /api/family/members — list members for the authenticated user's family
-router.get(
-  "/members",
-  requireAuth as any,
-  async (req: AuthRequest, res: Response) => {
-    const { familyId } = req.query as { familyId: string };
+router.get("/members", requireAuth, async (req: AuthRequest, res: Response) => {
+  const { familyId } = req.query as { familyId: string };
 
-    if (!familyId) {
-      res.status(400).json({ error: "familyId is required" });
-      return;
-    }
+  if (!familyId) {
+    res.status(400).json({ error: "familyId is required" });
+    return;
+  }
 
-    try {
-      const result = await pool.query(
-        `SELECT id, name, role, email, color_index, is_owner, is_admin,
+  try {
+    const result = await pool.query(
+      `SELECT id, name, role, email, color_index, is_owner, is_admin,
                 invite_status, invite_sent_at, user_id
          FROM family_members
          WHERE family_id = $1
          ORDER BY is_owner DESC, name ASC`,
-        [familyId],
-      );
+      [familyId],
+    );
 
-      res.json(
-        result.rows.map((row) => ({
-          id: row.id,
-          name: row.name,
-          role: row.role,
-          email: row.email,
-          colorIndex: row.color_index,
-          isOwner: row.is_owner,
-          isAdmin: row.is_admin,
-          inviteStatus: row.invite_status,
-          inviteSentAt: row.invite_sent_at,
-          hasAccount: !!row.user_id,
-        })),
-      );
-    } catch (err: any) {
-      console.error("Get members error:", err);
-      res.status(500).json({ error: "Failed to get members" });
-    }
-  },
-);
+    res.json(
+      result.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        role: row.role,
+        email: row.email,
+        colorIndex: row.color_index,
+        isOwner: row.is_owner,
+        isAdmin: row.is_admin,
+        inviteStatus: row.invite_status,
+        inviteSentAt: row.invite_sent_at,
+        hasAccount: !!row.user_id,
+      })),
+    );
+  } catch (err) {
+    console.error("Get members error:", err);
+    res.status(500).json({ error: "Failed to get members" });
+  }
+});
 
 // POST /api/family/members — add a member to a family
 router.post(
   "/members",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const { familyId, name, role, email, colorIndex } = req.body;
 
@@ -82,7 +78,7 @@ router.post(
         email: email || null,
         colorIndex: colorIndex ?? 0,
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Add member error:", err);
       res.status(500).json({ error: "Failed to add member" });
     }
@@ -92,7 +88,7 @@ router.post(
 // POST /api/family/members/:memberId/toggle-admin — promote/demote admin
 router.post(
   "/members/:memberId/toggle-admin",
-  requireAuth as any,
+  requireAuth,
   async (req: AuthRequest, res: Response) => {
     const { memberId } = req.params;
 
@@ -167,7 +163,7 @@ router.post(
       );
 
       res.json({ isAdmin: newIsAdmin });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Toggle admin error:", err);
       res.status(500).json({ error: "Failed to update admin status" });
     }
