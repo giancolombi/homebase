@@ -27,6 +27,7 @@ import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
+import { isCapacitorIOS } from "@/lib/platform";
 import { calendar, invite } from "@/lib/api";
 import { openOAuth } from "@/lib/oauthBrowser";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,6 +44,13 @@ const providers = [
   { id: "outlook" as const, name: "Outlook", icon: "🟦" },
   { id: "apple" as const, name: "Apple", icon: "⚪" },
 ];
+
+// EventKit covers iCloud on iOS — hide the Apple CalDAV tile there.
+function visibleProviders() {
+  return isCapacitorIOS()
+    ? providers.filter((p) => p.id !== "apple")
+    : providers;
+}
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -386,7 +394,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-1.5">
             <EventKitConnectCard />
             {currentUser &&
-              providers.map((p) => {
+              visibleProviders().map((p) => {
                 const connected = isConnected(currentUser.id, p.id);
                 const apiConn = getApiConnection(currentUser.id, p.id);
                 return (
@@ -495,7 +503,7 @@ export default function SettingsPage() {
                       Events are managed by you directly in Homebase. Optionally
                       link an external calendar:
                     </p>
-                    {providers.map((p) => {
+                    {visibleProviders().map((p) => {
                       const connected = isConnected(child.id, p.id);
                       return (
                         <button

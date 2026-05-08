@@ -86,13 +86,25 @@ Feature: Settings — family members, calendars, profile
 
   # ---- Your calendars card -----------------------------------------------
 
-  Scenario: Calendars card lists Google, Outlook, Apple
+  Scenario: Calendars card lists Google, Outlook, Apple on web
+    Given the user is on the web app (not the iOS Capacitor app)
     Then the providers card shows all three options
     And each shows whether the current user has connected it
 
   Scenario: Apple connection shows the linked Apple ID
-    Given the user has connected iCloud as "user@icloud.com"
+    Given the user is on the web app
+    And the user has connected iCloud as "user@icloud.com"
     Then the Apple row shows "user@icloud.com" beneath the provider name
+
+  Scenario: iOS hides the Apple tile in favor of EventKit
+    Given the user is in the iOS Capacitor app
+    Then the providers card shows the EventKit "Use my iPhone's Calendar" card at the top
+    And the Apple tile is NOT shown
+    # Reason: EventKit reads the device's iCloud calendar (and Google,
+    # Outlook, Exchange, anything else the user added in iOS Settings)
+    # with one permission tap, making the CalDAV-with-app-specific-password
+    # flow redundant. Google + Outlook tiles remain visible for accounts
+    # the user has NOT synced to their phone.
 
   Scenario: Sync now and disconnect controls
     Given the user has at least one connected provider

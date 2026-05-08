@@ -22,12 +22,23 @@ import { toast } from "@/hooks/use-toast";
 import { formatCalendarError } from "@/lib/calendarErrors";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
+import { isCapacitorIOS } from "@/lib/platform";
 
 const externalProviders = [
   { id: "google" as const, name: "Google Calendar", icon: "🔵" },
   { id: "outlook" as const, name: "Outlook Calendar", icon: "🟦" },
   { id: "apple" as const, name: "Apple Calendar", icon: "⚪" },
 ];
+
+// On iOS the EventKit card already covers iCloud (and every other account
+// the user has added in iOS Settings → Calendar). The Apple tile here is
+// CalDAV-with-app-specific-password — only useful on web where there's no
+// device calendar to read.
+function visibleProviders() {
+  return isCapacitorIOS()
+    ? externalProviders.filter((p) => p.id !== "apple")
+    : externalProviders;
+}
 
 export default function StepCalendarConnect({
   onComplete,
@@ -121,7 +132,7 @@ export default function StepCalendarConnect({
 
   const renderProviderList = (memberId: string) => (
     <div className="space-y-1.5">
-      {externalProviders.map((p) => {
+      {visibleProviders().map((p) => {
         const connected = isConnected(memberId, p.id);
         const apiConn =
           memberId === currentUser?.id ? getApiConnection(p.id) : undefined;
