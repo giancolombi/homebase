@@ -12,7 +12,14 @@
 //
 // Both steps are idempotent.
 
-import { existsSync, mkdirSync, readdirSync, copyFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  copyFileSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -82,4 +89,40 @@ const result = spawnSync(podRuby, [join(here, "add-eventkit-to-xcode.rb")], {
   stdio: "inherit",
   env: { ...process.env, GEM_HOME: gemHome },
 });
+
+// Patch ios/App/App/capacitor.config.json to register our custom plugin
+// classes. cap sync rebuilds packageClassList from npm-installed plugins
+// only — our in-tree plugins (EventKit, SecureStorage) need to be added
+// after the fact for Capacitor.isPluginAvailable() to find them at runtime.
+//
+// We append our class names to packageClassList; if cap sync overwrites
+// the file later, this script (run from cap:sync via package.json) will
+// re-apply.
+function patchCapacitorConfigJson() {
+  const cfgPath = join(root, "ios", "App", "App", "capacitor.config.json");
+  if (!existsSync(cfgPath)) return;
+  const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
+  const customClasses = ["EventKitPlugin", "SecureStoragePlugin"];
+  const existing = Array.isArray(cfg.packageClassList)
+    ? cfg.packageClassList
+    : [];
+  let changed = false;
+  for (const cls of customClasses) {
+    if (!existing.includes(cls)) {
+      existing.push(cls);
+      changed = true;
+    }
+  }
+  if (changed) {
+    cfg.packageClassList = existing;
+    writeFileSync(cfgPath, JSON.stringify(cfg, null, "\t") + "\n");
+    console.log(
+      `Added ${customClasses.join(", ")} to capacitor.config.json packageClassList.`,
+    );
+  } else {
+    console.log("Custom plugins already registered in packageClassList.");
+  }
+}
+patchCapacitorConfigJson();
+
 process.exit(result.status ?? 0);

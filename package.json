@@ -25,11 +25,11 @@
     "server:dev": "tsx watch api/index.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed-local.ts",
-    "cap:add:ios": "pnpm run build && cap add ios && pnpm run cap:install:plugin:eventkit",
-    "cap:sync": "pnpm run build && cap sync ios",
+    "cap:add:ios": "pnpm run build && cap add ios && pnpm run cap:install:plugins",
+    "cap:sync": "pnpm run build && cap sync ios && pnpm run cap:install:plugins",
     "cap:open:ios": "cap open ios",
     "cap:run:ios": "pnpm run cap:sync && cap run ios",
-    "cap:install:plugin:eventkit": "node scripts/install-eventkit-plugin.mjs",
+    "cap:install:plugins": "node scripts/install-eventkit-plugin.mjs",
     "prepare": "husky"
   },
   "dependencies": {
