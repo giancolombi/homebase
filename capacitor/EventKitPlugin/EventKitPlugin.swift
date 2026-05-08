@@ -65,10 +65,22 @@ public class EventKitPlugin: CAPPlugin {
     }
 
     @objc func fetchEvents(_ call: CAPPluginCall) {
-        guard let timeMin = call.getString("timeMin"),
-              let timeMax = call.getString("timeMax"),
-              let startDate = ISO8601DateFormatter().date(from: timeMin),
-              let endDate = ISO8601DateFormatter().date(from: timeMax) else {
+        // JS Date.toISOString() always includes fractional seconds
+        // ("...T00:00:00.000Z"). Default ISO8601DateFormatter rejects
+        // those — opt into .withFractionalSeconds so both the no-frac and
+        // millis variants parse.
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let parserNoFrac = ISO8601DateFormatter()
+        parserNoFrac.formatOptions = [.withInternetDateTime]
+
+        func parse(_ s: String?) -> Date? {
+            guard let s = s else { return nil }
+            return parser.date(from: s) ?? parserNoFrac.date(from: s)
+        }
+
+        guard let startDate = parse(call.getString("timeMin")),
+              let endDate = parse(call.getString("timeMax")) else {
             call.reject("timeMin and timeMax (ISO 8601) are required")
             return
         }
