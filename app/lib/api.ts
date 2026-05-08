@@ -221,6 +221,12 @@ export interface CalendarConnectionResponse {
   connected: boolean;
   lastSyncedAt: string | null;
   syncError: string | null;
+  // Set when the iOS EventKit sync has auto-paused this connection because
+  // its calendar is already covered by the device-wide EventKit feed.
+  // null = not paused. Distinguishes "auto-paused by EventKit" from
+  // "user explicitly disconnected" so the API can restore on EventKit
+  // disconnect.
+  pausedAt: string | null;
 }
 
 export interface CalendarEventResponse {

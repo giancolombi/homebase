@@ -119,3 +119,49 @@ Feature: External calendar sync (Google, Outlook, Apple)
     Given the DB has an old row with `access_token_encrypted IS NULL`
     Then it does NOT appear in the connections list
     Because the route filters by `access_token_encrypted IS NOT NULL`
+
+  # ---- EventKit dedup (iOS-only behavior, server-enforced) -----------------
+
+  Scenario: EventKit sync auto-pauses overlapping OAuth/CalDAV connections
+    Given the user is signed into the iOS Capacitor app
+    And they have already connected Google via OAuth on web
+    When they grant Calendar permission and EventKit sync runs
+    And the EventKit batch contains events with sourceTitle "Gmail" or "Google"
+    Then the Google `calendar_connections` row is updated to:
+      | connected   | false |
+      | paused_at   | now() |
+      | sync_error  | NULL  |
+    And `synced_calendar_events` rows under the Google connection are deleted
+    And the eventkit/sync response includes `pausedProviders: ["google"]`
+
+  Scenario: Source-to-provider matching for pause
+    Given EventKit returns events whose sourceTitle includes (case-insensitive):
+      | source            | provider paused |
+      | iCloud            | apple           |
+      | Google / Gmail    | google          |
+      | Outlook / Office / Exchange | outlook |
+    Then only the matched providers are paused
+    # A non-matched source (e.g. "Subscribed Calendars") never pauses anything
+
+  Scenario: Disconnecting EventKit restores auto-paused connections
+    Given the user has an EventKit connection
+    And their Google connection has `paused_at` set (auto-paused by a prior sync)
+    When the user disconnects EventKit (DELETE /api/calendar/connections/:id where provider='eventkit')
+    Then any of the user's connections with `paused_at IS NOT NULL` are restored to:
+      | connected | true |
+      | paused_at | NULL |
+    And subsequent /api/calendar/sync runs against those connections work normally
+
+  Scenario: User-disconnected connections are NOT restored on EventKit removal
+    Given the user explicitly disconnected Outlook (paused_at IS NULL, connected = false)
+    When the user disconnects EventKit
+    Then Outlook stays disconnected (paused_at distinguishes auto-pause from user intent)
+
+  Scenario: Settings UI shows paused state on web for an iOS-paused connection
+    Given the user is signed in on the web app
+    And the same user has an EventKit-paused Google connection
+    When they open Settings → Your Calendars
+    Then the Google tile shows "Paused — your iPhone Calendar is providing this"
+    And the tile is disabled (clicking it does not start a new OAuth flow)
+    # To re-enable Google on web, the user must first disconnect EventKit
+    # from the iOS app — at which point the row auto-restores.

@@ -337,7 +337,7 @@ router.get(
     try {
       const result = await pool.query(
         `SELECT id, member_id, provider, email, external_email,
-                connected, last_synced_at, sync_error
+                connected, last_synced_at, sync_error, paused_at
          FROM calendar_connections
          WHERE family_id = $1
            AND access_token_encrypted IS NOT NULL`,
@@ -354,6 +354,7 @@ router.get(
           connected: row.connected,
           lastSyncedAt: row.last_synced_at,
           syncError: row.sync_error,
+          pausedAt: row.paused_at,
         })),
       );
     } catch (err) {
@@ -639,9 +640,33 @@ router.delete(
     const { connectionId } = req.params;
 
     try {
+      // If we're deleting an eventkit connection, restore any OAuth/CalDAV
+      // connections this member had auto-paused by EventKit. paused_at
+      // distinguishes "auto-paused by sync" from "user explicitly
+      // disconnected" — only the former should be reactivated.
+      const lookup = await pool.query(
+        `SELECT family_id, member_id, provider FROM calendar_connections
+         WHERE id = $1`,
+        [connectionId],
+      );
+      const row = lookup.rows[0];
+
       await pool.query(`DELETE FROM calendar_connections WHERE id = $1`, [
         connectionId,
       ]);
+
+      if (row?.provider === "eventkit") {
+        await pool.query(
+          `UPDATE calendar_connections
+           SET connected = true,
+               paused_at = NULL,
+               updated_at = now()
+           WHERE family_id = $1 AND member_id = $2
+             AND paused_at IS NOT NULL`,
+          [row.family_id, row.member_id],
+        );
+      }
+
       res.json({ success: true });
     } catch (err) {
       console.error("Delete connection error:", err);
@@ -759,7 +784,52 @@ router.post(
         );
       }
 
-      res.json({ ok: true, count: events.length, connectionId });
+      // Dedup against existing OAuth/CalDAV connections for this member.
+      // EventKit returns events for every account synced to the iPhone, so
+      // any provider whose sourceTitle appears in this batch would otherwise
+      // double up the calendar via /api/calendar/sync.
+      const sources = new Set(
+        events
+          .map((e) => (e.sourceTitle ?? "").toLowerCase())
+          .filter((s) => s.length > 0),
+      );
+      const overlap: string[] = [];
+      const matchAny = (substrs: string[]) =>
+        Array.from(sources).some((src) => substrs.some((s) => src.includes(s)));
+      if (matchAny(["icloud"])) overlap.push("apple");
+      if (matchAny(["google", "gmail"])) overlap.push("google");
+      if (matchAny(["outlook", "office", "exchange"])) overlap.push("outlook");
+
+      if (overlap.length > 0) {
+        await pool.query(
+          `UPDATE calendar_connections
+           SET connected = false,
+               paused_at = now(),
+               sync_error = NULL,
+               updated_at = now()
+           WHERE family_id = $1 AND member_id = $2
+             AND provider = ANY($3::text[])`,
+          [familyId, memberId, overlap],
+        );
+        // Drop the now-redundant events so they don't linger on the
+        // family calendar view.
+        await pool.query(
+          `DELETE FROM synced_calendar_events
+           WHERE connection_id IN (
+             SELECT id FROM calendar_connections
+             WHERE family_id = $1 AND member_id = $2
+               AND provider = ANY($3::text[])
+           )`,
+          [familyId, memberId, overlap],
+        );
+      }
+
+      res.json({
+        ok: true,
+        count: events.length,
+        connectionId,
+        pausedProviders: overlap,
+      });
     } catch (err) {
       console.error("EventKit sync error:", err);
       res.status(500).json({ error: "Failed to sync EventKit events" });

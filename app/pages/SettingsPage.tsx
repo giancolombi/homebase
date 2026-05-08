@@ -397,17 +397,25 @@ export default function SettingsPage() {
               visibleProviders().map((p) => {
                 const connected = isConnected(currentUser.id, p.id);
                 const apiConn = getApiConnection(currentUser.id, p.id);
+                const paused = !!apiConn?.pausedAt;
                 return (
                   <div key={p.id} className="space-y-1">
                     <button
                       onClick={() =>
-                        connected && apiConn ? undefined : handleConnect(p.id)
+                        paused
+                          ? undefined
+                          : connected && apiConn
+                            ? undefined
+                            : handleConnect(p.id)
                       }
+                      disabled={paused}
                       className={cn(
                         "w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all",
                         connected
                           ? "bg-primary/5 border-primary/20"
-                          : "bg-card border-border hover:border-primary/15",
+                          : paused
+                            ? "bg-muted/30 border-border/60 opacity-70"
+                            : "bg-card border-border hover:border-primary/15",
                       )}
                     >
                       <span className="text-sm">{p.icon}</span>
@@ -418,6 +426,11 @@ export default function SettingsPage() {
                         {apiConn?.externalEmail && (
                           <p className="text-[11px] text-muted-foreground">
                             {apiConn.externalEmail}
+                          </p>
+                        )}
+                        {paused && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Paused — your iPhone Calendar is providing this
                           </p>
                         )}
                       </div>
