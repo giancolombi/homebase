@@ -46,3 +46,17 @@ export function getMemberInitials(name: string): string {
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 10);
 }
+
+// A real UUID for records that round-trip to UUID-typed backend columns
+// (e.g. calendar_events.id). Falls back to a v4-shaped string where
+// crypto.randomUUID isn't available.
+export function generateUuid(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}

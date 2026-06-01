@@ -638,6 +638,186 @@ router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/calendar/events — create a Homebase (family-owned) event.
+router.post("/events", requireAuth, async (req: AuthRequest, res: Response) => {
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+
+  const {
+    id,
+    memberId,
+    title,
+    description,
+    date,
+    startTime,
+    endTime,
+    recurrence,
+  } = req.body as {
+    id?: string;
+    memberId?: string;
+    title?: string;
+    description?: string | null;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    recurrence?: string;
+  };
+
+  if (!memberId || !title || !date || !startTime || !endTime) {
+    res.status(400).json({
+      error: "memberId, title, date, startTime and endTime are required",
+    });
+    return;
+  }
+
+  try {
+    // The event's member must belong to this family.
+    const member = await pool.query(
+      `SELECT 1 FROM family_members WHERE id = $1 AND family_id = $2`,
+      [memberId, familyId],
+    );
+    if (member.rows.length === 0) {
+      res.status(400).json({ error: "Member not in family" });
+      return;
+    }
+
+    // Honor a client-supplied UUID (so optimistic ids match) or generate one.
+    const validId =
+      typeof id === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        ? id
+        : null;
+
+    const result = await pool.query(
+      `INSERT INTO calendar_events
+         (id, family_id, member_id, title, description, date, start_time,
+          end_time, recurrence)
+       VALUES (COALESCE($1::uuid, gen_random_uuid()), $2, $3, $4, $5, $6, $7,
+               $8, $9)
+       RETURNING id, member_id, title, description, date::text AS date,
+                 start_time, end_time, recurrence`,
+      [
+        validId,
+        familyId,
+        memberId,
+        title,
+        description ?? null,
+        date,
+        startTime,
+        endTime,
+        recurrence ?? "none",
+      ],
+    );
+    const row = result.rows[0];
+    res.status(201).json({
+      id: row.id,
+      memberId: row.member_id,
+      title: row.title,
+      description: row.description,
+      date: row.date,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      recurrence: row.recurrence,
+      source: "homebase" as const,
+    });
+  } catch (err) {
+    console.error("Create event error:", err);
+    res.status(500).json({ error: "Failed to create event" });
+  }
+});
+
+// PUT /api/calendar/events/:id — update a Homebase event.
+router.put(
+  "/events/:id",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
+    const { id } = req.params;
+    const {
+      memberId,
+      title,
+      description,
+      date,
+      startTime,
+      endTime,
+      recurrence,
+    } = req.body as Record<string, unknown>;
+
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    let i = 1;
+    const add = (col: string, val: unknown) => {
+      if (val !== undefined) {
+        sets.push(`${col} = $${i++}`);
+        values.push(val);
+      }
+    };
+    add("member_id", memberId);
+    add("title", title);
+    add("description", description);
+    add("date", date);
+    add("start_time", startTime);
+    add("end_time", endTime);
+    add("recurrence", recurrence);
+    if (sets.length === 0) {
+      res.status(400).json({ error: "No fields to update" });
+      return;
+    }
+    values.push(id, familyId);
+
+    try {
+      const result = await pool.query(
+        `UPDATE calendar_events SET ${sets.join(", ")}, updated_at = now()
+         WHERE id = $${i++} AND family_id = $${i}
+         RETURNING id, member_id, title, description, date::text AS date,
+                   start_time, end_time, recurrence`,
+        values,
+      );
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: "Event not found" });
+        return;
+      }
+      const row = result.rows[0];
+      res.json({
+        id: row.id,
+        memberId: row.member_id,
+        title: row.title,
+        description: row.description,
+        date: row.date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        recurrence: row.recurrence,
+        source: "homebase" as const,
+      });
+    } catch (err) {
+      console.error("Update event error:", err);
+      res.status(500).json({ error: "Failed to update event" });
+    }
+  },
+);
+
+// DELETE /api/calendar/events/:id — delete a Homebase event.
+router.delete(
+  "/events/:id",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
+    const { id } = req.params;
+    try {
+      await pool.query(
+        `DELETE FROM calendar_events WHERE id = $1 AND family_id = $2`,
+        [id, familyId],
+      );
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Delete event error:", err);
+      res.status(500).json({ error: "Failed to delete event" });
+    }
+  },
+);
+
 // DELETE /api/calendar/connections/:connectionId — disconnect
 router.delete(
   "/connections/:connectionId",

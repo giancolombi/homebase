@@ -58,6 +58,15 @@ Feature: Calendar — events, day/week view, task overlay
     And the event renders on the day view at 10:00 with 30-min height
     And the event uses the assigned member's color
 
+  Scenario: Homebase events persist to the backend and sync across the family
+    Given the user creates the event "Dentist appointment"
+    Then it is saved via POST /api/calendar/events under the family
+    And after clearing localStorage and reloading, pullAllData re-hydrates it
+    And other family members see it on their calendar
+    # Homebase events live in the store (hydrated by pullAllData) and are
+    # pushed fire-and-forget on create/update/delete; the calendar view
+    # excludes source="homebase" from the API merge to avoid double-rendering.
+
   Scenario: Create an all-day event
     When the user enables "All day"
     And saves a "Family vacation" event for today

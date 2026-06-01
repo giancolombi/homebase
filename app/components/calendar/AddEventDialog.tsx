@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { generateId } from "@/lib/memberColors";
+import { generateUuid } from "@/lib/memberColors";
 import type { Recurrence } from "@/types/family";
 
 interface Props {
@@ -52,7 +52,7 @@ export default function AddEventDialog({
   const handleSave = () => {
     if (!title.trim() || !memberId) return;
     addEvent({
-      id: generateId(),
+      id: generateUuid(),
       title: title.trim(),
       description: description.trim() || undefined,
       date,

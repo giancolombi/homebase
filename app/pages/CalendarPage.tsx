@@ -126,25 +126,34 @@ export default function CalendarPage() {
         taskId: t.id,
       }));
 
-    // External events from API
-    const externalEvents: CalendarEvent[] = (apiEvents || []).map((e) => ({
-      id: e.id,
-      title:
-        e.source !== "homebase"
-          ? `${e.source === "google" ? "📅" : "📆"} ${e.title}`
-          : e.title,
-      description: e.description || undefined,
-      date: e.date,
-      startTime: e.startTime,
-      endTime: e.endTime,
-      memberId: e.memberId,
-      recurrence: e.recurrence as CalendarEvent["recurrence"],
-      source: e.source,
-      allDay: e.allDay,
-      location: e.location || undefined,
-    }));
+    // External provider events from the API. Homebase (family-owned) events
+    // are excluded here because they're held in the store (hydrated by
+    // pullAllData + optimistic local mutations) — including them from the API
+    // too would render every Homebase event twice.
+    const externalEvents: CalendarEvent[] = (apiEvents || [])
+      .filter((e) => e.source !== "homebase")
+      .map((e) => ({
+        id: e.id,
+        title: `${e.source === "google" ? "📅" : "📆"} ${e.title}`,
+        description: e.description || undefined,
+        date: e.date,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        memberId: e.memberId,
+        recurrence: e.recurrence as CalendarEvent["recurrence"],
+        source: e.source,
+        allDay: e.allDay,
+        location: e.location || undefined,
+      }));
 
-    return [...events, ...taskEvents, ...externalEvents];
+    // Dedupe by id (store + API) as a final safety net.
+    const merged = [...events, ...taskEvents, ...externalEvents];
+    const seen = new Set<string>();
+    return merged.filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
   }, [events, tasks, apiEvents]);
 
   const dayEvents = (date: Date) =>

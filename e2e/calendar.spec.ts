@@ -21,6 +21,26 @@ test.describe("Calendar", () => {
     await expect(page.getByText("Coffee with Alex")).toBeVisible();
   });
 
+  test("a created event persists to the backend across a reload", async ({
+    page,
+  }) => {
+    await signUpAndOnboard(page);
+
+    await page.getByRole("button", { name: /Event/ }).click();
+    await page.getByPlaceholder("Event title").fill("Dentist appointment");
+    await page.getByRole("button", { name: "Add Event" }).click();
+    await expect(page.getByText("Dentist appointment")).toBeVisible();
+
+    // Clear the locally-persisted store so the only way the event can reappear
+    // is by being re-hydrated from the backend (pullAllData).
+    await page.evaluate(() => localStorage.removeItem("homebase-family-data"));
+    await page.reload();
+
+    await expect(page.getByText("Dentist appointment")).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
   test("week view toggles 7 days", async ({ page }) => {
     await signUpAndOnboard(page);
 

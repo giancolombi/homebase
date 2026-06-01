@@ -160,15 +160,22 @@ export const useFamilyStore = create<FamilyStore>()(
         set({ ...initialState, onboardingComplete: false }),
       setOnboardingStep: (step) => set({ onboardingStep: step }),
 
-      addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
+      addEvent: (event) => {
+        set((s) => ({ events: [...s.events, event] }));
+        push.event.create(get().familyId, event);
+      },
 
-      updateEvent: (id, updates) =>
+      updateEvent: (id, updates) => {
         set((s) => ({
           events: s.events.map((e) => (e.id === id ? { ...e, ...updates } : e)),
-        })),
+        }));
+        push.event.update(get().familyId, id, updates);
+      },
 
-      deleteEvent: (id) =>
-        set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
+      deleteEvent: (id) => {
+        set((s) => ({ events: s.events.filter((e) => e.id !== id) }));
+        push.event.remove(get().familyId, id);
+      },
 
       addTaskCategory: (cat) => {
         set((s) => ({ taskCategories: [...s.taskCategories, cat] }));

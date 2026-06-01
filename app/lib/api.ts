@@ -294,6 +294,50 @@ export const calendar = {
     });
   },
 
+  async createEvent(
+    familyId: string,
+    event: {
+      id?: string;
+      memberId: string;
+      title: string;
+      description?: string | null;
+      date: string;
+      startTime: string;
+      endTime: string;
+      recurrence?: string;
+    },
+  ): Promise<CalendarEventResponse> {
+    return request<CalendarEventResponse>("/api/calendar/events", {
+      method: "POST",
+      body: JSON.stringify({ ...event, familyId }),
+    });
+  },
+
+  async updateEvent(
+    familyId: string,
+    id: string,
+    updates: {
+      memberId?: string;
+      title?: string;
+      description?: string | null;
+      date?: string;
+      startTime?: string;
+      endTime?: string;
+      recurrence?: string;
+    },
+  ): Promise<CalendarEventResponse> {
+    return request<CalendarEventResponse>(`/api/calendar/events/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...updates, familyId }),
+    });
+  },
+
+  async deleteEvent(familyId: string, id: string): Promise<void> {
+    await request(`/api/calendar/events/${id}?familyId=${familyId}`, {
+      method: "DELETE",
+    });
+  },
+
   async connectApple(
     familyId: string,
     appleId: string,
