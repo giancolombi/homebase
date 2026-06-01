@@ -3,11 +3,12 @@ Feature: API security & access control
   I want every family-scoped endpoint to enforce membership and roles
   So that one family can never read or modify another family's data
 
-  # Coverage note: these scenarios are backend authorization guarantees.
-  # The Playwright suite runs in demo mode (localStorage) and never calls the
-  # real API, so — like external-calendar-sync.feature and emails.feature —
-  # these are verified by api/ unit tests plus integration/manual testing
-  # against a running API + database, not by Playwright.
+  # Coverage note: these are backend authorization guarantees. The Playwright
+  # suite drives the real API, but the cross-family/cross-role scenarios below
+  # need multi-family, multi-user fixtures the current e2e helpers don't set up.
+  # They are verified by api/ unit tests (validation, rate limiting, webhook
+  # rejection) plus integration/manual testing against a running API + database,
+  # and are tracked here as the behavioural spec.
 
   Scenario: A user cannot list another family's members
     Given I am authenticated as a member of family A

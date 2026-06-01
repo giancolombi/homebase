@@ -154,11 +154,18 @@ export const auth = {
     });
   },
 
-  async updatePassword(password: string) {
-    return request<{ message: string }>("/api/auth/update-password", {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    });
+  async updatePassword(currentPassword: string, password: string) {
+    const data = await request<{ message: string; token?: string }>(
+      "/api/auth/update-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ currentPassword, password }),
+      },
+    );
+    // The server reissues a token (old sessions are invalidated); keep this
+    // session signed in by swapping to the fresh token.
+    if (data.token) setToken(data.token);
+    return data;
   },
 
   /** Check if a token is stored */
@@ -415,6 +422,26 @@ export const family = {
     return request<FamilyMemberResponse[]>(
       `/api/family/members?familyId=${familyId}`,
     );
+  },
+
+  async updateMember(
+    familyId: string,
+    memberId: string,
+    updates: {
+      name?: string;
+      email?: string | null;
+      colorIndex?: number;
+      role?: string;
+    },
+  ): Promise<FamilyMemberResponse> {
+    return request<FamilyMemberResponse>(`/api/family/members/${memberId}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...updates, familyId }),
+    });
+  },
+
+  async removeMember(memberId: string): Promise<void> {
+    await request(`/api/family/members/${memberId}`, { method: "DELETE" });
   },
 
   async toggleAdmin(memberId: string): Promise<{ isAdmin: boolean }> {

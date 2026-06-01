@@ -131,15 +131,19 @@ export const useFamilyStore = create<FamilyStore>()(
           return { members: newMembers };
         }),
 
-      removeMember: (id) =>
-        set((s) => ({ members: s.members.filter((m) => m.id !== id) })),
+      removeMember: (id) => {
+        set((s) => ({ members: s.members.filter((m) => m.id !== id) }));
+        push.member.remove(id);
+      },
 
-      updateMember: (id, updates) =>
+      updateMember: (id, updates) => {
         set((s) => ({
           members: s.members.map((m) =>
             m.id === id ? { ...m, ...updates } : m,
           ),
-        })),
+        }));
+        push.member.update(get().familyId, id, updates);
+      },
 
       addCalendarConnection: (conn) =>
         set((s) => ({ calendarConnections: [...s.calendarConnections, conn] })),

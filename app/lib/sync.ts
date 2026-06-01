@@ -196,6 +196,33 @@ function ignore(err: unknown, label: string) {
 }
 
 export const push = {
+  member: {
+    update: (
+      familyId: string | null,
+      id: string,
+      updates: Partial<FamilyMember>,
+    ) => {
+      if (!shouldSync(familyId)) return;
+      // Only forward server-backed fields (avatar lives in localStorage only).
+      const serverUpdates: {
+        name?: string;
+        email?: string | null;
+        colorIndex?: number;
+      } = {};
+      if (updates.name !== undefined) serverUpdates.name = updates.name;
+      if (updates.email !== undefined)
+        serverUpdates.email = updates.email ?? null;
+      if (updates.colorIndex !== undefined)
+        serverUpdates.colorIndex = updates.colorIndex;
+      if (Object.keys(serverUpdates).length === 0) return;
+      family
+        .updateMember(familyId, id, serverUpdates)
+        .catch((e) => ignore(e, "member.update"));
+    },
+    remove: (id: string) => {
+      family.removeMember(id).catch((e) => ignore(e, "member.remove"));
+    },
+  },
   task: {
     create: (familyId: string | null, task: Task) => {
       if (!shouldSync(familyId)) return;

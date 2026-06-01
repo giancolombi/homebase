@@ -88,6 +88,95 @@ router.post(
   },
 );
 
+// PUT /api/family/members/:memberId — update a member's profile. A member can
+// edit their own row; owners/admins can edit anyone in the family.
+router.put(
+  "/members/:memberId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const { memberId } = req.params;
+    const { name, email, colorIndex } = req.body as {
+      name?: string;
+      email?: string | null;
+      colorIndex?: number;
+    };
+
+    try {
+      const targetResult = await pool.query(
+        `SELECT family_id, user_id FROM family_members WHERE id = $1`,
+        [memberId],
+      );
+      if (targetResult.rows.length === 0) {
+        res.status(404).json({ error: "Member not found" });
+        return;
+      }
+      const target = targetResult.rows[0];
+
+      const callerResult = await pool.query(
+        `SELECT is_owner, is_admin FROM family_members
+         WHERE family_id = $1 AND user_id = $2`,
+        [target.family_id, req.user!.id],
+      );
+      if (callerResult.rows.length === 0) {
+        res.status(403).json({ error: "Not a member of this family" });
+        return;
+      }
+      const caller = callerResult.rows[0];
+      const isSelf = target.user_id && target.user_id === req.user!.id;
+      if (!isSelf && !caller.is_owner && !caller.is_admin) {
+        res.status(403).json({ error: "Cannot edit other members" });
+        return;
+      }
+
+      // Build a dynamic update from the provided fields only.
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      let i = 1;
+      if (name !== undefined) {
+        sets.push(`name = $${i++}`);
+        values.push(name);
+      }
+      if (email !== undefined) {
+        sets.push(`email = $${i++}`);
+        values.push(email ? email.trim().toLowerCase() : null);
+      }
+      if (colorIndex !== undefined) {
+        sets.push(`color_index = $${i++}`);
+        values.push(colorIndex);
+      }
+      if (sets.length === 0) {
+        res.status(400).json({ error: "No fields to update" });
+        return;
+      }
+      values.push(memberId);
+
+      const result = await pool.query(
+        `UPDATE family_members SET ${sets.join(", ")}
+         WHERE id = $${i}
+         RETURNING id, name, role, email, color_index, is_owner, is_admin,
+                   invite_status, invite_sent_at, user_id`,
+        values,
+      );
+      const row = result.rows[0];
+      res.json({
+        id: row.id,
+        name: row.name,
+        role: row.role,
+        email: row.email,
+        colorIndex: row.color_index,
+        isOwner: row.is_owner,
+        isAdmin: row.is_admin,
+        inviteStatus: row.invite_status,
+        inviteSentAt: row.invite_sent_at,
+        hasAccount: !!row.user_id,
+      });
+    } catch (err) {
+      console.error("Update member error:", err);
+      res.status(500).json({ error: "Failed to update member" });
+    }
+  },
+);
+
 // POST /api/family/members/:memberId/toggle-admin — promote/demote admin
 router.post(
   "/members/:memberId/toggle-admin",

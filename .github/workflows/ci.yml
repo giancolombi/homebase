@@ -29,6 +29,27 @@ jobs:
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: homebase
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homebase
+      JWT_SECRET: ci-test-secret
+      # 32-byte hex key for AES-256-GCM token encryption (test only).
+      TOKEN_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      APP_URL: http://localhost:8080
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -40,19 +61,25 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
-      # Demo mode keeps all data in localStorage, so the SPA dev server alone
-      # is enough to exercise the E2E suite (no API/DB needed).
+      - name: Run database migrations
+        run: pnpm run db:migrate
+      # The E2E suite drives the real auth/API, so bring up both the API server
+      # (:3001) and the Vite dev server (:8080, which proxies /api → :3001).
+      - name: Start API server
+        run: pnpm run server &
       - name: Start dev server
         run: pnpm dev &
-      - name: Wait for dev server
+      - name: Wait for servers
         run: |
           for i in $(seq 1 60); do
-            if curl -sSf http://localhost:8080 >/dev/null 2>&1; then
-              echo "dev server is up"; exit 0
+            api=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/health || true)
+            web=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 || true)
+            if [ "$api" = "200" ] && [ "$web" = "200" ]; then
+              echo "servers are up"; exit 0
             fi
             sleep 2
           done
-          echo "dev server did not start in time"; exit 1
+          echo "servers did not start in time"; exit 1
       - run: pnpm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

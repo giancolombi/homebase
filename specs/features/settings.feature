@@ -19,7 +19,18 @@ Feature: Settings — family members, calendars, profile
     And updates their name + color
     And saves
     Then the local `members[currentUserId]` is updated
+    And `family.updateMember` persists the name/email to the server
     And the change persists on reload
+
+  Scenario: Change your password from the profile dialog
+    When the user opens EditProfileDialog
+    And enters the wrong current password with a new password
+    And saves
+    Then the API returns 401 and a "current password is incorrect" toast shows
+    When the user enters the correct current password
+    And saves
+    Then `auth.updatePassword` succeeds and a fresh session token is stored
+    And a "profile and password have been updated" toast shows
 
   Scenario: Other adults are listed below the current user
     Given the family has another adult member
@@ -81,8 +92,13 @@ Feature: Settings — family members, calendars, profile
   Scenario: Remove a non-owner member
     When the user clicks the trash icon on a non-owner member
     Then the local store removes them
-    And `family.removeMember` (if present) syncs to the server
-    And their dependent rows (calendar connections, etc.) cascade-delete
+    And `family.removeMember` calls DELETE /api/family/members/:id (owner/admin only)
+    And their calendar connections and device tokens cascade-delete server-side
+    And the member does not reappear after a reload/sync
+
+  Scenario: The family owner cannot be removed
+    When a non-owner removal is attempted against the owner
+    Then the API returns 400 "Cannot remove the family owner"
 
   # ---- Your calendars card -----------------------------------------------
 

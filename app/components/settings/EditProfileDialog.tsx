@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useFamilyStore } from "@/store/familyStore";
+import { auth } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ export function EditProfileDialog() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,7 +112,7 @@ export function EditProfileDialog() {
     return null;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!currentUser) return;
 
     // Validate password if attempting to change
@@ -124,31 +126,55 @@ export function EditProfileDialog() {
       return;
     }
 
-    // Update profile
-    updateMember(currentUser.id, {
-      name: name.trim(),
-      email: email.trim(),
-      avatar: avatarUrl,
-    });
+    setSaving(true);
+    try {
+      // Change the password on the server FIRST — if the current password is
+      // wrong, abort before claiming success.
+      const changingPassword = !!(currentPassword && newPassword);
+      if (changingPassword) {
+        await auth.updatePassword(currentPassword, newPassword);
+      }
 
-    toast({
-      title: "Profile updated",
-      description: currentPassword
-        ? "Your profile and password have been updated"
-        : "Your profile has been updated",
-    });
+      // Persist profile (name/email/avatar). updateMember syncs name/email to
+      // the backend; avatar stays local (no server column yet).
+      updateMember(currentUser.id, {
+        name: name.trim(),
+        email: email.trim(),
+        avatar: avatarUrl,
+      });
 
-    // Reset password fields
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setOpen(false);
+      toast({
+        title: "Profile updated",
+        description: changingPassword
+          ? "Your profile and password have been updated"
+          : "Your profile has been updated",
+      });
+
+      // Reset password fields
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setOpen(false);
+    } catch (err) {
+      toast({
+        title: "Couldn't update password",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 w-7 p-0"
+          aria-label="Edit profile"
+        >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>
@@ -385,8 +411,8 @@ export function EditProfileDialog() {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} className="flex-1">
-              Save Changes
+            <Button onClick={handleSave} className="flex-1" disabled={saving}>
+              {saving ? "Saving…" : "Save Changes"}
             </Button>
             <Button
               variant="outline"
