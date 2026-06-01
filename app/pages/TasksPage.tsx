@@ -17,18 +17,36 @@ import {
   generateId,
 } from "@/lib/memberColors";
 import { cn } from "@/lib/utils";
-import { Plus, Filter, Calendar as CalIcon, Tag } from "lucide-react";
+import {
+  Plus,
+  Filter,
+  Calendar as CalIcon,
+  Tag,
+  Pencil,
+  Trash2,
+  Clock,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import AddTaskDialog from "@/components/tasks/AddTaskDialog";
+import type { Task } from "@/types/family";
 
 export default function TasksPage() {
-  const { tasks, taskCategories, members, updateTask, addTaskCategory } =
-    useFamilyStore();
+  const {
+    tasks,
+    taskCategories,
+    members,
+    updateTask,
+    deleteTask,
+    addTaskCategory,
+  } = useFamilyStore();
   const [showAdd, setShowAdd] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  // Bumped each time the Add dialog opens so it remounts with a clean form.
+  const [addNonce, setAddNonce] = useState(0);
   const [filterMember, setFilterMember] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -122,7 +140,13 @@ export default function TasksPage() {
           >
             <Filter className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={() => setShowAdd(true)}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setAddNonce((n) => n + 1);
+              setShowAdd(true);
+            }}
+          >
             <Plus className="h-4 w-4 mr-1" /> Task
           </Button>
         </div>
@@ -198,6 +222,11 @@ export default function TasksPage() {
                     >
                       {task.title}
                     </p>
+                    {task.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {task.description}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {task.deadline && (
                         <span
@@ -210,6 +239,17 @@ export default function TasksPage() {
                         >
                           <CalIcon className="h-3 w-3 md:h-3.5 md:w-3.5" />
                           {task.deadline}
+                          {task.deadlineTime && (
+                            <>
+                              <Clock className="h-3 w-3 ml-1" />
+                              {task.deadlineTime}
+                            </>
+                          )}
+                        </span>
+                      )}
+                      {task.status === "in-progress" && (
+                        <span className="text-[10px] md:text-xs text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                          In progress
                         </span>
                       )}
                       {task.recurrence !== "none" && (
@@ -219,26 +259,46 @@ export default function TasksPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex -space-x-1">
-                    {task.assignedTo.map((mId) => {
-                      const m = members.find((m) => m.id === mId);
-                      if (!m) return null;
-                      return (
-                        <Avatar
-                          key={m.id}
-                          className="h-6 w-6 md:h-7 md:w-7 border border-card"
-                        >
-                          <AvatarFallback
-                            className={cn(
-                              "text-[8px] md:text-[10px] font-bold text-primary-foreground",
-                              MEMBER_COLORS[m.colorIndex],
-                            )}
+                  <div className="flex items-center gap-1">
+                    <div className="flex -space-x-1">
+                      {task.assignedTo.map((mId) => {
+                        const m = members.find((m) => m.id === mId);
+                        if (!m) return null;
+                        return (
+                          <Avatar
+                            key={m.id}
+                            className="h-6 w-6 md:h-7 md:w-7 border border-card"
                           >
-                            {getMemberInitials(m.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                      );
-                    })}
+                            <AvatarFallback
+                              className={cn(
+                                "text-[8px] md:text-[10px] font-bold text-primary-foreground",
+                                MEMBER_COLORS[m.colorIndex],
+                              )}
+                            >
+                              {getMemberInitials(m.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      aria-label="Edit task"
+                      onClick={() => setEditingTask(task)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      aria-label="Delete task"
+                      onClick={() => deleteTask(task.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -247,7 +307,17 @@ export default function TasksPage() {
         ))}
       </div>
 
-      <AddTaskDialog open={showAdd} onOpenChange={setShowAdd} />
+      <AddTaskDialog
+        key={editingTask ? `edit-${editingTask.id}` : `add-${addNonce}`}
+        open={showAdd || !!editingTask}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowAdd(false);
+            setEditingTask(null);
+          }
+        }}
+        task={editingTask}
+      />
     </div>
   );
 }

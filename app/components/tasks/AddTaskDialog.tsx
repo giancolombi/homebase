@@ -20,42 +20,65 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { generateId } from "@/lib/memberColors";
-import type { Recurrence } from "@/types/family";
+import type { Recurrence, Task, TaskStatus } from "@/types/family";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // When provided, the dialog edits this task instead of creating a new one.
+  task?: Task | null;
 }
 
-export default function AddTaskDialog({ open, onOpenChange }: Props) {
-  const { members, taskCategories, addTask, addTaskCategory } =
+export default function AddTaskDialog({ open, onOpenChange, task }: Props) {
+  const { members, taskCategories, addTask, updateTask, addTaskCategory } =
     useFamilyStore();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  // selectedCategoryId tracks the user's explicit choice; we fall back to the
-  // first available category when nothing is selected. This makes the dialog
-  // submittable even if categories hydrate after the dialog mounts.
-  const [selectedCategoryId, setCategoryId] = useState("");
+  const isEdit = !!task;
+
+  // State is initialized from `task` directly; the parent passes a changing
+  // `key` so this component remounts (and re-initializes) when switching
+  // between add/edit or between tasks — avoiding setState-in-effect syncing.
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [description, setDescription] = useState(task?.description ?? "");
+  const [selectedCategoryId, setCategoryId] = useState(task?.categoryId ?? "");
   const categoryId = selectedCategoryId || taskCategories[0]?.id || "";
-  const [assignedTo, setAssignedTo] = useState<string[]>([]);
-  const [deadline, setDeadline] = useState("");
-  const [recurrence, setRecurrence] = useState<Recurrence>("none");
+  const [assignedTo, setAssignedTo] = useState<string[]>(
+    task?.assignedTo ?? [],
+  );
+  const [deadline, setDeadline] = useState(task?.deadline ?? "");
+  const [deadlineTime, setDeadlineTime] = useState(task?.deadlineTime ?? "");
+  const [recurrence, setRecurrence] = useState<Recurrence>(
+    task?.recurrence ?? "none",
+  );
+  const [status, setStatus] = useState<TaskStatus>(task?.status ?? "todo");
   const [newCategory, setNewCategory] = useState("");
 
   const handleSave = () => {
     if (!title.trim() || !categoryId) return;
-    addTask({
-      id: generateId(),
-      title: title.trim(),
-      description: description.trim() || undefined,
-      categoryId,
-      assignedTo,
-      deadline: deadline || undefined,
-      recurrence,
-      status: "todo",
-      createdAt: new Date().toISOString(),
-    });
-    reset();
+    if (isEdit && task) {
+      updateTask(task.id, {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        categoryId,
+        assignedTo,
+        deadline: deadline || undefined,
+        deadlineTime: deadlineTime || undefined,
+        recurrence,
+        status,
+      });
+    } else {
+      addTask({
+        id: generateId(),
+        title: title.trim(),
+        description: description.trim() || undefined,
+        categoryId,
+        assignedTo,
+        deadline: deadline || undefined,
+        deadlineTime: deadlineTime || undefined,
+        recurrence,
+        status: "todo",
+        createdAt: new Date().toISOString(),
+      });
+    }
     onOpenChange(false);
   };
 
@@ -73,21 +96,13 @@ export default function AddTaskDialog({ open, onOpenChange }: Props) {
     );
   };
 
-  const reset = () => {
-    setTitle("");
-    setDescription("");
-    setAssignedTo([]);
-    setDeadline("");
-    setRecurrence("none");
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm mx-auto">
         <DialogHeader>
-          <DialogTitle>Add Task</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Task" : "Add Task"}</DialogTitle>
           <DialogDescription className="sr-only">
-            Create a new task for your family
+            {isEdit ? "Edit this task" : "Create a new task for your family"}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -164,6 +179,17 @@ export default function AddTaskDialog({ open, onOpenChange }: Props) {
               />
             </div>
             <div className="space-y-1.5">
+              <Label>Time</Label>
+              <Input
+                type="time"
+                value={deadlineTime}
+                onChange={(e) => setDeadlineTime(e.target.value)}
+                disabled={!deadline}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
               <Label>Recurrence</Label>
               <Select
                 value={recurrence}
@@ -180,13 +206,31 @@ export default function AddTaskDialog({ open, onOpenChange }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            {isEdit && (
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select
+                  value={status}
+                  onValueChange={(v) => setStatus(v as TaskStatus)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todo">To do</SelectItem>
+                    <SelectItem value="in-progress">In progress</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <Button
             onClick={handleSave}
             className="w-full"
             disabled={!title.trim()}
           >
-            Add Task
+            {isEdit ? "Save Changes" : "Add Task"}
           </Button>
         </div>
       </DialogContent>

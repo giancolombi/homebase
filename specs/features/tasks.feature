@@ -55,11 +55,16 @@ Feature: Tasks
     And the calendar chip reappears
 
   Scenario: Edit a task's details
-    When the user clicks an existing task to edit it
-    And changes title, deadline, or assignee
+    When the user clicks the edit (pencil) button on a task
+    And changes title, deadline, time, recurrence, status, or assignee
     And saves
     Then the row is updated server-side
     And the local store reflects the change immediately (optimistic)
+
+  Scenario: A task can be marked in progress
+    When the user edits a task and sets its status to "in progress"
+    Then the row shows an "In progress" badge
+    And the status is not "done" (the checkbox stays unchecked)
 
   # ---- Delete -------------------------------------------------------------
 
