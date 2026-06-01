@@ -41,6 +41,28 @@ test.describe("Calendar", () => {
     });
   });
 
+  test("a daily recurring event appears on multiple days in week view", async ({
+    page,
+  }) => {
+    await signUpAndOnboard(page);
+
+    await page.getByRole("button", { name: /Event/ }).click();
+    await page.getByPlaceholder("Event title").fill("Morning workout");
+
+    // Set recurrence to Daily via the Recurrence select.
+    await page.getByRole("combobox").last().click();
+    await page.getByRole("option", { name: "Daily" }).click();
+    await page.getByRole("button", { name: "Add Event" }).click();
+
+    // In week view the daily event should render on more than one day.
+    await page.getByRole("button", { name: "Week" }).click();
+    await expect
+      .poll(async () => page.getByText("Morning workout").count(), {
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(1);
+  });
+
   test("week view toggles 7 days", async ({ page }) => {
     await signUpAndOnboard(page);
 

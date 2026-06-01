@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   format,
   addDays,
@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import AddEventDialog from "@/components/calendar/AddEventDialog";
+import { expandRecurringEvents } from "@/lib/recurrence";
 import type { CalendarEvent, FamilyMember } from "@/types/family";
 
 const VISIBLE_START_HOUR = 6;
@@ -105,8 +106,10 @@ export default function CalendarPage() {
     rangeEnd,
   );
 
-  // Merge task deadlines and external events as calendar events
-  const allEvents = useMemo(() => {
+  // Merge task deadlines and external events as calendar events. Left as a
+  // plain computation so the React Compiler memoizes it (a manual useMemo with
+  // derived-string deps trips preserve-manual-memoization).
+  const allEvents: CalendarEvent[] = (() => {
     const taskEvents: CalendarEvent[] = tasks
       .filter((t) => t.deadline && t.status !== "done")
       .map((t) => ({
@@ -121,7 +124,8 @@ export default function CalendarPage() {
             )
           : "10:00",
         memberId: t.assignedTo[0] || "",
-        recurrence: "none" as const,
+        // Recurring tasks should surface an instance for each upcoming period.
+        recurrence: t.recurrence ?? "none",
         isTask: true,
         taskId: t.id,
       }));
@@ -146,15 +150,22 @@ export default function CalendarPage() {
         location: e.location || undefined,
       }));
 
-    // Dedupe by id (store + API) as a final safety net.
-    const merged = [...events, ...taskEvents, ...externalEvents];
-    const seen = new Set<string>();
-    return merged.filter((e) => {
-      if (seen.has(e.id)) return false;
-      seen.add(e.id);
-      return true;
-    });
-  }, [events, tasks, apiEvents]);
+    // Expand recurring Homebase events + recurring task deadlines into concrete
+    // occurrences across the visible window. External provider events already
+    // arrive as individual instances, so they're not re-expanded.
+    const expanded = expandRecurringEvents(
+      [...events, ...taskEvents],
+      parseISO(rangeStart),
+      parseISO(rangeEnd),
+    );
+
+    // Dedupe by id as a final safety net (first occurrence wins).
+    const byId = new Map<string, CalendarEvent>();
+    for (const e of [...expanded, ...externalEvents]) {
+      if (!byId.has(e.id)) byId.set(e.id, e);
+    }
+    return Array.from(byId.values());
+  })();
 
   const dayEvents = (date: Date) =>
     allEvents.filter((e) => isSameDay(parseISO(e.date), date));

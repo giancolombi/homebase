@@ -67,6 +67,14 @@ Feature: Calendar — events, day/week view, task overlay
     # pushed fire-and-forget on create/update/delete; the calendar view
     # excludes source="homebase" from the API merge to avoid double-rendering.
 
+  Scenario: Recurring events repeat across the visible window
+    When the user creates a "Morning workout" event with recurrence "daily"
+    Then an occurrence renders on each day of the week view
+    And a weekly event renders once per week, a monthly event once per month
+    # expandRecurringEvents generates concrete dated occurrences within the
+    # visible range; the start-date occurrence keeps the original id so it
+    # stays editable.
+
   Scenario: Create an all-day event
     When the user enables "All day"
     And saves a "Family vacation" event for today
