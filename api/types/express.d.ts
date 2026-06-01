@@ -12,6 +12,9 @@ declare global {
         email: string;
         full_name: string | null;
       };
+      // Raw request body, captured by express.json({ verify }) so webhook
+      // routes (e.g. Plaid) can verify signatures over the exact bytes.
+      rawBody?: Buffer;
     }
   }
 }

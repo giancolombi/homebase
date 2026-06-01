@@ -3,9 +3,10 @@ import jwt from "jsonwebtoken";
 import { requireAuth, type AuthRequest } from "./auth.js";
 import pool from "./db.js";
 import { sendInviteEmail, sendInviteAcceptedEmail } from "./lib/email.js";
+import { JWT_SECRET } from "./lib/env.js";
+import { getFamilyMembership } from "./lib/familyAuth.js";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const APP_URL = process.env.APP_URL || "http://localhost:8080";
 
 // POST /api/invite/send — send an invite email to a family member
@@ -46,6 +47,22 @@ router.post("/send", requireAuth, async (req: AuthRequest, res: Response) => {
 
     const member = memberResult.rows[0];
 
+    // The caller must be an owner/admin of the member's family. This both
+    // closes the cross-family hole (sending invites for arbitrary families)
+    // and enforces "only admins can invite".
+    const membership = await getFamilyMembership(
+      req.user!.id,
+      member.family_id,
+    );
+    if (!membership) {
+      res.status(403).json({ error: "Not a member of this family" });
+      return;
+    }
+    if (!membership.isOwner && !membership.isAdmin) {
+      res.status(403).json({ error: "Only admins can send invites" });
+      return;
+    }
+
     if (!member.email) {
       res.status(400).json({ error: "Member has no email address" });
       return;
@@ -61,9 +78,9 @@ router.post("/send", requireAuth, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Check that the existing email isn't already registered
+    // Check that the existing email isn't already registered (case-insensitive)
     const existingUser = await pool.query(
-      "SELECT id FROM users WHERE email = $1",
+      "SELECT id FROM users WHERE lower(email) = lower($1)",
       [member.email],
     );
 

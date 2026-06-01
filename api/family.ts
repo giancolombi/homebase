@@ -1,17 +1,16 @@
 import { Router, type Response } from "express";
 import { requireAuth, type AuthRequest } from "./auth.js";
 import pool from "./db.js";
+import { resolveFamilyId } from "./lib/familyAuth.js";
 
 const router = Router();
 
 // GET /api/family/members — list members for the authenticated user's family
 router.get("/members", requireAuth, async (req: AuthRequest, res: Response) => {
-  const { familyId } = req.query as { familyId: string };
-
-  if (!familyId) {
-    res.status(400).json({ error: "familyId is required" });
-    return;
-  }
+  // Verify the caller is a member of the requested family before exposing
+  // names, emails and roles (prevents cross-family enumeration).
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
 
   try {
     const result = await pool.query(
@@ -48,10 +47,14 @@ router.post(
   "/members",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { familyId, name, role, email, colorIndex } = req.body;
+    const { name, role, email, colorIndex } = req.body;
 
-    if (!familyId || !name || !role) {
-      res.status(400).json({ error: "familyId, name, and role are required" });
+    // Verify the caller belongs to the family they're adding a member to.
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
+
+    if (!name || !role) {
+      res.status(400).json({ error: "name and role are required" });
       return;
     }
 
@@ -166,6 +169,82 @@ router.post(
     } catch (err) {
       console.error("Toggle admin error:", err);
       res.status(500).json({ error: "Failed to update admin status" });
+    }
+  },
+);
+
+// DELETE /api/family/members/:memberId — remove a member (owner/admin only).
+// Cascades the member's calendar connections and, if they had an account,
+// their push device tokens so a removed person stops receiving family data.
+router.delete(
+  "/members/:memberId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const { memberId } = req.params;
+
+    try {
+      const targetResult = await pool.query(
+        `SELECT id, family_id, role, is_owner, is_admin, user_id
+         FROM family_members WHERE id = $1`,
+        [memberId],
+      );
+      if (targetResult.rows.length === 0) {
+        res.status(404).json({ error: "Member not found" });
+        return;
+      }
+      const target = targetResult.rows[0];
+
+      // Caller must be an owner/admin of the target's family.
+      const callerResult = await pool.query(
+        `SELECT is_owner, is_admin FROM family_members
+         WHERE family_id = $1 AND user_id = $2`,
+        [target.family_id, req.user!.id],
+      );
+      if (callerResult.rows.length === 0) {
+        res.status(403).json({ error: "Not a member of this family" });
+        return;
+      }
+      const caller = callerResult.rows[0];
+      if (!caller.is_owner && !caller.is_admin) {
+        res.status(403).json({ error: "Only admins can remove members" });
+        return;
+      }
+
+      if (target.is_owner) {
+        res.status(400).json({ error: "Cannot remove the family owner" });
+        return;
+      }
+
+      // Don't strand the family without an admin.
+      if (target.is_admin) {
+        const adminCount = await pool.query(
+          `SELECT COUNT(*) FROM family_members
+           WHERE family_id = $1 AND (is_admin = true OR is_owner = true)`,
+          [target.family_id],
+        );
+        if (parseInt(adminCount.rows[0].count, 10) <= 1) {
+          res.status(400).json({
+            error: "Cannot remove the last admin. Promote someone else first.",
+          });
+          return;
+        }
+      }
+
+      await pool.query(
+        `DELETE FROM calendar_connections WHERE member_id = $1`,
+        [memberId],
+      );
+      if (target.user_id) {
+        await pool.query(`DELETE FROM device_tokens WHERE user_id = $1`, [
+          target.user_id,
+        ]);
+      }
+      await pool.query(`DELETE FROM family_members WHERE id = $1`, [memberId]);
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Remove member error:", err);
+      res.status(500).json({ error: "Failed to remove member" });
     }
   },
 );

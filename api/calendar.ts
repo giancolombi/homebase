@@ -13,6 +13,8 @@ import {
 import { fetchEvents } from "./lib/calendarProviders.js";
 import { validateAppleCredentials, fetchAppleEvents } from "./lib/caldav.js";
 import { errorMessage } from "./lib/errors.js";
+import { JWT_SECRET } from "./lib/env.js";
+import { resolveFamilyId, verifyConnectionAccess } from "./lib/familyAuth.js";
 
 const router = Router();
 const APP_URL = process.env.APP_URL || "http://localhost:8080";
@@ -41,7 +43,6 @@ router.get("/auth/:provider", async (req: Request, res: Response) => {
   try {
     // Verify the JWT to get the user's identity
     const jwt = await import("jsonwebtoken");
-    const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
     const payload = jwt.default.verify(token, JWT_SECRET) as {
       sub: string;
     };
@@ -327,12 +328,8 @@ router.get(
   "/connections",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { familyId } = req.query as { familyId: string };
-
-    if (!familyId) {
-      res.status(400).json({ error: "familyId is required" });
-      return;
-    }
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
 
     try {
       const result = await pool.query(
@@ -452,6 +449,13 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     const connectionId = req.params.connectionId as string;
 
+    // Only allow syncing a connection in the caller's own family.
+    const access = await verifyConnectionAccess(req.user!.id, connectionId);
+    if (!access) {
+      res.status(404).json({ error: "Connection not found" });
+      return;
+    }
+
     try {
       const { accessToken, provider, memberId, familyId, externalEmail } =
         await getValidAccessToken(connectionId);
@@ -565,24 +569,26 @@ router.post(
 
 // GET /api/calendar/events — get merged events for a family
 router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
-  const { familyId, startDate, endDate } = req.query as {
-    familyId: string;
+  const { startDate, endDate } = req.query as {
     startDate: string;
     endDate: string;
   };
 
-  if (!familyId || !startDate || !endDate) {
-    res
-      .status(400)
-      .json({ error: "familyId, startDate, and endDate are required" });
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+
+  if (!startDate || !endDate) {
+    res.status(400).json({ error: "startDate and endDate are required" });
     return;
   }
 
   try {
-    // Homebase events
+    // Homebase events. Cast date to text so we return the stored calendar day
+    // verbatim — row.date.toISOString() would convert local-midnight to UTC
+    // and shift the day backward on servers west of UTC.
     const homebaseResult = await pool.query(
       `SELECT id, member_id, title, description,
-                date, start_time, end_time, recurrence
+                date::text AS date, start_time, end_time, recurrence
          FROM calendar_events
          WHERE family_id = $1 AND date BETWEEN $2 AND $3`,
       [familyId, startDate, endDate],
@@ -591,7 +597,7 @@ router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
     // Synced external events
     const syncedResult = await pool.query(
       `SELECT id, member_id, title, description,
-                date, start_time, end_time, all_day,
+                date::text AS date, start_time, end_time, all_day,
                 location, source_provider
          FROM synced_calendar_events
          WHERE family_id = $1 AND date BETWEEN $2 AND $3`,
@@ -604,7 +610,7 @@ router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
         memberId: row.member_id,
         title: row.title,
         description: row.description,
-        date: row.date.toISOString().split("T")[0],
+        date: row.date,
         startTime: row.start_time,
         endTime: row.end_time,
         recurrence: row.recurrence,
@@ -615,7 +621,7 @@ router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
         memberId: row.member_id,
         title: row.title,
         description: row.description,
-        date: row.date.toISOString().split("T")[0],
+        date: row.date,
         startTime: row.start_time,
         endTime: row.end_time,
         recurrence: "none" as const,
@@ -637,7 +643,14 @@ router.delete(
   "/connections/:connectionId",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { connectionId } = req.params;
+    const connectionId = req.params.connectionId as string;
+
+    // Only allow deleting a connection in the caller's own family.
+    const access = await verifyConnectionAccess(req.user!.id, connectionId);
+    if (!access) {
+      res.status(404).json({ error: "Connection not found" });
+      return;
+    }
 
     try {
       // If we're deleting an eventkit connection, restore any OAuth/CalDAV

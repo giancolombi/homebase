@@ -13,6 +13,7 @@ import pool from "./db.js";
 import { resolveFamilyId } from "./lib/familyAuth.js";
 import { encrypt, decrypt } from "./lib/encryption.js";
 import { errorMessage } from "./lib/errors.js";
+import { verifyPlaidWebhook } from "./lib/plaidWebhook.js";
 
 // Plaid SDK errors carry .response.data with rich diagnostics — narrow safely.
 function plaidErrorPayload(err: unknown): unknown {
@@ -316,10 +317,30 @@ router.delete(
 //
 // Plaid posts here when new transactions are available. We trigger a sync
 // for the affected item. This endpoint does NOT require user auth — Plaid
-// authenticates by webhook signature (not yet verified; see TODO).
+// authenticates via the signed `Plaid-Verification` header, which we verify
+// against Plaid's published keys before doing any work.
 // ---------------------------------------------------------------------------
 
 router.post("/webhook", async (req, res) => {
+  // Verify the signature before processing — otherwise anyone could forge a
+  // webhook to force transaction syncs for arbitrary item_ids.
+  let client: PlaidApi;
+  try {
+    client = getClient();
+  } catch {
+    res.status(503).json({ error: "Plaid not configured" });
+    return;
+  }
+  const verified = await verifyPlaidWebhook(
+    client,
+    req.header("plaid-verification"),
+    req.rawBody,
+  );
+  if (!verified) {
+    res.status(401).json({ error: "Invalid webhook signature" });
+    return;
+  }
+
   const { webhook_type, webhook_code, item_id } = req.body ?? {};
   res.status(200).json({ acknowledged: true });
   if (webhook_type !== "TRANSACTIONS" || !item_id) return;
