@@ -114,6 +114,24 @@ test.describe("Settings", () => {
     });
   });
 
+  test("toggle dark mode adds the dark class", async ({ page }) => {
+    await signUpAndOnboard(page);
+    await page.goto("/settings");
+
+    await page.getByRole("button", { name: "Toggle dark mode" }).click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+  });
+
+  test("delete account signs the user out", async ({ page }) => {
+    await signUpAndOnboard(page);
+    await page.goto("/settings");
+
+    page.on("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: /Delete$/ }).click();
+
+    await expect(page).toHaveURL(/\/$|\/auth/, { timeout: 10_000 });
+  });
+
   test("sign out from settings drops the user back to /", async ({ page }) => {
     await signUpAndOnboard(page);
     await page.goto("/settings");

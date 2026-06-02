@@ -22,13 +22,17 @@ import {
   Loader2,
   ExternalLink,
   X,
+  Moon,
+  Sun,
+  Download,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
 import { isCapacitorIOS } from "@/lib/platform";
-import { calendar, invite } from "@/lib/api";
+import { calendar, invite, auth } from "@/lib/api";
 import { openOAuth } from "@/lib/oauthBrowser";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -56,6 +60,49 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [deleting, setDeleting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      const data = await auth.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "homebase-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({
+        title: "Export failed",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "Permanently delete your account? If you own this family, all of its data will be deleted for everyone. This cannot be undone.",
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await auth.deleteAccount();
+      await signOut();
+      navigate("/");
+    } catch (err) {
+      toast({
+        title: "Couldn't delete account",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+      setDeleting(false);
+    }
+  };
   const {
     familyName,
     members,
@@ -558,6 +605,56 @@ export default function SettingsPage() {
             </p>
           </div>
         )}
+
+        {/* Preferences & account */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Preferences & Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-foreground">Dark mode</span>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label="Toggle dark mode"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                {theme === "dark" ? (
+                  <>
+                    <Sun className="h-4 w-4 mr-1" /> Light
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-4 w-4 mr-1" /> Dark
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-foreground">
+                Export my data (JSON)
+              </span>
+              <Button size="sm" variant="outline" onClick={handleExport}>
+                <Download className="h-4 w-4 mr-1" /> Export
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <span className="text-sm text-destructive">Delete account</span>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={deleting}
+                onClick={handleDeleteAccount}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {deleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="pt-4">
           <Button

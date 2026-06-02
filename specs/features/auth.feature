@@ -129,3 +129,21 @@ Feature: Authentication
     Then the API returns 401
     And the client clears the stored token
     And the user lands on the public landing page
+
+  # ---- Account & data (GDPR) ----------------------------------------------
+
+  Scenario: Password must include a letter and a number
+    When the user signs up with an all-letters or all-numbers password
+    Then the API returns 400 "must include at least one letter and one number"
+
+  Scenario: Export my data
+    Given the user is signed in
+    When they click "Export" in Settings
+    Then GET /api/auth/export returns their user + family data as JSON
+    And the browser downloads it as homebase-export.json
+
+  Scenario: Delete my account
+    Given the user is signed in
+    When they confirm "Delete account" in Settings
+    Then DELETE /api/auth/account removes the user (and their owned family)
+    And the client clears the token and lands on the public landing page

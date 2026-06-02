@@ -15,5 +15,10 @@ export function passwordError(password: unknown): string | null {
   if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
     return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
   }
+  // Light complexity floor: at least one letter and one number. Avoids the
+  // weakest passwords without forcing symbol/case rules that frustrate users.
+  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    return "Password must include at least one letter and one number";
+  }
   return null;
 }

@@ -427,4 +427,112 @@ router.post(
   },
 );
 
+// GET /api/auth/export — download all of the caller's data (GDPR access).
+router.get("/export", requireAuth, async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.id;
+  try {
+    const userRow = await pool.query(
+      "SELECT id, email, full_name, created_at FROM users WHERE id = $1",
+      [userId],
+    );
+    const famRow = await pool.query(
+      `SELECT f.id, f.name FROM families f
+       JOIN family_members fm ON fm.family_id = f.id
+       WHERE fm.user_id = $1 LIMIT 1`,
+      [userId],
+    );
+
+    const data: Record<string, unknown> = {
+      exportedAt: new Date().toISOString(),
+      user: userRow.rows[0] ?? null,
+    };
+
+    const fam = famRow.rows[0];
+    if (fam) {
+      const fid = fam.id;
+      const [
+        members,
+        events,
+        tasks,
+        recipes,
+        plan,
+        shopping,
+        accounts,
+        txns,
+        budgets,
+      ] = await Promise.all([
+        pool.query(
+          "SELECT name, role, email FROM family_members WHERE family_id = $1",
+          [fid],
+        ),
+        pool.query(
+          "SELECT title, description, date::text AS date, start_time, end_time, recurrence FROM calendar_events WHERE family_id = $1",
+          [fid],
+        ),
+        pool.query("SELECT * FROM tasks WHERE family_id = $1", [fid]),
+        pool.query("SELECT * FROM recipes WHERE family_id = $1", [fid]),
+        pool.query("SELECT * FROM meal_plan WHERE family_id = $1", [fid]),
+        pool.query("SELECT * FROM shopping_list WHERE family_id = $1", [fid]),
+        pool.query(
+          "SELECT name, institution, balance FROM bank_accounts WHERE family_id = $1",
+          [fid],
+        ),
+        pool.query(
+          "SELECT description, amount, date, category FROM transactions WHERE family_id = $1",
+          [fid],
+        ),
+        pool.query(
+          "SELECT category, monthly_limit FROM budgets WHERE family_id = $1",
+          [fid],
+        ),
+      ]);
+      data.family = {
+        name: fam.name,
+        members: members.rows,
+        events: events.rows,
+        tasks: tasks.rows,
+        recipes: recipes.rows,
+        mealPlan: plan.rows,
+        shoppingList: shopping.rows,
+        bankAccounts: accounts.rows,
+        transactions: txns.rows,
+        budgets: budgets.rows,
+      };
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="homebase-export.json"',
+    );
+    res.json(data);
+  } catch (err) {
+    console.error("Export error:", err);
+    res.status(500).json({ error: "Failed to export data" });
+  }
+});
+
+// DELETE /api/auth/account — permanently delete the caller's account (GDPR
+// erasure). If they own a family, the whole family and its data are deleted.
+router.delete(
+  "/account",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    try {
+      // Deleting an owned family cascades all family-scoped data.
+      await pool.query("DELETE FROM families WHERE owner_id = $1", [userId]);
+      // Remove memberships in any other families.
+      await pool.query("DELETE FROM family_members WHERE user_id = $1", [
+        userId,
+      ]);
+      // Delete the user (cascades profiles + device_tokens).
+      await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Delete account error:", err);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
+  },
+);
+
 export default router;

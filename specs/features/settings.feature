@@ -130,6 +130,12 @@ Feature: Settings — family members, calendars, profile
     When the user clicks X
     Then `disconnectMutation` runs and the row reverts to "not connected"
 
+  # ---- Preferences & account ---------------------------------------------
+
+  Scenario: Toggle dark mode
+    When the user clicks the dark-mode toggle in Settings
+    Then the `dark` class is applied to <html> and the theme persists
+
   # ---- Sign out ----------------------------------------------------------
 
   Scenario: Sign out from Settings

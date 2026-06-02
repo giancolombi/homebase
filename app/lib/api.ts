@@ -168,6 +168,15 @@ export const auth = {
     return data;
   },
 
+  async exportData(): Promise<unknown> {
+    return request<unknown>("/api/auth/export");
+  },
+
+  async deleteAccount(): Promise<void> {
+    await request("/api/auth/account", { method: "DELETE" });
+    clearToken();
+  },
+
   /** Check if a token is stored */
   hasToken(): boolean {
     return !!getToken();

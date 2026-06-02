@@ -25,7 +25,13 @@ describe("passwordError", () => {
     expect(passwordError(12345678)).toMatch(/at least/);
   });
 
-  it("accepts a password at the minimum length", () => {
-    expect(passwordError("x".repeat(MIN_PASSWORD_LENGTH))).toBeNull();
+  it("accepts a password meeting length + letter/number rules", () => {
+    expect(passwordError("abcdef12")).toBeNull();
+    expect("abcdef12".length).toBe(MIN_PASSWORD_LENGTH);
+  });
+
+  it("rejects an all-letters or all-numbers password", () => {
+    expect(passwordError("abcdefgh")).toMatch(/letter and one number/);
+    expect(passwordError("12345678")).toMatch(/letter and one number/);
   });
 });
