@@ -13,6 +13,7 @@ import { useCalendarEvents, useCalendarSync } from "@/hooks/use-calendar-sync";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   MEMBER_COLORS,
@@ -21,7 +22,7 @@ import {
   getMemberInitials,
 } from "@/lib/memberColors";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import AddEventDialog from "@/components/calendar/AddEventDialog";
 import { expandRecurringEvents } from "@/lib/recurrence";
 import type { CalendarEvent, FamilyMember } from "@/types/family";
@@ -82,6 +83,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<"day" | "week">("day");
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [preselectedTime, setPreselectedTime] = useState<string | undefined>();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -167,8 +169,14 @@ export default function CalendarPage() {
     return Array.from(byId.values());
   })();
 
+  // Apply the title search filter once; both views read the filtered set.
+  const q = searchQuery.trim().toLowerCase();
+  const visibleEvents = q
+    ? allEvents.filter((e) => e.title.toLowerCase().includes(q))
+    : allEvents;
+
   const dayEvents = (date: Date) =>
-    allEvents.filter((e) => isSameDay(parseISO(e.date), date));
+    visibleEvents.filter((e) => isSameDay(parseISO(e.date), date));
 
   const getMemberColor = (memberId: string) => {
     const m = members.find((m) => m.id === memberId);
@@ -247,6 +255,16 @@ export default function CalendarPage() {
             <Plus className="h-4 w-4 mr-1" /> Event
           </Button>
         </div>
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search events…"
+            className="h-8 text-xs pl-7"
+            aria-label="Search events"
+          />
+        </div>
       </div>
 
       {/* Calendar grid */}
@@ -263,7 +281,7 @@ export default function CalendarPage() {
         ) : (
           <WeekView
             weekDays={weekDays}
-            allEvents={allEvents}
+            allEvents={visibleEvents}
             members={members}
             getMemberColor={getMemberColor}
           />

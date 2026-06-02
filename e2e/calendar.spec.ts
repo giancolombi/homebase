@@ -63,6 +63,21 @@ test.describe("Calendar", () => {
       .toBeGreaterThan(1);
   });
 
+  test("search filters events by title", async ({ page }) => {
+    await signUpAndOnboard(page);
+
+    await page.getByRole("button", { name: /Event/ }).click();
+    await page.getByPlaceholder("Event title").fill("Piano lesson");
+    await page.getByRole("button", { name: "Add Event" }).click();
+    await expect(page.getByText("Piano lesson")).toBeVisible();
+
+    await page.getByLabel("Search events").fill("dentist");
+    await expect(page.getByText("Piano lesson")).toHaveCount(0);
+
+    await page.getByLabel("Search events").fill("piano");
+    await expect(page.getByText("Piano lesson")).toBeVisible();
+  });
+
   test("week view toggles 7 days", async ({ page }) => {
     await signUpAndOnboard(page);
 

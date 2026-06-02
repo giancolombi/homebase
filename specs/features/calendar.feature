@@ -80,6 +80,20 @@ Feature: Calendar — events, day/week view, task overlay
     And saves a "Family vacation" event for today
     Then the event renders as a full-width all-day chip at the top of the day
 
+  Scenario: Search events by title
+    Given the calendar has an event "Piano lesson"
+    When the user types "piano" into the event search box
+    Then only events whose title matches are shown
+    And clearing the search restores all events
+
+  # ---- External sync robustness ------------------------------------------
+
+  Scenario: Large external calendars are fully paginated
+    Given a connected Google or Outlook calendar with more than 250 events
+    When the calendar syncs
+    Then all pages are fetched (nextPageToken / @odata.nextLink) up to a cap
+    And events beyond the first page are not dropped or purged
+
   # ---- Task deadlines as events ------------------------------------------
 
   Scenario: Tasks with deadlines appear on the calendar
