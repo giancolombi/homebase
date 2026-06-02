@@ -275,13 +275,28 @@ export const useFamilyStore = create<FamilyStore>()(
       // FoodLab actions
       setFoodlabRecipes: (recipes) => set({ foodlabRecipes: recipes }),
 
-      addFoodlabRating: (rating) =>
-        set((s) => ({ foodlabRatings: [...s.foodlabRatings, rating] })),
+      addFoodlabRating: (rating) => {
+        // Upsert: one rating per (dish, version, member) — re-rating replaces.
+        set((s) => {
+          const others = s.foodlabRatings.filter(
+            (r) =>
+              !(
+                r.dish === rating.dish &&
+                r.version === rating.version &&
+                r.memberId === rating.memberId
+              ),
+          );
+          return { foodlabRatings: [...others, rating] };
+        });
+        push.foodlab.rating(get().familyId, rating);
+      },
 
-      setMemberDietary: (memberId, restrictions) =>
+      setMemberDietary: (memberId, restrictions) => {
         set((s) => ({
           memberDietary: { ...s.memberDietary, [memberId]: restrictions },
-        })),
+        }));
+        push.foodlab.dietary(get().familyId, memberId, restrictions);
+      },
 
       setFoodlabLastSynced: (date) => set({ foodlabLastSynced: date }),
 
@@ -289,10 +304,11 @@ export const useFamilyStore = create<FamilyStore>()(
         const state = get();
         const version = state.getRecipeVersionForMember(recipe, memberId);
         const homebaseRecipe = foodlabToHomebaseRecipe(recipe, version);
-        // Only add if not already imported
+        // Only add if not already imported. Use addRecipe so it persists to the
+        // backend (a raw set() would leave it localStorage-only).
         const exists = state.recipes.some((r) => r.id === homebaseRecipe.id);
         if (!exists) {
-          set((s) => ({ recipes: [...s.recipes, homebaseRecipe] }));
+          state.addRecipe(homebaseRecipe);
         }
       },
 

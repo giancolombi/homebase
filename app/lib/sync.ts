@@ -2,7 +2,7 @@
 // these helpers hydrate the store from the backend on load and mirror local
 // mutations to the backend as fire-and-forget side effects.
 
-import { tasks, meals, finance, family, calendar } from "./api";
+import { tasks, meals, finance, family, calendar, foodlab } from "./api";
 import type {
   FamilyData,
   FamilyMember,
@@ -16,6 +16,11 @@ import type {
   BankAccount,
   Transaction,
 } from "@/types/family";
+import type {
+  FoodLabRating,
+  DietaryRestrictions,
+  MemberDietaryMap,
+} from "@/types/foodlab";
 
 // How far back / forward to hydrate Homebase calendar events on load.
 const EVENT_WINDOW_DAYS_BACK = 180;
@@ -57,6 +62,8 @@ export async function pullAllData(
       accountList,
       transactionList,
       eventList,
+      ratingList,
+      dietaryMap,
     ] = await Promise.all([
       family.getMembers(familyId).catch(() => null),
       tasks.list(familyId).catch(() => null),
@@ -73,6 +80,8 @@ export async function pullAllData(
           isoDateOffset(EVENT_WINDOW_DAYS_FORWARD),
         )
         .catch(() => null),
+      foodlab.listRatings(familyId).catch(() => null),
+      foodlab.getDietary(familyId).catch(() => null),
     ]);
 
     const patch: StorePatch = {};
@@ -210,6 +219,19 @@ export async function pullAllData(
           memberId: e.memberId,
           recurrence: e.recurrence as CalendarEvent["recurrence"],
         }));
+    }
+    if (ratingList) {
+      patch.foodlabRatings = ratingList.map((r) => ({
+        dish: r.dish,
+        version: r.version,
+        rating: r.rating,
+        memberId: r.memberId ?? undefined,
+        notes: r.notes ?? "",
+        date: r.date,
+      }));
+    }
+    if (dietaryMap) {
+      patch.memberDietary = dietaryMap as MemberDietaryMap;
     }
 
     apply(patch);
@@ -451,6 +473,30 @@ export const push = {
       finance
         .updateTransaction(familyId, id, updates)
         .catch((e) => ignore(e, "transaction.update"));
+    },
+  },
+  foodlab: {
+    rating: (familyId: string | null, rating: FoodLabRating) => {
+      if (!shouldSync(familyId)) return;
+      foodlab
+        .upsertRating(familyId, {
+          memberId: rating.memberId ?? null,
+          dish: rating.dish,
+          version: rating.version,
+          rating: rating.rating,
+          notes: rating.notes,
+        })
+        .catch((e) => ignore(e, "foodlab.rating"));
+    },
+    dietary: (
+      familyId: string | null,
+      memberId: string,
+      restrictions: DietaryRestrictions,
+    ) => {
+      if (!shouldSync(familyId)) return;
+      foodlab
+        .setDietary(familyId, memberId, restrictions)
+        .catch((e) => ignore(e, "foodlab.dietary"));
     },
   },
 };

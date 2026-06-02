@@ -136,4 +136,9 @@ export interface FamilyData {
   transactions: Transaction[];
   onboardingComplete: boolean;
   onboardingStep: number;
+  // FoodLab state (recipes are a client-side cache; ratings + dietary persist)
+  foodlabRecipes: import("./foodlab").FoodLabRecipe[];
+  foodlabRatings: import("./foodlab").FoodLabRating[];
+  memberDietary: import("./foodlab").MemberDietaryMap;
+  foodlabLastSynced: string | null;
 }

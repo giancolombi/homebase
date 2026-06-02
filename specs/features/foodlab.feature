@@ -48,20 +48,31 @@ Feature: FoodLab integration
     And toggles noSoy, noDairy, noMeat
     And clicks save
     Then `memberDietary[memberId]` is updated in the store
+    And it persists via PUT /api/foodlab/dietary
     And subsequent recipe views honor the new restrictions
+
+  Scenario: Recipes warn about all dietary restrictions, not just noMeat
+    Given the current user has noDairy and noGluten set
+    When they view a recipe whose ingredients include cheese and pasta
+    Then the card shows a "Contains dairy, gluten" warning
+    # noMeat still switches the veg/meat variant; the other restrictions can't
+    # change a recipe that only ships two variants, so they surface as warnings.
 
   # ---- Ratings -----------------------------------------------------------
 
   Scenario: Rate a recipe
     When the user clicks 4 stars on a recipe
-    Then a `FoodLabRating` is added to `foodlabRatings` for that recipe
-    And the recipe card displays the user's 4-star rating
+    Then a `FoodLabRating` for the viewed version (veg/meat) is recorded
+    And the recipe card's stars show the user's own 4-star rating
+    And it persists via PUT /api/foodlab/ratings
+    And re-rating the same dish+version updates in place (no duplicate row)
 
-  Scenario: Ratings influence future suggestions
+  Scenario: Ratings influence suggestions
     Given the user has rated several recipes
-    When the meal-planner suggests recipes
-    Then high-rated recipes are weighted more heavily
-    (ranking is computed from `foodlabRatings`)
+    When the Browse list renders
+    Then recipes are ordered by average rating (highest first)
+    And the community average is shown next to the user's stars
+    # ranking is computed from `foodlabRatings` via averageRating()
 
   # ---- Import to library -------------------------------------------------
 

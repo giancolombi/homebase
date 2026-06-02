@@ -10,6 +10,7 @@ import mealsRouter from "./meals.js";
 import financeRouter from "./finance.js";
 import plaidRouter from "./plaid.js";
 import devicesRouter from "./devices.js";
+import foodlabRouter from "./foodlab.js";
 import { aasaHandler } from "./lib/aasa.js";
 import { corsOrigins } from "./lib/env.js";
 import pool from "./db.js";
@@ -65,6 +66,7 @@ app.use("/api/meals", mealsRouter);
 app.use("/api/finance", financeRouter);
 app.use("/api/plaid", plaidRouter);
 app.use("/api/devices", devicesRouter);
+app.use("/api/foodlab", foodlabRouter);
 
 // Apple App Site Association — enables iOS Universal Links to open the
 // native Homebase app instead of Safari for /accept-invite, /reset-password,

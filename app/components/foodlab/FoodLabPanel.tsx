@@ -15,6 +15,7 @@ import IngredientMatcher from "./IngredientMatcher";
 import DietaryEditor from "./DietaryEditor";
 import type { FoodLabRating } from "@/types/foodlab";
 import { fetchFoodlabRecipes } from "@/lib/foodlabSync";
+import { averageRating } from "@/lib/foodlabDietary";
 import { toast } from "@/hooks/use-toast";
 
 export default function FoodLabPanel() {
@@ -63,29 +64,32 @@ export default function FoodLabPanel() {
   };
 
   const filteredRecipes = useMemo(() => {
-    if (!searchQuery.trim()) return foodlabRecipes;
-    const q = searchQuery.toLowerCase();
-    return foodlabRecipes.filter(
-      (r) =>
-        r.title.toLowerCase().includes(q) ||
-        r.cuisine.toLowerCase().includes(q) ||
-        r.sharedBase.some((b) => b.toLowerCase().includes(q)),
+    const q = searchQuery.trim().toLowerCase();
+    const matches = q
+      ? foodlabRecipes.filter(
+          (r) =>
+            r.title.toLowerCase().includes(q) ||
+            r.cuisine.toLowerCase().includes(q) ||
+            r.sharedBase.some((b) => b.toLowerCase().includes(q)),
+        )
+      : foodlabRecipes;
+    // Rating-driven suggestions: surface higher-rated dishes first.
+    return [...matches].sort(
+      (a, b) =>
+        averageRating(foodlabRatings, b.slug) -
+        averageRating(foodlabRatings, a.slug),
     );
-  }, [foodlabRecipes, searchQuery]);
+  }, [foodlabRecipes, foodlabRatings, searchQuery]);
 
-  const getAverageRating = (slug: string): number => {
-    const ratings = foodlabRatings.filter((r) => r.dish === slug);
-    if (ratings.length === 0) return 0;
-    return Math.round(
-      ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length,
-    );
-  };
-
-  const handleRate = (slug: string, rating: number) => {
+  const handleRate = (
+    slug: string,
+    rating: number,
+    version: "veg" | "meat",
+  ) => {
     const newRating: FoodLabRating = {
       dish: slug,
       rating,
-      version: "veg",
+      version,
       memberId: currentUserId || undefined,
       notes: "",
       date: new Date().toISOString().split("T")[0],
@@ -180,7 +184,6 @@ export default function FoodLabPanel() {
                 key={recipe.slug}
                 recipe={recipe}
                 onRate={handleRate}
-                averageRating={getAverageRating(recipe.slug)}
               />
             ))}
           </div>

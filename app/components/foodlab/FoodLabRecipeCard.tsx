@@ -3,26 +3,35 @@ import { useFamilyStore } from "@/store/familyStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Import, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import {
+  Import,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  AlertTriangle,
+} from "lucide-react";
 import StarRating from "./StarRating";
+import {
+  getDietaryConflicts,
+  memberRating,
+  averageRating as avgRating,
+} from "@/lib/foodlabDietary";
+import { DEFAULT_DIETARY_RESTRICTIONS } from "@/types/foodlab";
 import type { FoodLabRecipe } from "@/types/foodlab";
 
 interface Props {
   recipe: FoodLabRecipe;
-  onRate: (slug: string, rating: number) => void;
-  averageRating?: number;
+  onRate: (slug: string, rating: number, version: "veg" | "meat") => void;
 }
 
-export default function FoodLabRecipeCard({
-  recipe,
-  onRate,
-  averageRating,
-}: Props) {
+export default function FoodLabRecipeCard({ recipe, onRate }: Props) {
   const {
     members,
     importFoodlabToMeals,
     currentUserId,
     getRecipeVersionForMember,
+    foodlabRatings,
+    memberDietary,
   } = useFamilyStore();
   const [expanded, setExpanded] = useState(false);
 
@@ -32,6 +41,21 @@ export default function FoodLabRecipeCard({
     : "veg";
   const versionData =
     version === "veg" ? recipe.vegVersion : recipe.meatVersion;
+
+  // The stars show the current user's own rating for the version they see;
+  // the community average is shown alongside.
+  const myRating = memberRating(
+    foodlabRatings,
+    recipe.slug,
+    version,
+    currentUserId,
+  );
+  const community = avgRating(foodlabRatings, recipe.slug);
+
+  const restrictions =
+    (currentMember && memberDietary[currentMember.id]) ||
+    DEFAULT_DIETARY_RESTRICTIONS;
+  const conflicts = getDietaryConflicts(recipe, version, restrictions);
 
   const cuisineEmoji: Record<string, string> = {
     moroccan: "🇲🇦",
@@ -87,12 +111,26 @@ export default function FoodLabRecipeCard({
           {recipe.cookTime && <span>Cook: {recipe.cookTime}</span>}
         </div>
 
+        {conflicts.length > 0 && (
+          <div className="flex items-center gap-1 text-[10px] text-amber-600">
+            <AlertTriangle className="h-3 w-3" />
+            <span>Contains {conflicts.join(", ")}</span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
-          <StarRating
-            rating={averageRating || 0}
-            onRate={(r) => onRate(recipe.slug, r)}
-            size="sm"
-          />
+          <div className="flex items-center gap-1">
+            <StarRating
+              rating={myRating}
+              onRate={(r) => onRate(recipe.slug, r, version)}
+              size="sm"
+            />
+            {community > 0 && (
+              <span className="text-[10px] text-muted-foreground">
+                avg {community.toFixed(1)}
+              </span>
+            )}
+          </div>
           <div className="flex gap-1">
             <Button
               size="sm"

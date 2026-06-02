@@ -751,6 +751,55 @@ export const finance = {
   },
 };
 
+// ---- FoodLab API (ratings + dietary) ----
+
+export interface FoodlabRatingResponse {
+  memberId: string | null;
+  dish: string;
+  version: "veg" | "meat";
+  rating: number;
+  notes: string;
+  date: string;
+}
+
+export const foodlab = {
+  listRatings(familyId: string): Promise<FoodlabRatingResponse[]> {
+    return request<FoodlabRatingResponse[]>(
+      `/api/foodlab/ratings?familyId=${familyId}`,
+    );
+  },
+  upsertRating(
+    familyId: string,
+    rating: {
+      memberId?: string | null;
+      dish: string;
+      version: "veg" | "meat";
+      rating: number;
+      notes?: string;
+    },
+  ): Promise<{ ok: true }> {
+    return request<{ ok: true }>(`/api/foodlab/ratings`, {
+      method: "PUT",
+      body: JSON.stringify({ ...rating, familyId }),
+    });
+  },
+  getDietary(familyId: string): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>(
+      `/api/foodlab/dietary?familyId=${familyId}`,
+    );
+  },
+  setDietary(
+    familyId: string,
+    memberId: string,
+    restrictions: unknown,
+  ): Promise<{ ok: true }> {
+    return request<{ ok: true }>(`/api/foodlab/dietary`, {
+      method: "PUT",
+      body: JSON.stringify({ familyId, memberId, restrictions }),
+    });
+  },
+};
+
 // ---- Plaid (bank linking) API ----
 
 export interface PlaidItemResponse {
