@@ -56,6 +56,48 @@ test.describe("Meals", () => {
     await expect(page.getByText("ground beef")).toBeVisible();
   });
 
+  test("navigating weeks shows a date range beyond next week", async ({
+    page,
+  }) => {
+    await signUpAndOnboard(page);
+    await page.goto("/meals");
+
+    await expect(page.getByText("This Week")).toBeVisible();
+    await page.getByRole("button", { name: "Next week" }).click();
+    await expect(page.getByText("Next Week")).toBeVisible();
+    // A third week forward should show a date range label, not a named week.
+    await page.getByRole("button", { name: "Next week" }).click();
+    await expect(page.getByText("–")).toBeVisible();
+  });
+
+  test("shopping list sums quantities for repeated ingredients", async ({
+    page,
+  }) => {
+    await signUpAndOnboard(page);
+    await page.goto("/meals");
+
+    // Recipe with 2 eggs.
+    await page.getByRole("tab", { name: "Recipes" }).click();
+    await page.getByRole("button", { name: "Add Recipe" }).click();
+    await page.getByPlaceholder("Recipe name").fill("Omelette");
+    await page.getByPlaceholder("Amt").first().fill("2");
+    await page.getByPlaceholder("Ingredient").first().fill("eggs");
+    await page.getByRole("button", { name: "Save Recipe" }).click();
+
+    // Assign it to two different meal slots.
+    await page.getByRole("tab", { name: "Weekly Plan" }).click();
+    await page.locator("select").nth(0).selectOption({ label: "Omelette" });
+    await page.locator("select").nth(0).selectOption({ label: "Omelette" });
+
+    await page.getByRole("button", { name: /List/ }).first().click();
+    await page.getByRole("tab", { name: "Shopping" }).click();
+
+    // The consolidated "eggs" row should read 4, not "2, 2".
+    const row = page.locator("div").filter({ hasText: /eggs/ }).last();
+    await expect(row).toContainText("4");
+    await expect(row).not.toContainText("2, 2");
+  });
+
   test("empty Recipes tab shows the empty state", async ({ page }) => {
     await signUpAndOnboard(page);
     await page.goto("/meals");

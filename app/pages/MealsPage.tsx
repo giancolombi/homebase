@@ -10,13 +10,17 @@ import {
   Plus,
   Trash2,
   ShoppingCart,
-  ExternalLink,
+  Copy,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import AddRecipeDialog from "@/components/meals/AddRecipeDialog";
 import FoodLabPanel from "@/components/foodlab/FoodLabPanel";
+import { toast } from "@/hooks/use-toast";
 import type { MealType } from "@/types/family";
 import { generateId } from "@/lib/memberColors";
+import { consolidateIngredients } from "@/lib/shoppingList";
 
 const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner"];
 const MEAL_LABELS: Record<MealType, string> = {
@@ -70,31 +74,16 @@ export default function MealsPage() {
   const generateShoppingList = () => {
     const weekDates = weekDays.map((d) => format(d, "yyyy-MM-dd"));
     const weekEntries = mealPlan.filter((e) => weekDates.includes(e.date));
-    const ingredientMap: Record<
-      string,
-      { amount: string; unit: string; category: string }
-    > = {};
 
-    for (const entry of weekEntries) {
+    const rawIngredients = weekEntries.flatMap((entry) => {
       const recipe = recipes.find((r) => r.id === entry.recipeId);
-      if (!recipe) continue;
-      for (const ing of recipe.ingredients) {
-        const key = ing.name.toLowerCase();
-        if (ingredientMap[key]) {
-          ingredientMap[key].amount += `, ${ing.amount}`;
-        } else {
-          ingredientMap[key] = {
-            amount: ing.amount,
-            unit: ing.unit,
-            category: ing.category || "Other",
-          };
-        }
-      }
-    }
+      return recipe?.ingredients ?? [];
+    });
 
-    const items = Object.entries(ingredientMap).map(([name, info]) => ({
+    // Sum quantities per (name, unit) rather than concatenating strings.
+    const items = consolidateIngredients(rawIngredients).map((info) => ({
       id: generateId(),
-      name,
+      name: info.name,
       amount: info.amount,
       unit: info.unit,
       category: info.category,
@@ -102,6 +91,22 @@ export default function MealsPage() {
     }));
     updateShoppingList(items);
     setShowShopping(true);
+  };
+
+  const copyShoppingList = async () => {
+    const text = shoppingList
+      .map((i) => `- ${[i.amount, i.unit, i.name].filter(Boolean).join(" ")}`)
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Shopping list copied to clipboard" });
+    } catch {
+      toast({
+        title: "Couldn't copy",
+        description: "Your browser blocked clipboard access.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -125,29 +130,38 @@ export default function MealsPage() {
           className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4 max-w-4xl"
         >
           <div className="flex items-center justify-between">
-            <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                aria-label="Previous week"
+                onClick={() => setWeekOffset((w) => w - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
               <button
                 onClick={() => setWeekOffset(0)}
-                className={cn(
-                  "px-3 py-1 rounded-md text-xs font-medium",
-                  weekOffset === 0
-                    ? "bg-card shadow-sm text-foreground"
-                    : "text-muted-foreground",
-                )}
+                className="px-3 py-1 rounded-md text-xs font-medium bg-muted text-foreground min-w-[8rem] text-center"
               >
-                This Week
+                {weekOffset === 0
+                  ? "This Week"
+                  : weekOffset === 1
+                    ? "Next Week"
+                    : `${format(weekStart, "MMM d")} – ${format(
+                        addDays(weekStart, 6),
+                        "MMM d",
+                      )}`}
               </button>
-              <button
-                onClick={() => setWeekOffset(1)}
-                className={cn(
-                  "px-3 py-1 rounded-md text-xs font-medium",
-                  weekOffset === 1
-                    ? "bg-card shadow-sm text-foreground"
-                    : "text-muted-foreground",
-                )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                aria-label="Next week"
+                onClick={() => setWeekOffset((w) => w + 1)}
               >
-                Next Week
-              </button>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
             <Button size="sm" variant="outline" onClick={generateShoppingList}>
               <ShoppingCart className="h-4 w-4 mr-1" /> List
@@ -274,8 +288,8 @@ export default function MealsPage() {
                 <p className="text-sm font-semibold text-foreground">
                   {shoppingList.length} items
                 </p>
-                <Button size="sm" variant="outline">
-                  <ExternalLink className="h-4 w-4 mr-1" /> Amazon Groceries
+                <Button size="sm" variant="outline" onClick={copyShoppingList}>
+                  <Copy className="h-4 w-4 mr-1" /> Copy list
                 </Button>
               </div>
               {Object.entries(

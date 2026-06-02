@@ -40,6 +40,8 @@ Feature: Meals — recipes, weekly plan, shopping list
     When they click the right chevron
     Then the week shifts forward by 7 days
     And the URL doesn't need to change (state is local)
+    And the left chevron shifts back, beyond just this/next week
+    And the label shows the week's date range for weeks beyond next
 
   Scenario: Add a recipe to a meal slot
     When the user drags or clicks "Add" on the Tuesday/Dinner slot
