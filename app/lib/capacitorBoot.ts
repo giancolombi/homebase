@@ -16,6 +16,7 @@ import {
   keychainTokenStorage,
   primeTokenStorage,
 } from "@/lib/secureStorage";
+import { initPushNotifications } from "@/lib/push";
 
 // Where the iOS app talks to. Override at build time with
 // VITE_API_BASE_URL when pointing the bundled app at staging or local
@@ -63,4 +64,8 @@ export async function bootCapacitor() {
   } catch {
     // ignore
   }
+
+  // Register for push notifications (forwards the APNs token to the API).
+  // Fire-and-forget so a denied permission or missing plugin never blocks boot.
+  initPushNotifications().catch(() => undefined);
 }

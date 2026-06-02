@@ -2,6 +2,7 @@ import { Router, type Response } from "express";
 import { requireAuth, type AuthRequest } from "./auth.js";
 import pool from "./db.js";
 import { resolveFamilyId } from "./lib/familyAuth.js";
+import { notifyUsers, userIdsForMembers } from "./lib/notify.js";
 
 const router = Router();
 
@@ -192,6 +193,19 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     await client.query("COMMIT");
     const task = await loadTask(familyId, taskId);
     res.status(201).json(task);
+
+    // Notify assigned members (other than the creator) that they have a new
+    // task. Fire-and-forget — never blocks or fails the response.
+    if (body.assignedTo?.length) {
+      userIdsForMembers(body.assignedTo)
+        .then((userIds) =>
+          notifyUsers(
+            userIds.filter((id) => id !== req.user!.id),
+            { title: "New task assigned", body: body.title.trim() },
+          ),
+        )
+        .catch(() => undefined);
+    }
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Create task error:", err);
