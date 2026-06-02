@@ -62,6 +62,12 @@ async function main() {
     );
     const applied = new Set<string>(appliedRows.rows.map((r) => r.filename));
 
+    // The "schema already ahead" leniency only applies on the very first run
+    // against a pre-existing database (nothing tracked yet). Once migrations
+    // are tracked, a duplicate-object error means a genuinely broken migration
+    // and must fail loudly rather than be silently marked applied.
+    const isBootstrap = applied.size === 0;
+
     let appliedCount = 0;
     let skippedCount = 0;
     let bootstrappedCount = 0;
@@ -87,7 +93,7 @@ async function main() {
       } catch (err: unknown) {
         await client.query("ROLLBACK");
         const code = (err as { code?: string }).code;
-        if (code && ALREADY_EXISTS_CODES.has(code)) {
+        if (isBootstrap && code && ALREADY_EXISTS_CODES.has(code)) {
           console.log(
             `  schema already ahead (${code}) — marking ${file} as applied`,
           );

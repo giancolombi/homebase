@@ -9,8 +9,9 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./api/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
-      - ./api/migrations/002_calendar_tokens.sql:/docker-entrypoint-initdb.d/002_calendar_tokens.sql
+      # Mount the whole migrations dir so Postgres runs every *.sql on first
+      # init (alphabetical), not just 001/002.
+      - ./api/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d homebase"]
       interval: 5s
@@ -22,8 +23,11 @@ services:
       context: .
       dockerfile: api/Dockerfile
     environment:
+      NODE_ENV: development
       DATABASE_URL: postgresql://postgres:postgres@db:5432/homebase
       JWT_SECRET: change-me-to-a-random-secret-in-production
+      # 32-byte hex key so calendar/Plaid token encryption works in the stack.
+      TOKEN_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       API_PORT: "3001"
     ports:
       - "3001:3001"
