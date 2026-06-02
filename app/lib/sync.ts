@@ -61,6 +61,7 @@ export async function pullAllData(
       shoppingList,
       accountList,
       transactionList,
+      budgetList,
       eventList,
       ratingList,
       dietaryMap,
@@ -73,6 +74,7 @@ export async function pullAllData(
       meals.listShopping(familyId).catch(() => null),
       finance.listAccounts(familyId).catch(() => null),
       finance.listTransactions(familyId).catch(() => null),
+      finance.listBudgets(familyId).catch(() => null),
       calendar
         .getEvents(
           familyId,
@@ -200,6 +202,12 @@ export async function pullAllData(
         amount: t.amount,
         date: t.date,
         category: t.category,
+      }));
+    }
+    if (budgetList) {
+      patch.budgets = budgetList.map((b) => ({
+        category: b.category,
+        monthlyLimit: b.monthlyLimit,
       }));
     }
     if (eventList) {
@@ -464,6 +472,18 @@ export const push = {
     },
   },
   transaction: {
+    create: (familyId: string | null, t: Transaction) => {
+      if (!shouldSync(familyId)) return;
+      finance
+        .createTransaction(familyId, {
+          accountId: t.accountId,
+          description: t.description,
+          amount: t.amount,
+          date: t.date,
+          category: t.category,
+        })
+        .catch((e) => ignore(e, "transaction.create"));
+    },
     update: (
       familyId: string | null,
       id: string,
@@ -473,6 +493,26 @@ export const push = {
       finance
         .updateTransaction(familyId, id, updates)
         .catch((e) => ignore(e, "transaction.update"));
+    },
+    remove: (familyId: string | null, id: string) => {
+      if (!shouldSync(familyId)) return;
+      finance
+        .removeTransaction(familyId, id)
+        .catch((e) => ignore(e, "transaction.remove"));
+    },
+  },
+  budget: {
+    set: (familyId: string | null, category: string, monthlyLimit: number) => {
+      if (!shouldSync(familyId)) return;
+      finance
+        .upsertBudget(familyId, category, monthlyLimit)
+        .catch((e) => ignore(e, "budget.set"));
+    },
+    remove: (familyId: string | null, category: string) => {
+      if (!shouldSync(familyId)) return;
+      finance
+        .removeBudget(familyId, category)
+        .catch((e) => ignore(e, "budget.remove"));
     },
   },
   foodlab: {

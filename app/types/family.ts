@@ -120,6 +120,11 @@ export interface Transaction {
   category: string;
 }
 
+export interface Budget {
+  category: string;
+  monthlyLimit: number;
+}
+
 export interface FamilyData {
   familyId: string | null; // Database family ID (set after onboarding)
   familyName: string;
@@ -134,6 +139,7 @@ export interface FamilyData {
   shoppingList: ShoppingListItem[];
   bankAccounts: BankAccount[];
   transactions: Transaction[];
+  budgets: Budget[];
   onboardingComplete: boolean;
   onboardingStep: number;
   // FoodLab state (recipes are a client-side cache; ratings + dietary persist)

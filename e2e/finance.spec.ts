@@ -33,6 +33,45 @@ test.describe("Finance", () => {
     ).toBeVisible();
   });
 
+  test("add a budget and see it tracked", async ({ page }) => {
+    await signUpAndOnboard(page);
+    await page.goto("/finance");
+
+    await page.getByPlaceholder("Category").fill("Groceries");
+    await page.getByPlaceholder("Monthly $").fill("400");
+    await page
+      .locator("button")
+      .filter({ has: page.locator("svg.lucide-plus") })
+      .last()
+      .click();
+
+    await expect(page.getByText("Groceries")).toBeVisible();
+    await expect(page.getByText("$0 / $400")).toBeVisible();
+  });
+
+  test("manually add a transaction after creating an account", async ({
+    page,
+  }) => {
+    await signUpAndOnboard(page);
+    await page.goto("/finance");
+
+    await page.getByRole("button", { name: /Manage Accounts/ }).click();
+    await page.getByRole("button", { name: /Add Bank Account/ }).click();
+    await page.getByLabel("Account Name").fill("Checking");
+    await page.getByLabel("Institution").fill("Chase");
+    await page.getByLabel("Current Balance").fill("1000");
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("button", { name: "Close" }).click();
+
+    await page.getByRole("button", { name: /Transaction/ }).click();
+    await page.getByPlaceholder("e.g. Groceries at Whole Foods").fill("Coffee");
+    await page.getByPlaceholder("0.00").fill("4.50");
+    await page.getByPlaceholder("e.g. Groceries").last().fill("Dining");
+    await page.getByRole("button", { name: "Add Transaction" }).click();
+
+    await expect(page.getByText("Dining")).toBeVisible();
+  });
+
   test("manual bank account add appears on the Finance page", async ({
     page,
   }) => {

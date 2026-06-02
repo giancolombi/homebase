@@ -749,7 +749,34 @@ export const finance = {
       method: "DELETE",
     });
   },
+
+  listBudgets(familyId: string): Promise<BudgetResponse[]> {
+    return request<BudgetResponse[]>(
+      `/api/finance/budgets?familyId=${familyId}`,
+    );
+  },
+  upsertBudget(
+    familyId: string,
+    category: string,
+    monthlyLimit: number,
+  ): Promise<{ ok: true }> {
+    return request<{ ok: true }>(`/api/finance/budgets`, {
+      method: "PUT",
+      body: JSON.stringify({ familyId, category, monthlyLimit }),
+    });
+  },
+  removeBudget(familyId: string, category: string): Promise<void> {
+    return request(
+      `/api/finance/budgets?familyId=${familyId}&category=${encodeURIComponent(category)}`,
+      { method: "DELETE" },
+    );
+  },
 };
+
+export interface BudgetResponse {
+  category: string;
+  monthlyLimit: number;
+}
 
 // ---- FoodLab API (ratings + dietary) ----
 

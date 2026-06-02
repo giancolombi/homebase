@@ -280,4 +280,82 @@ router.delete("/transactions/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ============ Budgets ============
+
+// GET /api/finance/budgets?familyId=...
+router.get("/budgets", async (req: AuthRequest, res: Response) => {
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+  try {
+    const r = await pool.query(
+      `SELECT category, monthly_limit FROM budgets WHERE family_id = $1
+       ORDER BY category ASC`,
+      [familyId],
+    );
+    res.json(
+      r.rows.map((row) => ({
+        category: row.category,
+        monthlyLimit: Number(row.monthly_limit),
+      })),
+    );
+  } catch (err) {
+    console.error("List budgets error:", err);
+    res.status(500).json({ error: "Failed to list budgets" });
+  }
+});
+
+// PUT /api/finance/budgets { familyId, category, monthlyLimit } — upsert
+router.put("/budgets", async (req: AuthRequest, res: Response) => {
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+  const { category, monthlyLimit } = req.body as {
+    category?: string;
+    monthlyLimit?: number;
+  };
+  if (
+    !category?.trim() ||
+    typeof monthlyLimit !== "number" ||
+    monthlyLimit < 0
+  ) {
+    res
+      .status(400)
+      .json({ error: "category and a non-negative monthlyLimit are required" });
+    return;
+  }
+  try {
+    await pool.query(
+      `INSERT INTO budgets (family_id, category, monthly_limit)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (family_id, category)
+       DO UPDATE SET monthly_limit = $3`,
+      [familyId, category.trim(), monthlyLimit],
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Upsert budget error:", err);
+    res.status(500).json({ error: "Failed to save budget" });
+  }
+});
+
+// DELETE /api/finance/budgets?familyId=...&category=...
+router.delete("/budgets", async (req: AuthRequest, res: Response) => {
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+  const category = req.query.category as string | undefined;
+  if (!category) {
+    res.status(400).json({ error: "category is required" });
+    return;
+  }
+  try {
+    await pool.query(
+      `DELETE FROM budgets WHERE family_id = $1 AND category = $2`,
+      [familyId, category],
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Delete budget error:", err);
+    res.status(500).json({ error: "Failed to delete budget" });
+  }
+});
+
 export default router;

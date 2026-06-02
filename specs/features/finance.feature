@@ -70,7 +70,34 @@ Feature: Finance — accounts, transactions, Plaid
     Then `POST /api/plaid/items/:id/remove` is called
     And the `plaid_items` row + associated `bank_accounts` are removed
 
+  # ---- Budgets -----------------------------------------------------------
+
+  Scenario: Set a monthly budget for a category
+    When the user enters a category and a monthly limit and clicks add
+    Then a budget is created (PUT /api/finance/budgets) and persists
+    And the budgets card shows spent vs limit for the current month
+
+  Scenario: Budget turns red when overspent
+    Given a "Dining" budget of $150
+    And $200 of Dining transactions this month
+    Then the Dining budget bar is full and shown in the destructive color
+
+  Scenario: Remove a budget
+    When the user clicks the trash icon on a budget
+    Then it is removed (DELETE /api/finance/budgets) and disappears
+
   # ---- Transactions ------------------------------------------------------
+
+  Scenario: Manually add a transaction
+    Given the family has at least one account
+    When the user opens "Add Transaction" and enters description, amount, type,
+      date and category
+    Then `finance.createTransaction` persists it (expenses stored negative)
+    And it appears under its category in the breakdown
+
+  Scenario: Delete a transaction
+    When the user clicks the trash icon on a transaction in the breakdown
+    Then `finance.removeTransaction` removes it and the totals re-aggregate
 
   Scenario: Transactions list filtered by category
     When the user clicks a category in the breakdown

@@ -10,6 +10,8 @@ import {
   Target,
   ChevronDown,
   ChevronUp,
+  Trash2,
+  Plus,
 } from "lucide-react";
 import {
   LineChart,
@@ -23,6 +25,8 @@ import {
   Cell,
 } from "recharts";
 import { ManageBankAccountsDialog } from "@/components/finance/ManageBankAccountsDialog";
+import { AddTransactionDialog } from "@/components/finance/AddTransactionDialog";
+import { computeBudgetStatus, currentMonth } from "@/lib/budgets";
 
 const PIE_COLORS = [
   "hsl(25, 95%, 53%)",
@@ -36,10 +40,33 @@ const PIE_COLORS = [
 ];
 
 export default function FinancePage() {
-  const { bankAccounts, transactions, updateBankAccount } = useFamilyStore();
+  const {
+    bankAccounts,
+    transactions,
+    budgets,
+    updateBankAccount,
+    removeTransaction,
+    setBudget,
+    removeBudget,
+  } = useFamilyStore();
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [goalInput, setGoalInput] = useState("");
+  const [newBudgetCat, setNewBudgetCat] = useState("");
+  const [newBudgetLimit, setNewBudgetLimit] = useState("");
+
+  const budgetStatus = useMemo(
+    () => computeBudgetStatus(budgets, transactions, currentMonth()),
+    [budgets, transactions],
+  );
+
+  const handleAddBudget = () => {
+    const limit = parseFloat(newBudgetLimit);
+    if (!newBudgetCat.trim() || isNaN(limit) || limit < 0) return;
+    setBudget(newBudgetCat.trim(), limit);
+    setNewBudgetCat("");
+    setNewBudgetLimit("");
+  };
 
   const featured = bankAccounts.filter((a) => a.isFeatured);
   const others = bankAccounts.filter((a) => !a.isFeatured);
@@ -94,7 +121,10 @@ export default function FinancePage() {
               Monthly cashflow overview
             </p>
           </div>
-          <ManageBankAccountsDialog />
+          <div className="flex items-center gap-2">
+            <AddTransactionDialog />
+            <ManageBankAccountsDialog />
+          </div>
         </div>
       </div>
 
@@ -302,6 +332,79 @@ export default function FinancePage() {
           </div>
         )}
 
+        {/* Budgets */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Budgets — {currentMonth()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {budgetStatus.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No budgets yet. Add one below to track spending against a
+                monthly limit.
+              </p>
+            )}
+            {budgetStatus.map((b) => (
+              <div key={b.category} className="space-y-1">
+                <div className="flex items-center gap-2 text-xs md:text-sm">
+                  <span className="flex-1 font-medium text-foreground">
+                    {b.category}
+                  </span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      b.over ? "text-destructive" : "text-foreground",
+                    )}
+                  >
+                    ${b.spent.toFixed(0)} / ${b.limit.toFixed(0)}
+                  </span>
+                  <button
+                    onClick={() => removeBudget(b.category)}
+                    aria-label={`Remove ${b.category} budget`}
+                    className="p-1 hover:bg-destructive/10 rounded"
+                  >
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </button>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      b.over ? "bg-destructive" : "bg-primary",
+                    )}
+                    style={{ width: `${Math.min(b.pct, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="flex gap-2 pt-1">
+              <Input
+                value={newBudgetCat}
+                onChange={(e) => setNewBudgetCat(e.target.value)}
+                placeholder="Category"
+                className="h-8 text-xs flex-1"
+              />
+              <Input
+                value={newBudgetLimit}
+                onChange={(e) => setNewBudgetLimit(e.target.value)}
+                placeholder="Monthly $"
+                type="number"
+                className="h-8 text-xs w-28"
+              />
+              <Button
+                size="sm"
+                className="h-8"
+                onClick={handleAddBudget}
+                disabled={!newBudgetCat.trim() || !newBudgetLimit}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Expense categories */}
         <Card>
           <CardHeader className="pb-2">
@@ -380,6 +483,13 @@ export default function FinancePage() {
                           <span className="text-[10px] md:text-xs text-muted-foreground">
                             {tx.date.split("-").slice(1).join("/")}
                           </span>
+                          <button
+                            onClick={() => removeTransaction(tx.id)}
+                            aria-label="Delete transaction"
+                            className="p-0.5 hover:bg-destructive/10 rounded"
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </button>
                         </div>
                       ))}
                     </div>

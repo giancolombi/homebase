@@ -37,6 +37,7 @@ const initialState: FamilyData = {
   shoppingList: [],
   bankAccounts: [],
   transactions: [],
+  budgets: [],
   onboardingComplete: false,
   onboardingStep: 0,
   // FoodLab state
@@ -81,7 +82,11 @@ interface FamilyStore extends FamilyData {
   updateBankAccount: (id: string, updates: Partial<BankAccount>) => void;
   addBankAccount: (account: BankAccount) => void;
   removeBankAccount: (id: string) => void;
+  addTransaction: (tx: Transaction) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
+  removeTransaction: (id: string) => void;
+  setBudget: (category: string, monthlyLimit: number) => void;
+  removeBudget: (category: string) => void;
 
   // FoodLab
   setFoodlabRecipes: (recipes: FoodLabRecipe[]) => void;
@@ -263,6 +268,11 @@ export const useFamilyStore = create<FamilyStore>()(
         push.bankAccount.remove(get().familyId, id);
       },
 
+      addTransaction: (tx) => {
+        set((s) => ({ transactions: [tx, ...s.transactions] }));
+        push.transaction.create(get().familyId, tx);
+      },
+
       updateTransaction: (id, updates) => {
         set((s) => ({
           transactions: s.transactions.map((t) =>
@@ -270,6 +280,28 @@ export const useFamilyStore = create<FamilyStore>()(
           ),
         }));
         push.transaction.update(get().familyId, id, updates);
+      },
+
+      removeTransaction: (id) => {
+        set((s) => ({
+          transactions: s.transactions.filter((t) => t.id !== id),
+        }));
+        push.transaction.remove(get().familyId, id);
+      },
+
+      setBudget: (category, monthlyLimit) => {
+        set((s) => {
+          const others = s.budgets.filter((b) => b.category !== category);
+          return { budgets: [...others, { category, monthlyLimit }] };
+        });
+        push.budget.set(get().familyId, category, monthlyLimit);
+      },
+
+      removeBudget: (category) => {
+        set((s) => ({
+          budgets: s.budgets.filter((b) => b.category !== category),
+        }));
+        push.budget.remove(get().familyId, category);
       },
 
       // FoodLab actions
