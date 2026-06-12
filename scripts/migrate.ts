@@ -9,10 +9,16 @@
 // without actually re-running. This lets us start tracking on a live DB
 // without re-creating tables that are already there.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "pg";
+
+// Local dev convenience: pick up DATABASE_URL from .env (real environment
+// variables win; production containers have no .env so this is a no-op).
+if (existsSync(".env")) {
+  process.loadEnvFile(".env");
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, "..", "api", "migrations");

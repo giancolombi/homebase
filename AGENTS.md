@@ -57,10 +57,14 @@ pnpm run test:watch     # Vitest — watch mode
 ### Running a single test
 
 ```bash
-pnpm vitest run app/test/example.test.ts          # Run one file
-pnpm vitest run -t "should pass"                   # Run by test name pattern
+pnpm vitest run app/test/foodlabParser.test.ts     # Run one file
+pnpm vitest run -t "round-trips"                   # Run by test name pattern
 pnpm vitest run app/components/                    # Run all tests under a directory
 ```
+
+Vitest runs two projects: `app` (jsdom, vitest globals, `app/**/*.test.*`)
+and `api` (node environment, `api/**/*.test.ts` — import from `"vitest"`
+explicitly, no globals).
 
 ### Backend
 
@@ -85,13 +89,30 @@ pnpm run test:e2e:headed       # Run with visible browser
 pnpm run test:e2e:ui           # Playwright interactive UI mode
 ```
 
-Run against a different environment:
+The suite hits the real API + database (not demo mode). Playwright's
+`webServer` config starts the API server and Vite dev server automatically
+(reusing them if already running) — **you only need Postgres up** with
+`DATABASE_URL` pointing at a migrated `homebase` database:
+
+```bash
+docker compose up -d db && pnpm run db:migrate   # once per machine
+pnpm run test:e2e
+```
+
+Run against a different environment (nothing is auto-started):
 
 ```bash
 E2E_BASE_URL=https://gethomebase.dev pnpm test:e2e
 ```
 
 E2E test files live in `e2e/` and map 1:1 to QA specs in `specs/qa/`.
+
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml` runs on every push and PR: a `checks` job
+(typecheck, lint:strict, format:check, unit tests) and an `e2e` job that
+boots a Postgres service container, migrates, and runs the full Playwright
+suite. The pre-commit hook is the fast local gate; CI is the enforced one.
 
 ### Pre-commit Hook (Husky)
 

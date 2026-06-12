@@ -1,3 +1,4 @@
+# Local full-stack only — do NOT use in production (plaintext dev secrets).
 services:
   db:
     image: postgres:17-alpine
@@ -9,8 +10,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./api/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
-      - ./api/migrations/002_calendar_tokens.sql:/docker-entrypoint-initdb.d/002_calendar_tokens.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d homebase"]
       interval: 5s
@@ -21,10 +20,19 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
+    # Run all migrations before starting — initdb-mounted .sql files only
+    # apply on a brand-new volume and silently drift as migrations are added.
+    command: sh -c "pnpm run db:migrate && pnpm exec tsx api/index.ts"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/homebase
-      JWT_SECRET: change-me-to-a-random-secret-in-production
+      JWT_SECRET: local-compose-dev-secret
       API_PORT: "3001"
+      # Keep the local stack dev-flavored (the image bakes in production):
+      # rate limiting and prod-only logging gates stay off.
+      NODE_ENV: development
+      # Optional integrations — pass through from the host shell if set.
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
     ports:
       - "3001:3001"
     depends_on:

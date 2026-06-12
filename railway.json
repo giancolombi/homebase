@@ -1,6 +1,9 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
+  "_comment": "Shared by BOTH Railway services (frontend + api). preDeployCommand: the api service runs migrations; the frontend has no DATABASE_URL so migrate.ts skips. healthcheckPath: the api serves /api/health directly; the frontend proxies it through serve.ts — a deploy that boots but can't serve traffic is rolled back instead of replacing the healthy instance.",
   "deploy": {
-    "preDeployCommand": "pnpm run db:migrate"
+    "preDeployCommand": "pnpm run db:migrate",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 120
   }
 }

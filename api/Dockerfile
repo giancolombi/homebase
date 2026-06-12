@@ -1,15 +1,21 @@
+# API service: Express 5 + PostgreSQL, run through tsx (no build step).
+# Production deps only and a non-root user.
+
 FROM node:24-alpine
 
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 
+ENV NODE_ENV=production
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY --chown=node:node package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
-COPY api/ ./api/
-COPY scripts/ ./scripts/
-COPY tsconfig.json tsconfig.node.json ./
+COPY --chown=node:node api/ ./api/
+COPY --chown=node:node scripts/ ./scripts/
+COPY --chown=node:node tsconfig.json tsconfig.node.json ./
+
+USER node
 
 EXPOSE 3001
 
