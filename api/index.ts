@@ -18,10 +18,16 @@ import devicesRouter from "./devices.js";
 import { aasaHandler } from "./lib/aasa.js";
 
 const app = express();
-// Railway injects PORT and points its healthcheck/routing at it — honor it
-// first (like serve.ts does), falling back to API_PORT/3001 for local dev
-// and docker-compose.
-const PORT = parseInt(process.env.PORT || process.env.API_PORT || "3001", 10);
+// The frontend's proxy (serve.ts API_URL) targets this fixed port over
+// Railway private networking — it must always be bound.
+const PRIVATE_PORT = parseInt(process.env.API_PORT || "3001", 10);
+// Railway injects PORT and probes it for deploy healthchecks. When it
+// differs from the private port, we listen on both: binding only PORT
+// breaks the proxy (502s), binding only 3001 fails the healthcheck and
+// rolls the deploy back.
+const HEALTHCHECK_PORT = process.env.PORT
+  ? parseInt(process.env.PORT, 10)
+  : PRIVATE_PORT;
 
 // Railway terminates TLS at its proxy; trust one hop so req.ip (used by the
 // auth rate limiter) is the client address, not the proxy's.
@@ -91,8 +97,14 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+app.listen(PRIVATE_PORT, () => {
+  console.log(`API server running on http://localhost:${PRIVATE_PORT}`);
 });
+
+if (HEALTHCHECK_PORT !== PRIVATE_PORT) {
+  app.listen(HEALTHCHECK_PORT, () => {
+    console.log(`Healthcheck listener on http://localhost:${HEALTHCHECK_PORT}`);
+  });
+}
 
 export default app;
