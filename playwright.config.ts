@@ -16,7 +16,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://localhost:8080",
     headless: true,
-    screenshot: "only-on-failure",
+    // Capture a screenshot at the end of EVERY test (not just failures) so
+    // each run leaves visual evidence in test-results/ that the UI actually
+    // rendered what the assertions claim.
+    screenshot: "on",
     trace: "retain-on-failure",
   },
   projects: [
