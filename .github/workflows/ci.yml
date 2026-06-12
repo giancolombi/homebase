@@ -55,10 +55,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # No --with-deps: ubuntu-latest runners already include Chromium's
-      # system libraries, and the apt-get it triggers has hung CI for 45+
-      # minutes waiting on input.
-      - run: pnpm exec playwright install chromium
+      # No --with-deps (runners already ship Chromium's system libraries).
+      # `playwright install` has hung indefinitely AFTER the download
+      # completed (runs 27438632645, 27441186289) — bound each attempt and
+      # retry once; the second attempt sees the extracted browser and exits.
+      - name: Install Playwright Chromium
+        run: timeout 240 npx playwright install chromium || timeout 240 npx playwright install chromium
+        timeout-minutes: 10
       - run: pnpm run db:migrate
       # playwright.config.ts starts the API server and Vite dev server
       # itself via its webServer entries.
