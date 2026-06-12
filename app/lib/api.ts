@@ -64,6 +64,38 @@ function clearToken() {
   tokenStorage.clear();
 }
 
+// Thrown for non-2xx responses. Carries the HTTP status so callers can tell
+// "session is dead" (401) apart from "server hiccup / offline" (5xx, network
+// errors) — only the former should ever clear the stored token.
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+// Registered by AuthContext: called when an authenticated request comes back
+// 401 mid-session (expired/revoked token) so the app can route to sign-in
+// instead of silently failing every call until the next reload.
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
+// Build an encoded query string; skips undefined/null values.
+function qs(params: Record<string, string | undefined | null>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value != null) search.set(key, value);
+  }
+  return search.toString();
+}
+
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T = unknown>(
   path: string,
   options: RequestInit = {},
@@ -83,13 +115,23 @@ async function request<T = unknown>(
   const res = await fetch(url, {
     ...options,
     headers,
+    // Don't let requests hang forever on flaky mobile networks — a stuck
+    // fetch leaves spinners spinning with no way to recover.
+    signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
+    // A 401 on an authenticated, non-auth-flow request means the session is
+    // dead. Auth-flow endpoints are excluded: a wrong password on signin
+    // must not sign out the current user.
+    if (res.status === 401 && token && !path.startsWith("/api/auth/")) {
+      clearToken();
+      onUnauthorized?.();
+    }
     const message = data?.error || res.statusText || "Request failed";
-    throw new Error(message);
+    throw new ApiError(message, res.status);
   }
 
   return data as T;
@@ -127,8 +169,17 @@ export const auth = {
     if (!token) return null;
     try {
       return await request<{ user: AuthUser }>("/api/auth/me");
-    } catch {
-      clearToken();
+    } catch (err) {
+      // Only discard the token when the server explicitly rejected it.
+      // Network failures and 5xx are transient — wiping the token here
+      // would permanently sign the user out (including the iOS Keychain)
+      // just because the app launched offline.
+      if (
+        err instanceof ApiError &&
+        (err.status === 401 || err.status === 403)
+      ) {
+        clearToken();
+      }
       return null;
     }
   },
@@ -154,10 +205,10 @@ export const auth = {
     });
   },
 
-  async updatePassword(password: string) {
+  async updatePassword(currentPassword: string, password: string) {
     return request<{ message: string }>("/api/auth/update-password", {
       method: "POST",
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ currentPassword, password }),
     });
   },
 
@@ -244,12 +295,19 @@ export interface CalendarEventResponse {
 }
 
 export const calendar = {
-  getAuthUrl(provider: string, familyId: string, returnTo?: string): string {
-    const token = getToken();
-    const params = new URLSearchParams({
-      familyId,
-      token: token || "",
-    });
+  // Mint a short-lived single-purpose token for the OAuth popup, then build
+  // the redirect URL around it. The session JWT itself never goes into a URL
+  // (URLs land in browser history and server access logs).
+  async getAuthUrl(
+    provider: string,
+    familyId: string,
+    returnTo?: string,
+  ): Promise<string> {
+    const { token } = await request<{ token: string }>(
+      "/api/calendar/oauth-token",
+      { method: "POST" },
+    );
+    const params = new URLSearchParams({ familyId, token });
     if (returnTo) params.set("returnTo", returnTo);
     // Same base-URL logic as request() — Capacitor needs an absolute URL
     // so SafariViewController can navigate to the OAuth provider.
@@ -260,7 +318,7 @@ export const calendar = {
     familyId: string,
   ): Promise<CalendarConnectionResponse[]> {
     return request<CalendarConnectionResponse[]>(
-      `/api/calendar/connections?familyId=${familyId}`,
+      `/api/calendar/connections?${qs({ familyId })}`,
     );
   },
 
@@ -277,7 +335,7 @@ export const calendar = {
     endDate: string,
   ): Promise<CalendarEventResponse[]> {
     return request<CalendarEventResponse[]>(
-      `/api/calendar/events?familyId=${familyId}&startDate=${startDate}&endDate=${endDate}`,
+      `/api/calendar/events?${qs({ familyId, startDate, endDate })}`,
     );
   },
 
@@ -365,18 +423,17 @@ export const invite = {
     currentFamily?: string | null;
     isOwnerOfCurrentFamily?: boolean;
   }> {
-    return request(`/api/invite/verify?token=${token}`);
+    return request(`/api/invite/verify?${qs({ token })}`);
   },
 
-  async accept(
-    token: string,
-    userId: string,
-  ): Promise<{ familyId: string; memberId: string }> {
+  // The account being linked is always the authenticated caller's own —
+  // signIn/signUp must have stored a token before this is called.
+  async accept(token: string): Promise<{ familyId: string; memberId: string }> {
     return request<{ familyId: string; memberId: string }>(
       "/api/invite/accept",
       {
         method: "POST",
-        body: JSON.stringify({ token, userId }),
+        body: JSON.stringify({ token }),
       },
     );
   },
@@ -413,7 +470,7 @@ export const family = {
 
   async getMembers(familyId: string): Promise<FamilyMemberResponse[]> {
     return request<FamilyMemberResponse[]>(
-      `/api/family/members?familyId=${familyId}`,
+      `/api/family/members?${qs({ familyId })}`,
     );
   },
 
@@ -448,7 +505,7 @@ export interface TaskResponse {
 
 export const tasks = {
   list(familyId: string): Promise<TaskResponse[]> {
-    return request<TaskResponse[]>(`/api/tasks?familyId=${familyId}`);
+    return request<TaskResponse[]>(`/api/tasks?${qs({ familyId })}`);
   },
   create(
     familyId: string,
@@ -470,14 +527,14 @@ export const tasks = {
     });
   },
   remove(familyId: string, id: string): Promise<void> {
-    return request(`/api/tasks/${id}?familyId=${familyId}`, {
+    return request(`/api/tasks/${id}?${qs({ familyId })}`, {
       method: "DELETE",
     });
   },
 
   listCategories(familyId: string): Promise<TaskCategoryResponse[]> {
     return request<TaskCategoryResponse[]>(
-      `/api/tasks/categories?familyId=${familyId}`,
+      `/api/tasks/categories?${qs({ familyId })}`,
     );
   },
   createCategory(
@@ -526,7 +583,7 @@ export interface ShoppingItemResponse {
 
 export const meals = {
   listRecipes(familyId: string): Promise<RecipeResponse[]> {
-    return request<RecipeResponse[]>(`/api/meals/recipes?familyId=${familyId}`);
+    return request<RecipeResponse[]>(`/api/meals/recipes?${qs({ familyId })}`);
   },
   createRecipe(
     familyId: string,
@@ -548,13 +605,13 @@ export const meals = {
     });
   },
   removeRecipe(familyId: string, id: string): Promise<void> {
-    return request(`/api/meals/recipes/${id}?familyId=${familyId}`, {
+    return request(`/api/meals/recipes/${id}?${qs({ familyId })}`, {
       method: "DELETE",
     });
   },
 
   listPlan(familyId: string): Promise<MealPlanResponse[]> {
-    return request<MealPlanResponse[]>(`/api/meals/plan?familyId=${familyId}`);
+    return request<MealPlanResponse[]>(`/api/meals/plan?${qs({ familyId })}`);
   },
   addPlanEntry(
     familyId: string,
@@ -566,24 +623,27 @@ export const meals = {
     });
   },
   removePlanEntry(familyId: string, id: string): Promise<void> {
-    return request(`/api/meals/plan/${id}?familyId=${familyId}`, {
+    return request(`/api/meals/plan/${id}?${qs({ familyId })}`, {
       method: "DELETE",
     });
   },
 
   listShopping(familyId: string): Promise<ShoppingItemResponse[]> {
     return request<ShoppingItemResponse[]>(
-      `/api/meals/shopping?familyId=${familyId}`,
+      `/api/meals/shopping?${qs({ familyId })}`,
     );
   },
   replaceShopping(
     familyId: string,
     items: Array<Omit<ShoppingItemResponse, "id">>,
-  ): Promise<void> {
-    return request(`/api/meals/shopping`, {
-      method: "PUT",
-      body: JSON.stringify({ familyId, items }),
-    });
+  ): Promise<{ ok: true; items: ShoppingItemResponse[] }> {
+    return request<{ ok: true; items: ShoppingItemResponse[] }>(
+      `/api/meals/shopping`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ familyId, items }),
+      },
+    );
   },
   toggleShopping(
     familyId: string,
@@ -621,7 +681,7 @@ export interface TransactionResponse {
 export const finance = {
   listAccounts(familyId: string): Promise<BankAccountResponse[]> {
     return request<BankAccountResponse[]>(
-      `/api/finance/accounts?familyId=${familyId}`,
+      `/api/finance/accounts?${qs({ familyId })}`,
     );
   },
   createAccount(
@@ -644,14 +704,14 @@ export const finance = {
     });
   },
   removeAccount(familyId: string, id: string): Promise<void> {
-    return request(`/api/finance/accounts/${id}?familyId=${familyId}`, {
+    return request(`/api/finance/accounts/${id}?${qs({ familyId })}`, {
       method: "DELETE",
     });
   },
 
   listTransactions(familyId: string): Promise<TransactionResponse[]> {
     return request<TransactionResponse[]>(
-      `/api/finance/transactions?familyId=${familyId}`,
+      `/api/finance/transactions?${qs({ familyId })}`,
     );
   },
   createTransaction(
@@ -674,7 +734,7 @@ export const finance = {
     });
   },
   removeTransaction(familyId: string, id: string): Promise<void> {
-    return request(`/api/finance/transactions/${id}?familyId=${familyId}`, {
+    return request(`/api/finance/transactions/${id}?${qs({ familyId })}`, {
       method: "DELETE",
     });
   },
@@ -721,12 +781,10 @@ export const plaid = {
     );
   },
   async listItems(familyId: string): Promise<PlaidItemResponse[]> {
-    return request<PlaidItemResponse[]>(
-      `/api/plaid/items?familyId=${familyId}`,
-    );
+    return request<PlaidItemResponse[]>(`/api/plaid/items?${qs({ familyId })}`);
   },
   async removeItem(familyId: string, itemId: string): Promise<void> {
-    return request(`/api/plaid/items/${itemId}?familyId=${familyId}`, {
+    return request(`/api/plaid/items/${itemId}?${qs({ familyId })}`, {
       method: "DELETE",
     });
   },

@@ -1,16 +1,16 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useFamilyStore } from "@/store/familyStore";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import AppLayout from "@/components/layout/AppLayout";
 import CalendarPage from "@/pages/CalendarPage";
 import TasksPage from "@/pages/TasksPage";
 import MealsPage from "@/pages/MealsPage";
-import FinancePage from "@/pages/FinancePage";
 import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/AuthPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -20,11 +20,28 @@ import TermsPage from "@/pages/TermsPage";
 import LandingPage from "@/pages/LandingPage";
 import NotFound from "@/pages/NotFound";
 
+// FinancePage pulls in recharts (+ react-plaid-link) — by far the heaviest
+// route. Split it out so calendar-only users never download it.
+const FinancePage = lazy(() => import("@/pages/FinancePage"));
+
 const queryClient = new QueryClient();
+
+function PageSpinner() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
+}
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-  const onboardingComplete = useFamilyStore((s) => s.onboardingComplete);
+  const storeOnboardingComplete = useFamilyStore((s) => s.onboardingComplete);
+  // The server's flag (from /api/auth/me) is authoritative; the persisted
+  // store starts false on a fresh browser and only catches up async. OR-ing
+  // them prevents a returning user from flashing the onboarding wizard.
+  const onboardingComplete =
+    storeOnboardingComplete || !!user?.onboardingComplete;
 
   if (loading) {
     return (
@@ -90,7 +107,9 @@ function AppRoutes() {
         path="/finance"
         element={
           <AppLayout>
-            <FinancePage />
+            <Suspense fallback={<PageSpinner />}>
+              <FinancePage />
+            </Suspense>
           </AppLayout>
         }
       />
@@ -111,17 +130,18 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

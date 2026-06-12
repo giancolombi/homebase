@@ -65,24 +65,17 @@ export default function AcceptInvitePage() {
 
     setSubmitting(true);
     try {
-      let userId: string;
-
       if (inviteInfo.hasExistingAccount) {
         // Existing user — sign in
-        const { user } = await auth.signIn(inviteInfo.email, password);
-        userId = user.id;
+        await auth.signIn(inviteInfo.email, password);
       } else {
         // New user — create account
-        const { user } = await auth.signUp(
-          inviteInfo.email,
-          password,
-          inviteInfo.memberName,
-        );
-        userId = user.id;
+        await auth.signUp(inviteInfo.email, password, inviteInfo.memberName);
       }
 
-      // Accept the invite — handles family switching on the backend
-      await invite.accept(token, userId);
+      // Accept the invite as the now-authenticated user — handles family
+      // switching on the backend.
+      await invite.accept(token);
 
       // Reload to get fresh auth state with new familyId
       window.location.href = "/";
@@ -90,8 +83,8 @@ export default function AcceptInvitePage() {
       // If signup says "already exists", try signing in
       if (err.message?.includes("already exists")) {
         try {
-          const { user } = await auth.signIn(inviteInfo.email, password);
-          await invite.accept(token, user.id);
+          await auth.signIn(inviteInfo.email, password);
+          await invite.accept(token);
           window.location.href = "/";
           return;
         } catch (signInErr) {

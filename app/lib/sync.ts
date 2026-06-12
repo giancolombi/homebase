@@ -4,6 +4,14 @@
 
 import { tasks, meals, finance, family } from "./api";
 import type {
+  TaskResponse,
+  TaskCategoryResponse,
+  RecipeResponse,
+  MealPlanResponse,
+  ShoppingItemResponse,
+  BankAccountResponse,
+} from "./api";
+import type {
   FamilyData,
   FamilyMember,
   CalendarConnection,
@@ -35,6 +43,14 @@ export async function pullAllData(
   apply: ApplyFn,
   currentUserEmail?: string | null,
 ): Promise<void> {
+  // Per-domain failures degrade gracefully (that domain keeps its local
+  // state) but must not be silent — an invisible pull failure looks exactly
+  // like "my data vanished" to whoever debugs it later.
+  const logged = (label: string) => (err: unknown) => {
+    console.warn(`Sync pull ${label} failed:`, err);
+    return null;
+  };
+
   try {
     const [
       memberList,
@@ -46,14 +62,14 @@ export async function pullAllData(
       accountList,
       transactionList,
     ] = await Promise.all([
-      family.getMembers(familyId).catch(() => null),
-      tasks.list(familyId).catch(() => null),
-      tasks.listCategories(familyId).catch(() => null),
-      meals.listRecipes(familyId).catch(() => null),
-      meals.listPlan(familyId).catch(() => null),
-      meals.listShopping(familyId).catch(() => null),
-      finance.listAccounts(familyId).catch(() => null),
-      finance.listTransactions(familyId).catch(() => null),
+      family.getMembers(familyId).catch(logged("members")),
+      tasks.list(familyId).catch(logged("tasks")),
+      tasks.listCategories(familyId).catch(logged("taskCategories")),
+      meals.listRecipes(familyId).catch(logged("recipes")),
+      meals.listPlan(familyId).catch(logged("mealPlan")),
+      meals.listShopping(familyId).catch(logged("shoppingList")),
+      finance.listAccounts(familyId).catch(logged("bankAccounts")),
+      finance.listTransactions(familyId).catch(logged("transactions")),
     ]);
 
     const patch: StorePatch = {};
@@ -186,20 +202,28 @@ export async function pullAllData(
 // The store has already updated the UI optimistically; we swallow errors
 // with a console.warn so a transient network hiccup doesn't break the
 // interaction. Mutations against a null familyId (pre-onboarding) are skipped.
+//
+// Create helpers resolve with the server's response (or null on skip/error)
+// so the store can adopt the server-assigned id — without that, every
+// follow-up update/delete in the same session targets the local id and 404s.
 
 function shouldSync(familyId: string | null | undefined): familyId is string {
   return !!familyId;
 }
 
-function ignore(err: unknown, label: string) {
+function ignore(err: unknown, label: string): null {
   console.warn(`Sync ${label} failed:`, err);
+  return null;
 }
 
 export const push = {
   task: {
-    create: (familyId: string | null, task: Task) => {
-      if (!shouldSync(familyId)) return;
-      tasks
+    create: (
+      familyId: string | null,
+      task: Task,
+    ): Promise<TaskResponse | null> => {
+      if (!shouldSync(familyId)) return Promise.resolve(null);
+      return tasks
         .create(familyId, {
           title: task.title,
           description: task.description ?? null,
@@ -225,17 +249,24 @@ export const push = {
       if (!shouldSync(familyId)) return;
       tasks.remove(familyId, id).catch((e) => ignore(e, "task.remove"));
     },
-    createCategory: (familyId: string | null, name: string, icon?: string) => {
-      if (!shouldSync(familyId)) return;
-      tasks
+    createCategory: (
+      familyId: string | null,
+      name: string,
+      icon?: string,
+    ): Promise<TaskCategoryResponse | null> => {
+      if (!shouldSync(familyId)) return Promise.resolve(null);
+      return tasks
         .createCategory(familyId, name, icon)
         .catch((e) => ignore(e, "task.createCategory"));
     },
   },
   recipe: {
-    create: (familyId: string | null, r: Recipe) => {
-      if (!shouldSync(familyId)) return;
-      meals
+    create: (
+      familyId: string | null,
+      r: Recipe,
+    ): Promise<RecipeResponse | null> => {
+      if (!shouldSync(familyId)) return Promise.resolve(null);
+      return meals
         .createRecipe(familyId, {
           title: r.title,
           description: r.description ?? null,
@@ -262,9 +293,12 @@ export const push = {
     },
   },
   mealPlan: {
-    add: (familyId: string | null, entry: MealPlanEntry) => {
-      if (!shouldSync(familyId)) return;
-      meals
+    add: (
+      familyId: string | null,
+      entry: MealPlanEntry,
+    ): Promise<MealPlanResponse | null> => {
+      if (!shouldSync(familyId)) return Promise.resolve(null);
+      return meals
         .addPlanEntry(familyId, {
           recipeId: entry.recipeId,
           date: entry.date,
@@ -280,9 +314,12 @@ export const push = {
     },
   },
   shopping: {
-    replace: (familyId: string | null, items: ShoppingListItem[]) => {
-      if (!shouldSync(familyId)) return;
-      meals
+    replace: (
+      familyId: string | null,
+      items: ShoppingListItem[],
+    ): Promise<ShoppingItemResponse[] | null> => {
+      if (!shouldSync(familyId)) return Promise.resolve(null);
+      return meals
         .replaceShopping(
           familyId,
           items.map((i) => ({
@@ -293,6 +330,7 @@ export const push = {
             checked: i.checked,
           })),
         )
+        .then((r) => r.items)
         .catch((e) => ignore(e, "shopping.replace"));
     },
     toggle: (familyId: string | null, id: string, checked: boolean) => {
@@ -303,9 +341,12 @@ export const push = {
     },
   },
   bankAccount: {
-    create: (familyId: string | null, a: BankAccount) => {
-      if (!shouldSync(familyId)) return;
-      finance
+    create: (
+      familyId: string | null,
+      a: BankAccount,
+    ): Promise<BankAccountResponse | null> => {
+      if (!shouldSync(familyId)) return Promise.resolve(null);
+      return finance
         .createAccount(familyId, {
           name: a.name,
           institution: a.institution,

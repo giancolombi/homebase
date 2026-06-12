@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { auth, type AuthUser } from "@/lib/api";
+import { auth, setOnUnauthorized, type AuthUser } from "@/lib/api";
 import { pullAllData } from "@/lib/sync";
 
 interface AuthContextType {
@@ -28,6 +28,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore session on mount.
   useEffect(() => {
+    // Mid-session 401 (expired/revoked token): the API client has already
+    // cleared the token; drop user state so routing lands on sign-in instead
+    // of every request failing quietly until the next reload.
+    setOnUnauthorized(() => setUser(null));
+
     auth.getSession().then((session) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -47,7 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      setOnUnauthorized(null);
+    };
   }, []);
 
   // Keep the family store in sync with the authenticated user's server-side

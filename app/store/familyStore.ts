@@ -166,14 +166,36 @@ export const useFamilyStore = create<FamilyStore>()(
       deleteEvent: (id) =>
         set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
 
+      // Create actions adopt the server-assigned id once the push resolves.
+      // Without the remap, every follow-up update/delete in this session
+      // targets the optimistic local id and silently 404s on the server.
       addTaskCategory: (cat) => {
         set((s) => ({ taskCategories: [...s.taskCategories, cat] }));
-        push.task.createCategory(get().familyId, cat.name, cat.icon);
+        push.task
+          .createCategory(get().familyId, cat.name, cat.icon)
+          .then((created) => {
+            if (!created || created.id === cat.id) return;
+            set((s) => ({
+              taskCategories: s.taskCategories.map((c) =>
+                c.id === cat.id ? { ...c, id: created.id } : c,
+              ),
+              tasks: s.tasks.map((t) =>
+                t.categoryId === cat.id ? { ...t, categoryId: created.id } : t,
+              ),
+            }));
+          });
       },
 
       addTask: (task) => {
         set((s) => ({ tasks: [...s.tasks, task] }));
-        push.task.create(get().familyId, task);
+        push.task.create(get().familyId, task).then((created) => {
+          if (!created || created.id === task.id) return;
+          set((s) => ({
+            tasks: s.tasks.map((t) =>
+              t.id === task.id ? { ...t, id: created.id } : t,
+            ),
+          }));
+        });
       },
 
       updateTask: (id, updates) => {
@@ -190,7 +212,17 @@ export const useFamilyStore = create<FamilyStore>()(
 
       addRecipe: (recipe) => {
         set((s) => ({ recipes: [...s.recipes, recipe] }));
-        push.recipe.create(get().familyId, recipe);
+        push.recipe.create(get().familyId, recipe).then((created) => {
+          if (!created || created.id === recipe.id) return;
+          set((s) => ({
+            recipes: s.recipes.map((r) =>
+              r.id === recipe.id ? { ...r, id: created.id } : r,
+            ),
+            mealPlan: s.mealPlan.map((e) =>
+              e.recipeId === recipe.id ? { ...e, recipeId: created.id } : e,
+            ),
+          }));
+        });
       },
 
       updateRecipe: (id, updates) => {
@@ -209,7 +241,14 @@ export const useFamilyStore = create<FamilyStore>()(
 
       addMealPlanEntry: (entry) => {
         set((s) => ({ mealPlan: [...s.mealPlan, entry] }));
-        push.mealPlan.add(get().familyId, entry);
+        push.mealPlan.add(get().familyId, entry).then((created) => {
+          if (!created || created.id === entry.id) return;
+          set((s) => ({
+            mealPlan: s.mealPlan.map((e) =>
+              e.id === entry.id ? { ...e, id: created.id } : e,
+            ),
+          }));
+        });
       },
 
       removeMealPlanEntry: (id) => {
@@ -219,7 +258,19 @@ export const useFamilyStore = create<FamilyStore>()(
 
       updateShoppingList: (items) => {
         set({ shoppingList: items });
-        push.shopping.replace(get().familyId, items);
+        push.shopping.replace(get().familyId, items).then((serverItems) => {
+          // Replace re-inserts every row, so all ids change. Adopt them
+          // positionally (the server inserts in request order).
+          if (!serverItems || serverItems.length !== items.length) return;
+          const idMap = new Map(
+            items.map((item, i) => [item.id, serverItems[i].id]),
+          );
+          set((s) => ({
+            shoppingList: s.shoppingList.map((item) =>
+              idMap.has(item.id) ? { ...item, id: idMap.get(item.id)! } : item,
+            ),
+          }));
+        });
       },
 
       toggleShoppingItem: (id) => {
@@ -242,7 +293,17 @@ export const useFamilyStore = create<FamilyStore>()(
 
       addBankAccount: (account) => {
         set((s) => ({ bankAccounts: [...s.bankAccounts, account] }));
-        push.bankAccount.create(get().familyId, account);
+        push.bankAccount.create(get().familyId, account).then((created) => {
+          if (!created || created.id === account.id) return;
+          set((s) => ({
+            bankAccounts: s.bankAccounts.map((a) =>
+              a.id === account.id ? { ...a, id: created.id } : a,
+            ),
+            transactions: s.transactions.map((t) =>
+              t.accountId === account.id ? { ...t, accountId: created.id } : t,
+            ),
+          }));
+        });
       },
 
       removeBankAccount: (id) => {
@@ -278,10 +339,16 @@ export const useFamilyStore = create<FamilyStore>()(
         const state = get();
         const version = state.getRecipeVersionForMember(recipe, memberId);
         const homebaseRecipe = foodlabToHomebaseRecipe(recipe, version);
-        // Only add if not already imported
-        const exists = state.recipes.some((r) => r.id === homebaseRecipe.id);
+        // Only add if not already imported. Match on title as well as id —
+        // after a server sync the imported copy carries a server id, not the
+        // deterministic foodlab one.
+        const exists = state.recipes.some(
+          (r) => r.id === homebaseRecipe.id || r.title === homebaseRecipe.title,
+        );
         if (!exists) {
-          set((s) => ({ recipes: [...s.recipes, homebaseRecipe] }));
+          // Route through addRecipe so the import is pushed to the backend
+          // like any other recipe instead of living only in this browser.
+          get().addRecipe(homebaseRecipe);
         }
       },
 
@@ -304,6 +371,13 @@ export const useFamilyStore = create<FamilyStore>()(
         return get().members.filter((m) => m.role === "child");
       },
     }),
-    { name: "homebase-family-data" },
+    {
+      name: "homebase-family-data",
+      // Bump `version` whenever the persisted shape changes and translate
+      // the old shape here — otherwise users carry stale localStorage
+      // structures across deploys indefinitely.
+      version: 1,
+      migrate: (persistedState) => persistedState as FamilyStore,
+    },
   ),
 );

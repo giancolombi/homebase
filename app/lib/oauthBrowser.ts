@@ -1,18 +1,15 @@
 // Cross-platform OAuth handoff helper.
 //
-// Web (browser): opens a popup window. We poll until it's closed (the
-// provider redirects back to /calendar/callback/<provider> on our API,
-// which then redirects the popup to /?calendarConnected=<provider>; the
-// user closes it themselves or we close it programmatically once we see
-// the success URL). When closed, we run the onClose callback.
+// Web (browser): opens a popup window synchronously (so the browser still
+// sees the user gesture even when the URL needs a server round-trip), then
+// navigates it once the URL resolves. We poll until the popup is closed —
+// the provider redirects back to /api/calendar/callback/<provider>, which
+// serves a page that hands the result to the opener and closes itself.
 //
 // iOS (Capacitor): window.open is unreliable inside a WKWebView and
 // doesn't share cookies with Safari. We use @capacitor/browser which
-// presents an SFSafariViewController. We close it on browserFinished
-// (user taps Done) and on browserPageLoaded events that match our app
-// URL with the calendar success query string — the API redirects to
-// `${APP_URL}/?calendarConnected=<provider>` after a successful OAuth
-// callback, so we can detect that and close automatically.
+// presents an SFSafariViewController and fires browserFinished when the
+// user dismisses it (taps Done) or when Browser.close() is called.
 //
 // Either path calls onClose() exactly once when the OAuth flow has ended,
 // which is the consumer's signal to refresh calendar connections.
@@ -21,11 +18,18 @@ import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 
 export interface OpenOAuthOptions {
-  url: string;
+  // The OAuth URL, or a promise resolving to it. getAuthUrl() needs a server
+  // round-trip to mint a short-lived handoff token, so callers pass the
+  // promise straight through rather than awaiting (which would lose the
+  // user-gesture context and trip popup blockers on the web).
+  url: string | Promise<string>;
   onClose: () => void;
 }
 
 const isIOS = () => Capacitor.getPlatform() === "ios";
+
+// Stop polling a popup that has somehow outlived any plausible OAuth flow.
+const POPUP_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 async function openInSafariView({ url, onClose }: OpenOAuthOptions) {
   // browserFinished fires when the user dismisses the SFSafariViewController
@@ -41,19 +45,36 @@ async function openInSafariView({ url, onClose }: OpenOAuthOptions) {
     onClose();
   });
 
-  await Browser.open({ url, presentationStyle: "popover" });
+  await Browser.open({ url: await url, presentationStyle: "popover" });
 }
 
 function openInWebPopup({ url, onClose }: OpenOAuthOptions) {
-  const popup = window.open(url, "calendar-auth", "width=500,height=700");
+  const popup = window.open(
+    "about:blank",
+    "calendar-auth",
+    "width=500,height=700",
+  );
   if (!popup) {
     // Pop-up blocked. Bail to onClose so the UI doesn't get stuck in a
     // syncing state — the caller can show a toast.
     onClose();
     return;
   }
+
+  Promise.resolve(url).then(
+    (resolved) => {
+      popup.location.href = resolved;
+    },
+    () => {
+      // Couldn't build the OAuth URL (e.g. token mint failed) — close the
+      // blank popup rather than stranding it.
+      popup.close();
+    },
+  );
+
+  const startedAt = Date.now();
   const interval = window.setInterval(() => {
-    if (popup.closed) {
+    if (popup.closed || Date.now() - startedAt > POPUP_POLL_TIMEOUT_MS) {
       window.clearInterval(interval);
       onClose();
     }
