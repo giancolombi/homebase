@@ -2,12 +2,16 @@ node_modules
 dist
 .git
 .gitignore
+.env
+.env.*
 *.md
 *.log
 .DS_Store
 .vscode
 .idea
 .husky
+# ...except the prepare-script shim, which pnpm install needs.
+!.husky/install.mjs
 
 # iOS / Capacitor — Railway builds the web SPA + API. Native iOS code has
 # no business in the Docker image and would balloon it by hundreds of MB.

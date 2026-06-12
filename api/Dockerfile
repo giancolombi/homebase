@@ -9,6 +9,9 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY --chown=node:node package.json pnpm-lock.yaml ./
+# The prepare script runs on install; its shim must exist (it exits 0 here
+# because NODE_ENV=production).
+COPY --chown=node:node .husky/install.mjs ./.husky/install.mjs
 RUN pnpm install --frozen-lockfile --prod
 
 COPY --chown=node:node api/ ./api/

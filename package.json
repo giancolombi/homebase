@@ -33,7 +33,7 @@
     "cap:open:ios": "cap open ios",
     "cap:run:ios": "pnpm run cap:sync && cap run ios",
     "cap:install:plugins": "node scripts/install-eventkit-plugin.mjs",
-    "prepare": "husky"
+    "prepare": "node .husky/install.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",

@@ -6,9 +6,14 @@ FROM node:24-alpine AS build
 
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 
+# Image builds have no .git for husky to hook into — make the prepare shim
+# skip (it exits 0 when CI=true).
+ENV CI=true
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
+# The prepare script runs on install; its shim must exist (CI/prod skip).
+COPY .husky/install.mjs ./.husky/install.mjs
 RUN pnpm install --frozen-lockfile
 
 COPY vite.config.ts tsconfig.json tsconfig.node.json postcss.config.js ./
@@ -24,6 +29,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY --chown=node:node package.json pnpm-lock.yaml ./
+COPY --chown=node:node .husky/install.mjs ./.husky/install.mjs
 RUN pnpm install --frozen-lockfile --prod
 
 COPY --chown=node:node --from=build /app/dist ./dist
