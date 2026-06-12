@@ -14,10 +14,15 @@ Feature: Family invites
 
   Scenario: Send-invite when the invitee already has an account
     Given the invited email already corresponds to a Homebase user
-    Then no email is sent
-    And the existing user is auto-linked to the family member row
-    And `invite_status` becomes "accepted" immediately
-    And the response includes `alreadyAccepted: true`
+    Then the normal invite email is sent (the accept page signs them in)
+    And the existing account is NEVER auto-linked without their consent
+    # Auto-linking would let anyone pull an existing user into their family
+    # just by knowing their email address.
+
+  Scenario: Only family members can send invites for a family
+    Given the caller is authenticated but not a member of the target family
+    When they call `POST /api/invite/send`
+    Then the API returns 403 with "Not a member of this family"
 
   # ---- Verify (the accept-invite page calls this on load) ----------------
 
@@ -38,11 +43,21 @@ Feature: Family invites
 
   Scenario: Accept as a brand-new user
     When the recipient creates an account via the accept-invite page
-    And `POST /api/invite/accept` runs with their new userId + token
-    Then `family_members.user_id` is set on the invited row
+    And `POST /api/invite/accept` runs authenticated as that new account
+    Then `family_members.user_id` is set to the caller's own user id
     And `invite_status` flips to "accepted"
-    And `invite_token` is cleared
+    And `invite_token` is cleared (a replayed token is rejected afterwards)
     And the family owner receives an "X joined Y on Homebase" email
+
+  Scenario: Accept requires the invited email's own account
+    Given the caller is authenticated under a different email than the invite
+    When they call `POST /api/invite/accept`
+    Then the API returns 403 with "This invite was sent to a different email address"
+
+  Scenario: A replayed invite token is rejected
+    Given an invite that has already been accepted
+    When anyone presents the same (still cryptographically valid) JWT again
+    Then the API returns 400 — the token no longer matches the member row
 
   Scenario: Accept as an existing user not currently in any family
     When an existing Homebase user clicks accept

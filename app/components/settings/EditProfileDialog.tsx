@@ -168,11 +168,16 @@ export function EditProfileDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 w-7 p-0"
+          aria-label="Edit profile"
+        >
           <Pencil className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
           <DialogDescription className="sr-only">

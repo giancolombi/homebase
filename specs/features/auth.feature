@@ -114,6 +114,29 @@ Feature: Authentication
     When the user submits a new password with that token
     Then the API returns 400 with "Invalid or expired reset token"
 
+  Scenario: A reset token is single-use
+    Given a reset token has already been used to change the password
+    When anyone submits the same token again
+    Then the API returns 400 with "Invalid or expired reset token"
+    # The token embeds a fingerprint of the password hash it was issued
+    # against; once the password changes, every outstanding token dies.
+
+  Scenario: Offline app launch keeps the session
+    Given the user has a valid stored token
+    When the app launches with no network (or the API returns a 5xx)
+    Then the stored token is NOT cleared
+    And the session restores on the next successful launch
+    # Only an explicit 401/403 from the server may discard the token.
+
+  # ---- Change password (signed in) -----------------------------------------
+
+  Scenario: Update password requires the current password
+    Given the user is signed in
+    When they call `POST /api/auth/update-password` with current + new password
+    Then the server verifies the current password before updating
+    And a wrong current password returns 400 with "Current password is incorrect"
+    # A stolen session token alone must not be enough for account takeover.
+
   # ---- Session persistence ------------------------------------------------
 
   Scenario: Token survives a hard reload

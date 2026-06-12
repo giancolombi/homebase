@@ -38,7 +38,9 @@ test.describe("Onboarding wizard", () => {
 
     // Lands on /calendar with the day-view UI.
     await expect(page).toHaveURL(/\/calendar/);
-    await expect(page.getByRole("button", { name: "Day" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Day", exact: true }),
+    ).toBeVisible();
   });
 
   test("mid-flow reload preserves the current step", async ({ page }) => {

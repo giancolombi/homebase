@@ -34,10 +34,8 @@ test.describe("Forgot Password (QA: specs/qa/qa-forgot-password.md)", () => {
     await page.getByLabel("Email").fill(email);
     await page.getByRole("button", { name: "Send Reset Link" }).click();
 
-    await expect(
-      page.getByRole("button", { name: "Sending..." }),
-    ).toBeVisible();
-
+    // Don't assert the transient "Sending..." state — a fast local API can
+    // resolve before the assertion runs, making the test flaky.
     await expect(
       page.getByText(/if that email is registered/i).first(),
     ).toBeVisible();
@@ -170,5 +168,41 @@ test.describe("Forgot Password (QA: specs/qa/qa-forgot-password.md)", () => {
     expect(response.status()).toBe(400);
     const body = await response.json();
     expect(body.error).toMatch(/invalid reset token/i);
+  });
+
+  test("TC-FP-11: A reset token is single-use", async ({ request }) => {
+    // Fresh user so this test owns its password state.
+    const freshEmail = uniqueEmail();
+    await request.post("/api/auth/signup", {
+      data: {
+        email: freshEmail,
+        password: TEST_PASSWORD,
+        full_name: "Single Use",
+      },
+    });
+
+    const resetResponse = await request.post("/api/auth/request-reset", {
+      data: { email: freshEmail },
+    });
+    const resetData = await resetResponse.json();
+    if (!resetData.resetToken) {
+      test.skip(true, "Reset token not available — running in production mode");
+      return;
+    }
+
+    // First use succeeds.
+    const first = await request.post("/api/auth/reset-password", {
+      data: { token: resetData.resetToken, password: "first-new-pass-1" },
+    });
+    expect(first.ok()).toBeTruthy();
+
+    // Second use of the same token is rejected — the token is fingerprinted
+    // to the password it was issued against, which has now changed.
+    const second = await request.post("/api/auth/reset-password", {
+      data: { token: resetData.resetToken, password: "second-new-pass-2" },
+    });
+    expect(second.status()).toBe(400);
+    const body = await second.json();
+    expect(body.error).toMatch(/invalid or expired/i);
   });
 });

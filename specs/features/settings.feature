@@ -19,7 +19,22 @@ Feature: Settings — family members, calendars, profile
     And updates their name + color
     And saves
     Then the local `members[currentUserId]` is updated
+    And `PATCH /api/family/members/:id` mirrors the change to the server
     And the change persists on reload
+    And the email field is read-only (it is the account's sign-in identity)
+
+  Scenario: Change password from EditProfileDialog
+    When the user fills current password, new password, and confirmation
+    And saves
+    Then `POST /api/auth/update-password` runs with both passwords
+    And the server verifies the current password before changing anything
+    And the new password works on the next sign-in
+
+  Scenario: Change password with the wrong current password
+    When the user enters an incorrect current password
+    Then the API returns 400 with "Current password is incorrect"
+    And the dialog stays open with an error toast
+    And the password is unchanged
 
   Scenario: Other adults are listed below the current user
     Given the family has another adult member
@@ -81,8 +96,13 @@ Feature: Settings — family members, calendars, profile
   Scenario: Remove a non-owner member
     When the user clicks the trash icon on a non-owner member
     Then the local store removes them
-    And `family.removeMember` (if present) syncs to the server
+    And `DELETE /api/family/members/:id` removes the server row
+    And the member stays removed after a reload (no resurrection on pull)
     And their dependent rows (calendar connections, etc.) cascade-delete
+
+  Scenario: The family owner cannot be removed
+    When a member attempts to delete the owner's row
+    Then the API returns 400 with "The family owner cannot be removed"
 
   # ---- Your calendars card -----------------------------------------------
 

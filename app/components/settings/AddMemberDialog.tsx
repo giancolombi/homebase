@@ -46,13 +46,26 @@ export function AddMemberDialog() {
     // Also save to database if we have a familyId
     if (familyId) {
       try {
-        await family.addMember({
+        const created = await family.addMember({
           familyId,
           name: memberData.name,
           role: memberData.role,
           email: memberData.email,
           colorIndex,
         });
+        // Adopt the server-assigned id (and remap the child's pseudo
+        // calendar connection) so later edits/removals target the real row
+        // instead of 404ing on the local id.
+        useFamilyStore.setState((s) => ({
+          members: s.members.map((m) =>
+            m.id === localId ? { ...m, id: created.id } : m,
+          ),
+          calendarConnections: s.calendarConnections.map((c) =>
+            c.memberId === localId
+              ? { ...c, id: `hb-${created.id}`, memberId: created.id }
+              : c,
+          ),
+        }));
         queryClient.invalidateQueries({ queryKey: ["family-members"] });
       } catch (err) {
         console.error("Failed to save member to API:", err);
