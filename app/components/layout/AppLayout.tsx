@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Calendar,
   CheckSquare,
@@ -21,8 +21,10 @@ const tabs = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { familyName, members } = useFamilyStore();
+  // Narrow selectors: the layout wraps every page, so subscribing to the
+  // whole store would re-render the entire shell on any state change.
+  const familyName = useFamilyStore((s) => s.familyName);
+  const members = useFamilyStore((s) => s.members);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -40,16 +42,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        {/* Sidebar nav links */}
+        {/* Sidebar nav links — real anchors so middle-click/cmd-click work */}
         <nav className="flex-1 px-3 py-4 space-y-1">
           {tabs.map((tab) => {
             const isActive =
               location.pathname === tab.path ||
               location.pathname.startsWith(tab.path + "/");
             return (
-              <button
+              <Link
                 key={tab.path}
-                onClick={() => navigate(tab.path)}
+                to={tab.path}
                 className={cn(
                   "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
@@ -61,7 +63,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   className={cn("h-5 w-5", isActive && "stroke-[2.5]")}
                 />
                 {tab.label}
-              </button>
+              </Link>
             );
           })}
         </nav>
@@ -91,13 +93,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               )}
             </div>
           </div>
-          <button
-            onClick={() => navigate("/settings")}
+          <Link
+            to="/settings"
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <Settings className="h-5 w-5" />
             Settings
-          </button>
+          </Link>
         </div>
       </aside>
 
@@ -136,12 +138,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </Avatar>
               )}
             </div>
-            <button
-              onClick={() => navigate("/settings")}
+            <Link
+              to="/settings"
               className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Settings"
             >
               <Settings className="h-4.5 w-4.5 text-muted-foreground" />
-            </button>
+            </Link>
           </div>
         </header>
 
@@ -160,9 +163,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 location.pathname === tab.path ||
                 location.pathname.startsWith(tab.path + "/");
               return (
-                <button
+                <Link
                   key={tab.path}
-                  onClick={() => navigate(tab.path)}
+                  to={tab.path}
                   className={cn(
                     "flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all min-w-[56px]",
                     isActive
@@ -181,7 +184,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   >
                     {tab.label}
                   </span>
-                </button>
+                </Link>
               );
             })}
           </div>

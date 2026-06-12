@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { useFamilyStore } from "@/store/familyStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,26 +18,10 @@ import {
   useDisconnectCalendar,
 } from "@/hooks/use-calendar-sync";
 import { toast } from "@/hooks/use-toast";
-import { formatCalendarError } from "@/lib/calendarErrors";
+import { useOAuthRedirectToast } from "@/hooks/use-oauth-redirect-toast";
+import { visibleProviders } from "@/lib/providerTiles";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
-import { isCapacitorIOS } from "@/lib/platform";
-
-const externalProviders = [
-  { id: "google" as const, name: "Google Calendar", icon: "🔵" },
-  { id: "outlook" as const, name: "Outlook Calendar", icon: "🟦" },
-  { id: "apple" as const, name: "Apple Calendar", icon: "⚪" },
-];
-
-// On iOS the EventKit card already covers iCloud (and every other account
-// the user has added in iOS Settings → Calendar). The Apple tile here is
-// CalDAV-with-app-specific-password — only useful on web where there's no
-// device calendar to read.
-function visibleProviders() {
-  return isCapacitorIOS()
-    ? externalProviders.filter((p) => p.id !== "apple")
-    : externalProviders;
-}
 
 export default function StepCalendarConnect({
   onComplete,
@@ -47,7 +30,6 @@ export default function StepCalendarConnect({
   onComplete: () => void;
   onBack: () => void;
 }) {
-  const [searchParams, setSearchParams] = useSearchParams();
   const { currentUserId, members, calendarConnections } = useFamilyStore();
   const familyId = useFamilyStore((s) => s.familyId);
 
@@ -63,26 +45,7 @@ export default function StepCalendarConnect({
   );
 
   // Surface OAuth result via toast after the popup redirects the parent back.
-  useEffect(() => {
-    const connected = searchParams.get("calendarConnected");
-    const error = searchParams.get("calendarError");
-    if (connected) {
-      toast({
-        title: "Calendar connected",
-        description: `Your ${connected} calendar has been connected.`,
-      });
-      setSearchParams({}, { replace: true });
-    }
-    if (error) {
-      const t = formatCalendarError({
-        error,
-        description: searchParams.get("calendarErrorDescription"),
-        subcode: searchParams.get("calendarErrorSubcode"),
-      });
-      toast({ ...t, variant: "destructive" });
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+  useOAuthRedirectToast();
 
   const [appleDialogOpen, setAppleDialogOpen] = useState(false);
 
@@ -136,11 +99,15 @@ export default function StepCalendarConnect({
         const connected = isConnected(memberId, p.id);
         const apiConn =
           memberId === currentUser?.id ? getApiConnection(p.id) : undefined;
+        // Connected tiles host a real disconnect <button>, so the tile
+        // itself must be a <div> — nested buttons are invalid HTML.
+        const actionable = !!familyId && !(connected && apiConn);
+        const Tile = actionable ? "button" : "div";
         return (
           <div key={p.id} className="space-y-1">
-            <button
-              onClick={() => handleConnect(p.id)}
-              disabled={!familyId}
+            <Tile
+              type={actionable ? "button" : undefined}
+              onClick={actionable ? () => handleConnect(p.id) : undefined}
               className={cn(
                 "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
                 connected
@@ -172,6 +139,7 @@ export default function StepCalendarConnect({
                     }}
                     className="p-1 hover:bg-destructive/10 rounded"
                     title="Disconnect"
+                    aria-label={`Disconnect ${p.name}`}
                   >
                     <X className="h-3.5 w-3.5 text-destructive" />
                   </button>
@@ -181,7 +149,7 @@ export default function StepCalendarConnect({
                   <Check className="h-3 w-3 text-primary-foreground" />
                 </div>
               ) : null}
-            </button>
+            </Tile>
             {apiConn?.syncError && (
               <p className="text-[11px] text-destructive px-2.5">
                 Sync error: {apiConn.syncError}
@@ -204,6 +172,7 @@ export default function StepCalendarConnect({
         <button
           onClick={onBack}
           className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+          aria-label="Back"
         >
           <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useFamilyStore } from "@/store/familyStore";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,6 @@ import { AddMemberDialog } from "@/components/settings/AddMemberDialog";
 import { EditProfileDialog } from "@/components/settings/EditProfileDialog";
 import { AppleConnectDialog } from "@/components/settings/AppleConnectDialog";
 import EventKitConnectCard from "@/components/calendar/EventKitConnectCard";
-import { isCapacitorIOS } from "@/lib/platform";
 import { calendar, invite } from "@/lib/api";
 import { openOAuth } from "@/lib/oauthBrowser";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,24 +36,11 @@ import {
 } from "@/hooks/use-calendar-sync";
 import { useFamilyMembers, useToggleAdmin } from "@/hooks/use-family-members";
 import { toast } from "@/hooks/use-toast";
-import { formatCalendarError } from "@/lib/calendarErrors";
-
-const providers = [
-  { id: "google" as const, name: "Google", icon: "🔵" },
-  { id: "outlook" as const, name: "Outlook", icon: "🟦" },
-  { id: "apple" as const, name: "Apple", icon: "⚪" },
-];
-
-// EventKit covers iCloud on iOS — hide the Apple CalDAV tile there.
-function visibleProviders() {
-  return isCapacitorIOS()
-    ? providers.filter((p) => p.id !== "apple")
-    : providers;
-}
+import { useOAuthRedirectToast } from "@/hooks/use-oauth-redirect-toast";
+import { visibleProviders } from "@/lib/providerTiles";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { signOut } = useAuth();
   const {
     familyName,
@@ -83,26 +69,7 @@ export default function SettingsPage() {
     apiMembers?.find((m) => m.email === email);
 
   // Handle OAuth redirect params
-  useEffect(() => {
-    const connected = searchParams.get("calendarConnected");
-    const error = searchParams.get("calendarError");
-    if (connected) {
-      toast({
-        title: "Calendar connected",
-        description: `Your ${connected} calendar has been connected.`,
-      });
-      setSearchParams({}, { replace: true });
-    }
-    if (error) {
-      const t = formatCalendarError({
-        error,
-        description: searchParams.get("calendarErrorDescription"),
-        subcode: searchParams.get("calendarErrorSubcode"),
-      });
-      toast({ ...t, variant: "destructive" });
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+  useOAuthRedirectToast();
 
   const currentUser = members.find((m) => m.id === currentUserId);
   const childMembers = members.filter((m) => m.role === "child");
@@ -177,6 +144,7 @@ export default function SettingsPage() {
         <button
           onClick={() => navigate(-1)}
           className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+          aria-label="Back"
         >
           <ArrowLeft className="h-5 w-5 text-muted-foreground" />
         </button>
@@ -334,6 +302,7 @@ export default function SettingsPage() {
                     <button
                       onClick={() => removeMember(m.id)}
                       className="p-1 hover:bg-destructive/10 rounded-lg"
+                      aria-label={`Remove ${m.name}`}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </button>
@@ -375,6 +344,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => removeMember(m.id)}
                   className="p-1 hover:bg-destructive/10 rounded-lg"
+                  aria-label={`Remove ${m.name}`}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </button>
@@ -398,17 +368,19 @@ export default function SettingsPage() {
                 const connected = isConnected(currentUser.id, p.id);
                 const apiConn = getApiConnection(currentUser.id, p.id);
                 const paused = !!apiConn?.pausedAt;
+                // Connected tiles host real sync/disconnect <button>s, so
+                // the tile itself must be a <div> — nesting buttons is
+                // invalid HTML with undefined keyboard behavior. The tile
+                // is only a <button> when "click to connect" is the action.
+                const actionable = !paused && !connected;
+                const Tile = actionable ? "button" : "div";
                 return (
                   <div key={p.id} className="space-y-1">
-                    <button
-                      onClick={() =>
-                        paused
-                          ? undefined
-                          : connected && apiConn
-                            ? undefined
-                            : handleConnect(p.id)
+                    <Tile
+                      type={actionable ? "button" : undefined}
+                      onClick={
+                        actionable ? () => handleConnect(p.id) : undefined
                       }
-                      disabled={paused}
                       className={cn(
                         "w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all",
                         connected
@@ -421,7 +393,7 @@ export default function SettingsPage() {
                       <span className="text-sm">{p.icon}</span>
                       <div className="flex-1">
                         <span className="text-sm font-medium text-foreground">
-                          {p.name}
+                          {p.shortName}
                         </span>
                         {apiConn?.externalEmail && (
                           <p className="text-[11px] text-muted-foreground">
@@ -443,6 +415,7 @@ export default function SettingsPage() {
                             }}
                             className="p-1 hover:bg-muted rounded"
                             title="Sync now"
+                            aria-label={`Sync ${p.name} calendar now`}
                           >
                             {isSyncing ? (
                               <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
@@ -457,6 +430,7 @@ export default function SettingsPage() {
                             }}
                             className="p-1 hover:bg-destructive/10 rounded"
                             title="Disconnect"
+                            aria-label={`Disconnect ${p.name} calendar`}
                           >
                             <X className="h-3.5 w-3.5 text-destructive" />
                           </button>
@@ -468,7 +442,7 @@ export default function SettingsPage() {
                       {!connected && (
                         <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
-                    </button>
+                    </Tile>
                     {apiConn?.syncError && (
                       <p className="text-[11px] text-destructive px-2.5">
                         Sync error: {apiConn.syncError}

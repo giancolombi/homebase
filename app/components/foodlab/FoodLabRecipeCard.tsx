@@ -18,17 +18,20 @@ export default function FoodLabRecipeCard({
   onRate,
   averageRating,
 }: Props) {
-  const {
-    members,
-    importFoodlabToMeals,
-    currentUserId,
-    getRecipeVersionForMember,
-  } = useFamilyStore();
+  // Narrow selectors: every card in the grid renders from this component —
+  // a whole-store subscription would re-render all N cards on any store
+  // write (rating one recipe, toggling a shopping item, ...).
+  const members = useFamilyStore((s) => s.members);
+  const currentUserId = useFamilyStore((s) => s.currentUserId);
+  const memberDietary = useFamilyStore((s) => s.memberDietary);
+  const importFoodlabToMeals = useFamilyStore((s) => s.importFoodlabToMeals);
   const [expanded, setExpanded] = useState(false);
 
   const currentMember = members.find((m) => m.id === currentUserId);
   const version = currentMember
-    ? getRecipeVersionForMember(recipe, currentMember.id)
+    ? memberDietary[currentMember.id]?.noMeat
+      ? "veg"
+      : "meat"
     : "veg";
   const versionData =
     version === "veg" ? recipe.vegVersion : recipe.meatVersion;

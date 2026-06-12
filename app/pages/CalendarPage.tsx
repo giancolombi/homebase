@@ -99,7 +99,7 @@ export default function CalendarPage() {
   useCalendarSync(!isDemo ? familyId || null : null);
 
   // Fetch external events from API
-  const { data: apiEvents } = useCalendarEvents(
+  const { data: apiEvents, error: apiEventsError } = useCalendarEvents(
     !isDemo ? familyId || null : null,
     rangeStart,
     rangeEnd,
@@ -162,6 +162,13 @@ export default function CalendarPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* External events failed to load — say so instead of silently
+          showing a calendar with synced events missing. */}
+      {apiEventsError && (
+        <div className="px-4 py-2 text-xs text-destructive bg-destructive/10 border-b border-destructive/20">
+          Couldn't load synced calendar events — showing local events only.
+        </div>
+      )}
       {/* Date nav */}
       <div className="px-4 py-3 md:px-6 md:py-4 bg-card border-b border-border space-y-3">
         <div className="flex items-center justify-between">
@@ -170,6 +177,7 @@ export default function CalendarPage() {
               setSelectedDate(addDays(selectedDate, view === "day" ? -1 : -7))
             }
             className="p-1.5 rounded-md hover:bg-muted"
+            aria-label={view === "day" ? "Previous day" : "Previous week"}
           >
             <ChevronLeft className="h-5 w-5 text-muted-foreground" />
           </button>
@@ -188,6 +196,7 @@ export default function CalendarPage() {
               setSelectedDate(addDays(selectedDate, view === "day" ? 1 : 7))
             }
             className="p-1.5 rounded-md hover:bg-muted"
+            aria-label={view === "day" ? "Next day" : "Next week"}
           >
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </button>

@@ -20,14 +20,27 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+// Ingredient rows can be removed from the middle of the list, so each row
+// carries a stable key — keying by index would make React reuse the wrong
+// DOM/focus state after a removal.
+type IngredientRow = RecipeIngredient & { key: string };
+
+const newIngredientRow = (category: string): IngredientRow => ({
+  key: generateId(),
+  name: "",
+  amount: "",
+  unit: "",
+  category,
+});
+
 export default function AddRecipeDialog({ open, onOpenChange }: Props) {
   const { addRecipe } = useFamilyStore();
   const [title, setTitle] = useState("");
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
   const [servings, setServings] = useState("");
-  const [ingredients, setIngredients] = useState<RecipeIngredient[]>([
-    { name: "", amount: "", unit: "", category: "Produce" },
+  const [ingredients, setIngredients] = useState<IngredientRow[]>([
+    newIngredientRow("Produce"),
   ]);
   const [steps, setSteps] = useState<string[]>([""]);
   const [sourceUrl, setSourceUrl] = useState("");
@@ -40,7 +53,9 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
       prepTime: prepTime ? parseInt(prepTime) : undefined,
       cookTime: cookTime ? parseInt(cookTime) : undefined,
       servings: servings ? parseInt(servings) : undefined,
-      ingredients: ingredients.filter((i) => i.name.trim()),
+      ingredients: ingredients
+        .filter((i) => i.name.trim())
+        .map(({ key: _key, ...ing }) => ing),
       steps: steps.filter((s) => s.trim()),
       tags: [],
       sourceUrl: sourceUrl.trim() || undefined,
@@ -50,20 +65,19 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
   };
 
   const addIngredient = () =>
-    setIngredients([
-      ...ingredients,
-      { name: "", amount: "", unit: "", category: "Other" },
-    ]);
-  const removeIngredient = (i: number) =>
-    setIngredients(ingredients.filter((_, idx) => idx !== i));
+    setIngredients([...ingredients, newIngredientRow("Other")]);
+  const removeIngredient = (key: string) =>
+    setIngredients(ingredients.filter((ing) => ing.key !== key));
   const updateIngredient = (
-    i: number,
+    key: string,
     field: keyof RecipeIngredient,
     value: string,
   ) => {
-    const updated = [...ingredients];
-    updated[i] = { ...updated[i], [field]: value };
-    setIngredients(updated);
+    setIngredients(
+      ingredients.map((ing) =>
+        ing.key === key ? { ...ing, [field]: value } : ing,
+      ),
+    );
   };
 
   const addStep = () => setSteps([...steps, ""]);
@@ -78,7 +92,7 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
     setPrepTime("");
     setCookTime("");
     setServings("");
-    setIngredients([{ name: "", amount: "", unit: "", category: "Produce" }]);
+    setIngredients([newIngredientRow("Produce")]);
     setSteps([""]);
     setSourceUrl("");
   };
@@ -143,31 +157,36 @@ export default function AddRecipeDialog({ open, onOpenChange }: Props) {
 
           <div className="space-y-2">
             <Label>Ingredients</Label>
-            {ingredients.map((ing, i) => (
-              <div key={i} className="flex gap-1.5">
+            {ingredients.map((ing) => (
+              <div key={ing.key} className="flex gap-1.5">
                 <Input
                   value={ing.amount}
                   onChange={(e) =>
-                    updateIngredient(i, "amount", e.target.value)
+                    updateIngredient(ing.key, "amount", e.target.value)
                   }
                   placeholder="Amt"
                   className="h-8 text-xs w-14"
                 />
                 <Input
                   value={ing.unit}
-                  onChange={(e) => updateIngredient(i, "unit", e.target.value)}
+                  onChange={(e) =>
+                    updateIngredient(ing.key, "unit", e.target.value)
+                  }
                   placeholder="Unit"
                   className="h-8 text-xs w-14"
                 />
                 <Input
                   value={ing.name}
-                  onChange={(e) => updateIngredient(i, "name", e.target.value)}
+                  onChange={(e) =>
+                    updateIngredient(ing.key, "name", e.target.value)
+                  }
                   placeholder="Ingredient"
                   className="h-8 text-xs flex-1"
                 />
                 <button
-                  onClick={() => removeIngredient(i)}
+                  onClick={() => removeIngredient(ing.key)}
                   className="p-1 hover:bg-destructive/10 rounded"
+                  aria-label="Remove ingredient"
                 >
                   <Trash2 className="h-3 w-3 text-destructive" />
                 </button>
