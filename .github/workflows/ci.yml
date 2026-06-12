@@ -9,6 +9,7 @@ jobs:
   checks:
     name: Typecheck, lint, format, unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4 # version comes from packageManager in package.json
@@ -25,6 +26,7 @@ jobs:
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17-alpine
@@ -53,7 +55,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      # No --with-deps: ubuntu-latest runners already include Chromium's
+      # system libraries, and the apt-get it triggers has hung CI for 45+
+      # minutes waiting on input.
+      - run: pnpm exec playwright install chromium
       - run: pnpm run db:migrate
       # playwright.config.ts starts the API server and Vite dev server
       # itself via its webServer entries.
