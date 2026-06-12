@@ -339,6 +339,49 @@ export const calendar = {
     );
   },
 
+  async createEvent(
+    familyId: string,
+    event: {
+      memberId: string;
+      title: string;
+      description?: string | null;
+      date: string;
+      startTime: string;
+      endTime: string;
+      recurrence?: string;
+    },
+  ): Promise<{ id: string }> {
+    return request<{ id: string }>("/api/calendar/events", {
+      method: "POST",
+      body: JSON.stringify({ ...event, familyId }),
+    });
+  },
+
+  async updateEvent(
+    familyId: string,
+    id: string,
+    updates: {
+      title?: string;
+      description?: string | null;
+      date?: string;
+      startTime?: string;
+      endTime?: string;
+      recurrence?: string;
+    },
+  ): Promise<{ ok: true }> {
+    return request<{ ok: true }>(`/api/calendar/events/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...updates, familyId }),
+    });
+  },
+
+  async deleteEvent(familyId: string, id: string): Promise<{ ok: true }> {
+    return request<{ ok: true }>(
+      `/api/calendar/events/${id}?${qs({ familyId })}`,
+      { method: "DELETE" },
+    );
+  },
+
   async deleteConnection(connectionId: string): Promise<void> {
     await request(`/api/calendar/connections/${connectionId}`, {
       method: "DELETE",

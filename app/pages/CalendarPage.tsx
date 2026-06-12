@@ -126,23 +126,28 @@ export default function CalendarPage() {
         taskId: t.id,
       }));
 
-    // External events from API
-    const externalEvents: CalendarEvent[] = (apiEvents || []).map((e) => ({
-      id: e.id,
-      title:
-        e.source !== "homebase"
-          ? `${e.source === "google" ? "📅" : "📆"} ${e.title}`
-          : e.title,
-      description: e.description || undefined,
-      date: e.date,
-      startTime: e.startTime,
-      endTime: e.endTime,
-      memberId: e.memberId,
-      recurrence: e.recurrence as CalendarEvent["recurrence"],
-      source: e.source,
-      allDay: e.allDay,
-      location: e.location || undefined,
-    }));
+    // External events from API. Homebase-authored events also live in the
+    // store (created locally, ids adopted from the server), so drop API
+    // copies the store already has to avoid double-rendering.
+    const localEventIds = new Set(events.map((e) => e.id));
+    const externalEvents: CalendarEvent[] = (apiEvents || [])
+      .filter((e) => !(e.source === "homebase" && localEventIds.has(e.id)))
+      .map((e) => ({
+        id: e.id,
+        title:
+          e.source !== "homebase"
+            ? `${e.source === "google" ? "📅" : "📆"} ${e.title}`
+            : e.title,
+        description: e.description || undefined,
+        date: e.date,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        memberId: e.memberId,
+        recurrence: e.recurrence as CalendarEvent["recurrence"],
+        source: e.source,
+        allDay: e.allDay,
+        location: e.location || undefined,
+      }));
 
     return [...events, ...taskEvents, ...externalEvents];
   }, [events, tasks, apiEvents]);
@@ -369,6 +374,7 @@ function DayView({
               {HOURS.map((h) => (
                 <div
                   key={h}
+                  data-testid={`day-slot-${h}`}
                   className="h-16 md:h-20 border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => onSlotClick(h)}
                 />

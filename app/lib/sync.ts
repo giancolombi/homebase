@@ -2,7 +2,7 @@
 // these helpers hydrate the store from the backend on load and mirror local
 // mutations to the backend as fire-and-forget side effects.
 
-import { tasks, meals, finance, family } from "./api";
+import { calendar, tasks, meals, finance, family } from "./api";
 import type {
   TaskResponse,
   TaskCategoryResponse,
@@ -15,6 +15,7 @@ import type {
   FamilyData,
   FamilyMember,
   CalendarConnection,
+  CalendarEvent,
   MemberRole,
   Task,
   Recipe,
@@ -23,6 +24,18 @@ import type {
   BankAccount,
   Transaction,
 } from "@/types/family";
+
+// Homebase events are pulled for this window around "now". Wide enough that
+// anything a family realistically plans is covered; synced external events
+// have their own (server-side) window.
+const EVENT_PULL_PAST_DAYS = 180;
+const EVENT_PULL_FUTURE_DAYS = 400;
+
+function isoDaysFromNow(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+}
 
 type StorePatch = Partial<FamilyData>;
 type ApplyFn = (patch: StorePatch) => void;
@@ -61,6 +74,7 @@ export async function pullAllData(
       shoppingList,
       accountList,
       transactionList,
+      eventList,
     ] = await Promise.all([
       family.getMembers(familyId).catch(logged("members")),
       tasks.list(familyId).catch(logged("tasks")),
@@ -70,6 +84,13 @@ export async function pullAllData(
       meals.listShopping(familyId).catch(logged("shoppingList")),
       finance.listAccounts(familyId).catch(logged("bankAccounts")),
       finance.listTransactions(familyId).catch(logged("transactions")),
+      calendar
+        .getEvents(
+          familyId,
+          isoDaysFromNow(-EVENT_PULL_PAST_DAYS),
+          isoDaysFromNow(EVENT_PULL_FUTURE_DAYS),
+        )
+        .catch(logged("events")),
     ]);
 
     const patch: StorePatch = {};
@@ -190,6 +211,23 @@ export async function pullAllData(
         category: t.category,
       }));
     }
+    if (eventList) {
+      // Only Homebase-authored events live in the store — synced external
+      // events are fetched per-view by useCalendarEvents.
+      patch.events = eventList
+        .filter((e) => e.source === "homebase")
+        .map((e) => ({
+          id: e.id,
+          title: e.title,
+          description: e.description ?? undefined,
+          date: e.date,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          memberId: e.memberId,
+          recurrence: (e.recurrence ?? "none") as CalendarEvent["recurrence"],
+          source: "homebase" as const,
+        }));
+    }
 
     apply(patch);
   } catch (err) {
@@ -217,6 +255,48 @@ function ignore(err: unknown, label: string): null {
 }
 
 export const push = {
+  event: {
+    create: (
+      familyId: string | null,
+      event: CalendarEvent,
+    ): Promise<{ id: string } | null> => {
+      if (!shouldSync(familyId)) return Promise.resolve(null);
+      return calendar
+        .createEvent(familyId, {
+          memberId: event.memberId,
+          title: event.title,
+          description: event.description ?? null,
+          date: event.date,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          recurrence: event.recurrence ?? "none",
+        })
+        .catch((e) => ignore(e, "event.create"));
+    },
+    update: (
+      familyId: string | null,
+      id: string,
+      updates: Partial<CalendarEvent>,
+    ) => {
+      if (!shouldSync(familyId)) return;
+      calendar
+        .updateEvent(familyId, id, {
+          title: updates.title,
+          description: updates.description,
+          date: updates.date,
+          startTime: updates.startTime,
+          endTime: updates.endTime,
+          recurrence: updates.recurrence,
+        })
+        .catch((e) => ignore(e, "event.update"));
+    },
+    remove: (familyId: string | null, id: string) => {
+      if (!shouldSync(familyId)) return;
+      calendar
+        .deleteEvent(familyId, id)
+        .catch((e) => ignore(e, "event.remove"));
+    },
+  },
   member: {
     update: (
       familyId: string | null,

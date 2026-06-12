@@ -162,15 +162,29 @@ export const useFamilyStore = create<FamilyStore>()(
         set({ ...initialState, onboardingComplete: false }),
       setOnboardingStep: (step) => set({ onboardingStep: step }),
 
-      addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
+      addEvent: (event) => {
+        set((s) => ({ events: [...s.events, event] }));
+        push.event.create(get().familyId, event).then((created) => {
+          if (!created || created.id === event.id) return;
+          set((s) => ({
+            events: s.events.map((e) =>
+              e.id === event.id ? { ...e, id: created.id } : e,
+            ),
+          }));
+        });
+      },
 
-      updateEvent: (id, updates) =>
+      updateEvent: (id, updates) => {
         set((s) => ({
           events: s.events.map((e) => (e.id === id ? { ...e, ...updates } : e)),
-        })),
+        }));
+        push.event.update(get().familyId, id, updates);
+      },
 
-      deleteEvent: (id) =>
-        set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
+      deleteEvent: (id) => {
+        set((s) => ({ events: s.events.filter((e) => e.id !== id) }));
+        push.event.remove(get().familyId, id);
+      },
 
       // Create actions adopt the server-assigned id once the push resolves.
       // Without the remap, every follow-up update/delete in this session

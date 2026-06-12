@@ -662,6 +662,141 @@ router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/calendar/events — create a Homebase event
+router.post("/events", requireAuth, async (req: AuthRequest, res: Response) => {
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+
+  const { memberId, title, description, date, startTime, endTime, recurrence } =
+    req.body as {
+      memberId?: string;
+      title?: string;
+      description?: string | null;
+      date?: string;
+      startTime?: string;
+      endTime?: string;
+      recurrence?: string;
+    };
+
+  if (!memberId || !title || !date || !startTime || !endTime) {
+    res.status(400).json({
+      error: "memberId, title, date, startTime, and endTime are required",
+    });
+    return;
+  }
+
+  try {
+    // The assignee must belong to this family — a foreign memberId would
+    // let events be planted on another family's member.
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM family_members WHERE id = $1 AND family_id = $2`,
+      [memberId, familyId],
+    );
+    if (memberCheck.rows.length === 0) {
+      res.status(400).json({ error: "Member not found in family" });
+      return;
+    }
+
+    const result = await pool.query(
+      `INSERT INTO calendar_events
+         (family_id, member_id, title, description, date,
+          start_time, end_time, recurrence)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id`,
+      [
+        familyId,
+        memberId,
+        title,
+        description ?? null,
+        date,
+        startTime,
+        endTime,
+        recurrence ?? "none",
+      ],
+    );
+    res.status(201).json({ id: result.rows[0].id });
+  } catch (err) {
+    console.error("Create event error:", err);
+    res.status(500).json({ error: "Failed to create event" });
+  }
+});
+
+// PUT /api/calendar/events/:eventId — update a Homebase event
+router.put(
+  "/events/:eventId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
+
+    const { title, description, date, startTime, endTime, recurrence } =
+      req.body as Record<string, string | null | undefined>;
+
+    const columns: Record<string, string | null | undefined> = {
+      title,
+      description,
+      date,
+      start_time: startTime,
+      end_time: endTime,
+      recurrence,
+    };
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    for (const [column, value] of Object.entries(columns)) {
+      if (value !== undefined) {
+        values.push(value);
+        sets.push(`${column} = $${values.length}`);
+      }
+    }
+    if (sets.length === 0) {
+      res.status(400).json({ error: "No updatable fields provided" });
+      return;
+    }
+
+    try {
+      values.push(eventId, familyId);
+      const result = await pool.query(
+        `UPDATE calendar_events
+         SET ${sets.join(", ")}, updated_at = now()
+         WHERE id = $${values.length - 1} AND family_id = $${values.length}
+         RETURNING id`,
+        values,
+      );
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: "Event not found" });
+        return;
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Update event error:", err);
+      res.status(500).json({ error: "Failed to update event" });
+    }
+  },
+);
+
+// DELETE /api/calendar/events/:eventId — delete a Homebase event
+router.delete(
+  "/events/:eventId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
+
+    try {
+      await pool.query(
+        `DELETE FROM calendar_events WHERE id = $1 AND family_id = $2`,
+        [eventId, familyId],
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Delete event error:", err);
+      res.status(500).json({ error: "Failed to delete event" });
+    }
+  },
+);
+
 // DELETE /api/calendar/connections/:connectionId — disconnect
 router.delete(
   "/connections/:connectionId",

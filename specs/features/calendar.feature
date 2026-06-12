@@ -55,8 +55,21 @@ Feature: Calendar — events, day/week view, task overlay
       | Member      | currentUser      |
     And clicks "Save"
     Then a new event is added to the store
+    And `POST /api/calendar/events` mirrors it to the backend
     And the event renders on the day view at 10:00 with 30-min height
     And the event uses the assigned member's color
+
+  Scenario: Created events are visible to the whole family
+    Given the user created an event on this device
+    When any family member loads the calendar on any device
+    Then the event is pulled from the server (`GET /api/calendar/events`)
+    # Events used to live only in this browser's localStorage — invisible
+    # to the partner the shared calendar exists for.
+
+  Scenario: Event edits and deletions sync to the backend
+    When the user edits or deletes a Homebase event
+    Then `PUT /api/calendar/events/:id` / `DELETE /api/calendar/events/:id` run
+    And the change survives a reload with cleared local storage
 
   Scenario: Create an all-day event
     When the user enables "All day"
