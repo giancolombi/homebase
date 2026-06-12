@@ -474,6 +474,22 @@ export const family = {
     );
   },
 
+  async updateMember(
+    memberId: string,
+    updates: { name?: string; colorIndex?: number; avatarUrl?: string | null },
+  ): Promise<{ ok: true }> {
+    return request<{ ok: true }>(`/api/family/members/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
+  },
+
+  async removeMember(memberId: string): Promise<{ ok: true }> {
+    return request<{ ok: true }>(`/api/family/members/${memberId}`, {
+      method: "DELETE",
+    });
+  },
+
   async toggleAdmin(memberId: string): Promise<{ isAdmin: boolean }> {
     return request<{ isAdmin: boolean }>(
       `/api/family/members/${memberId}/toggle-admin`,

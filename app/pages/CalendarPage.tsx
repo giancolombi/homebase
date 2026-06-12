@@ -250,7 +250,11 @@ export default function CalendarPage() {
         )}
       </div>
 
+      {/* Keyed by the preselected slot: the dialog stays mounted between
+          opens, so without a remount its useState initializers would never
+          pick up a newly clicked slot or day. */}
       <AddEventDialog
+        key={`${format(selectedDate, "yyyy-MM-dd")}|${preselectedTime ?? ""}`}
         open={showAddEvent}
         onOpenChange={setShowAddEvent}
         defaultDate={format(selectedDate, "yyyy-MM-dd")}

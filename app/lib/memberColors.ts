@@ -43,6 +43,9 @@ export function getMemberInitials(name: string): string {
     .slice(0, 2);
 }
 
+// Local optimistic ids for store entities. The sync layer swaps these for
+// the server-assigned UUID once a create push resolves, but they must still
+// be collision-free locally — use real UUIDs, not Math.random fragments.
 export function generateId(): string {
-  return Math.random().toString(36).substring(2, 10);
+  return crypto.randomUUID();
 }

@@ -28,6 +28,13 @@ interface Props {
   defaultTime?: string;
 }
 
+function plusOneHour(time: string): string {
+  const [hours, minutes] = time.split(":").map((n) => parseInt(n, 10));
+  return `${String(Math.min((hours || 0) + 1, 23)).padStart(2, "0")}:${String(
+    minutes || 0,
+  ).padStart(2, "0")}`;
+}
+
 export default function AddEventDialog({
   open,
   onOpenChange,
@@ -42,11 +49,12 @@ export default function AddEventDialog({
   );
   const [startTime, setStartTime] = useState(defaultTime || "09:00");
   const [endTime, setEndTime] = useState(
-    defaultTime
-      ? `${(parseInt(defaultTime) + 1).toString().padStart(2, "0")}:00`
-      : "10:00",
+    defaultTime ? plusOneHour(defaultTime) : "10:00",
   );
-  const [memberId, setMemberId] = useState(members[0]?.id || "");
+  // Derived fallback: members may load after mount, and the parent remounts
+  // this dialog (via key) when the preselected slot changes.
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const memberId = selectedMemberId || members[0]?.id || "";
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
 
   const handleSave = () => {
@@ -110,7 +118,7 @@ export default function AddEventDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Assign to</Label>
-              <Select value={memberId} onValueChange={setMemberId}>
+              <Select value={memberId} onValueChange={setSelectedMemberId}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

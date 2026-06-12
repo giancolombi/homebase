@@ -217,6 +217,32 @@ function ignore(err: unknown, label: string): null {
 }
 
 export const push = {
+  member: {
+    update: (
+      familyId: string | null,
+      id: string,
+      updates: Partial<FamilyMember>,
+    ) => {
+      if (!shouldSync(familyId)) return;
+      // Only profile fields the backend accepts; email/role are identity
+      // keys and are not editable through this path.
+      const payload: {
+        name?: string;
+        colorIndex?: number;
+        avatarUrl?: string | null;
+      } = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.colorIndex !== undefined)
+        payload.colorIndex = updates.colorIndex;
+      if (updates.avatar !== undefined) payload.avatarUrl = updates.avatar;
+      if (Object.keys(payload).length === 0) return;
+      family.updateMember(id, payload).catch((e) => ignore(e, "member.update"));
+    },
+    remove: (familyId: string | null, id: string) => {
+      if (!shouldSync(familyId)) return;
+      family.removeMember(id).catch((e) => ignore(e, "member.remove"));
+    },
+  },
   task: {
     create: (
       familyId: string | null,

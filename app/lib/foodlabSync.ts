@@ -22,6 +22,13 @@ async function listDir(path: string): Promise<GitHubContentItem[]> {
     { headers: { Accept: "application/vnd.github+json" } },
   );
   if (res.status === 404) return []; // directory doesn't exist — skip silently
+  // Unauthenticated GitHub API calls are limited to 60/hour per IP — give
+  // that case a message the toast can show verbatim.
+  if (res.status === 403 || res.status === 429) {
+    throw new Error(
+      "GitHub rate limit reached — try syncing again in a few minutes.",
+    );
+  }
   if (!res.ok) {
     throw new Error(
       `GitHub listing failed for ${path}: ${res.status} ${res.statusText}`,

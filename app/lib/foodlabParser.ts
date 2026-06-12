@@ -1,4 +1,4 @@
-import type { FoodLabRecipe, FoodLabRating } from "@/types/foodlab";
+import type { FoodLabRecipe } from "@/types/foodlab";
 import type { Recipe, RecipeIngredient } from "@/types/family";
 
 /**
@@ -19,7 +19,9 @@ export function parseFoodLabRecipe(
   // Metadata line: **Cuisine:** X | **Freezer-friendly:** Y | **Prep:** Z | **Cook:** W
   const metaLine = lines.find((l) => l.includes("**Cuisine:**"));
   let cuisine = "";
-  let freezerFriendly = true;
+  // Only claim freezer-friendly when the recipe explicitly says so —
+  // defaulting to true mislabels every recipe with missing metadata.
+  let freezerFriendly = false;
   let prepTime = "";
   let cookTime = "";
 
@@ -90,7 +92,6 @@ export function parseFoodLabRecipe(
     vegVersion: { protein: vegProtein, steps: vegSteps },
     meatVersion: { protein: meatProtein, steps: meatSteps },
     sourceUrls,
-    raw: content,
   };
 }
 
@@ -99,40 +100,6 @@ function extractNumberedSteps(section: string): string[] {
     .split("\n")
     .filter((l) => /^\d+\.\s/.test(l.trim()))
     .map((l) => l.trim().replace(/^\d+\.\s+/, ""));
-}
-
-/**
- * Parse the ratings.md file into structured ratings.
- */
-export function parseFoodLabRatings(content: string): FoodLabRating[] {
-  const ratings: FoodLabRating[] = [];
-  const lines = content.split("\n");
-
-  for (const line of lines) {
-    // Match table rows: | dish | ★★★★★ | version | notes | date |
-    const match = line.match(
-      /\|\s*([^|]+)\s*\|\s*([★☆]+)\s*\|\s*([^|]+)\s*\|\s*([^|]*)\s*\|\s*([^|]+)\s*\|/,
-    );
-    if (
-      match &&
-      match[1] &&
-      !match[1].includes("Dish") &&
-      !match[1].includes("---")
-    ) {
-      const starCount = (match[2].match(/★/g) || []).length;
-      ratings.push({
-        dish: match[1].trim(),
-        rating: starCount,
-        version: match[3].trim().toLowerCase().includes("meat")
-          ? "meat"
-          : "veg",
-        notes: match[4].trim(),
-        date: match[5].trim(),
-      });
-    }
-  }
-
-  return ratings;
 }
 
 /**
@@ -247,7 +214,11 @@ export function matchRecipesByIngredients(
   recipes: FoodLabRecipe[],
   userIngredients: string[],
 ): { recipe: FoodLabRecipe; matched: string[]; missing: string[] }[] {
-  const normalized = userIngredients.map((i) => i.toLowerCase().trim());
+  // Drop empty/1-char tokens: "".includes() matches everything, so a stray
+  // comma or space in the input would rank every recipe as a full match.
+  const normalized = userIngredients
+    .map((i) => i.toLowerCase().trim())
+    .filter((i) => i.length >= 2);
 
   return recipes
     .map((recipe) => {

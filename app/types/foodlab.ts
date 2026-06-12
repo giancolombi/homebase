@@ -17,7 +17,6 @@ export interface FoodLabRecipe {
     steps: string[];
   };
   sourceUrls: string[];
-  raw: string; // full markdown content
 }
 
 export interface FoodLabRating {

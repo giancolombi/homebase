@@ -53,35 +53,50 @@ export function useEventKit(): UseEventKitResult {
   const [lastEventCount, setLastEventCount] = useState<number | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const observerOff = useRef<(() => void) | null>(null);
+  const syncInFlight = useRef(false);
+  const syncQueued = useRef(false);
 
   const performSync = useCallback(async (currentFamilyId: string) => {
+    // EKEventStoreChanged fires in bursts. Overlapping replace-style POSTs
+    // can apply out of order on the server, so coalesce: one request in
+    // flight, at most one trailing re-run.
+    if (syncInFlight.current) {
+      syncQueued.current = true;
+      return;
+    }
+    syncInFlight.current = true;
     setSyncing(true);
-    setError(null);
     try {
-      const now = Date.now();
-      const timeMin = new Date(now - PAST_DAYS * 24 * 60 * 60 * 1000);
-      const timeMax = new Date(now + FUTURE_DAYS * 24 * 60 * 60 * 1000);
-      const ekEvents = await fetchEventKitEvents(timeMin, timeMax);
+      do {
+        syncQueued.current = false;
+        setError(null);
+        try {
+          const now = Date.now();
+          const timeMin = new Date(now - PAST_DAYS * 24 * 60 * 60 * 1000);
+          const timeMax = new Date(now + FUTURE_DAYS * 24 * 60 * 60 * 1000);
+          const ekEvents = await fetchEventKitEvents(timeMin, timeMax);
 
-      const payload = ekEvents.map((e) => ({
-        externalId: e.externalId,
-        title: e.title,
-        description: e.description,
-        date: e.date,
-        startTime: e.startTime,
-        endTime: e.endTime,
-        allDay: e.allDay,
-        location: e.location,
-        sourceTitle: e.sourceTitle,
-      }));
+          const payload = ekEvents.map((e) => ({
+            externalId: e.externalId,
+            title: e.title,
+            description: e.description,
+            date: e.date,
+            startTime: e.startTime,
+            endTime: e.endTime,
+            allDay: e.allDay,
+            location: e.location,
+            sourceTitle: e.sourceTitle,
+          }));
 
-      const res = await calendar.syncEventKit(currentFamilyId, payload);
-      setLastEventCount(res.count);
-      setLastSyncedAt(Date.now());
-    } catch (err) {
-      setError(errorMessage(err, "EventKit sync failed"));
+          const res = await calendar.syncEventKit(currentFamilyId, payload);
+          setLastEventCount(res.count);
+          setLastSyncedAt(Date.now());
+        } catch (err) {
+          setError(errorMessage(err, "EventKit sync failed"));
+        }
+      } while (syncQueued.current);
     } finally {
+      syncInFlight.current = false;
       setSyncing(false);
     }
   }, []);
@@ -103,22 +118,27 @@ export function useEventKit(): UseEventKitResult {
   useEffect(() => {
     if (!available || !familyId || !isAuthorized(status)) return;
 
+    // Each effect run owns its disposer locally — a shared ref would let a
+    // slow-resolving observer from a previous run clobber the current one,
+    // leaking the native listener.
     let disposed = false;
+    let off: (() => void) | null = null;
     performSync(familyId);
 
     observeEventKitChanges(() => {
       if (!disposed) performSync(familyId);
-    }).then((off) => {
-      observerOff.current = off;
-      if (disposed) off();
+    }).then((dispose) => {
+      if (disposed) {
+        dispose();
+      } else {
+        off = dispose;
+      }
     });
 
     return () => {
       disposed = true;
-      if (observerOff.current) {
-        observerOff.current();
-        observerOff.current = null;
-      }
+      off?.();
+      off = null;
     };
   }, [available, familyId, status, performSync]);
 

@@ -131,15 +131,21 @@ export const useFamilyStore = create<FamilyStore>()(
           return { members: newMembers };
         }),
 
-      removeMember: (id) =>
-        set((s) => ({ members: s.members.filter((m) => m.id !== id) })),
+      removeMember: (id) => {
+        set((s) => ({ members: s.members.filter((m) => m.id !== id) }));
+        // Mirror to the backend — otherwise the next pull resurrects the
+        // member from the server copy.
+        push.member.remove(get().familyId, id);
+      },
 
-      updateMember: (id, updates) =>
+      updateMember: (id, updates) => {
         set((s) => ({
           members: s.members.map((m) =>
             m.id === id ? { ...m, ...updates } : m,
           ),
-        })),
+        }));
+        push.member.update(get().familyId, id, updates);
+      },
 
       addCalendarConnection: (conn) =>
         set((s) => ({ calendarConnections: [...s.calendarConnections, conn] })),
@@ -377,7 +383,20 @@ export const useFamilyStore = create<FamilyStore>()(
       // the old shape here — otherwise users carry stale localStorage
       // structures across deploys indefinitely.
       version: 1,
-      migrate: (persistedState) => persistedState as FamilyStore,
+      migrate: (persistedState) => {
+        const state = persistedState as FamilyStore;
+        // v0 → v1: FoodLab recipes used to persist their full source
+        // markdown in a `raw` field — drop it to free localStorage quota.
+        if (Array.isArray(state.foodlabRecipes)) {
+          state.foodlabRecipes = state.foodlabRecipes.map((recipe) => {
+            const { raw: _raw, ...rest } = recipe as FoodLabRecipe & {
+              raw?: string;
+            };
+            return rest;
+          });
+        }
+        return state;
+      },
     },
   ),
 );

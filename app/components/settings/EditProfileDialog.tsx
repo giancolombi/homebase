@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
 import { useFamilyStore } from "@/store/familyStore";
+import { auth } from "@/lib/api";
+import { errorMessage } from "@/lib/errors";
 import {
   Dialog,
   DialogContent,
@@ -23,12 +25,12 @@ export function EditProfileDialog() {
   const [open, setOpen] = useState(false);
 
   const [name, setName] = useState(currentUser?.name || "");
-  const [email, setEmail] = useState(currentUser?.email || "");
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatar || "");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -110,7 +112,7 @@ export function EditProfileDialog() {
     return null;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!currentUser) return;
 
     // Validate password if attempting to change
@@ -124,10 +126,27 @@ export function EditProfileDialog() {
       return;
     }
 
-    // Update profile
+    setSaving(true);
+    try {
+      // Actually change the password on the server — the backend verifies
+      // the current password before accepting the new one.
+      if (currentPassword && newPassword) {
+        await auth.updatePassword(currentPassword, newPassword);
+      }
+    } catch (err) {
+      toast({
+        title: "Password change failed",
+        description: errorMessage(err, "Could not update your password"),
+        variant: "destructive",
+      });
+      setSaving(false);
+      return;
+    }
+
+    // Update profile (name/avatar sync to the backend via the store;
+    // email is the account identity and is not editable here)
     updateMember(currentUser.id, {
       name: name.trim(),
-      email: email.trim(),
       avatar: avatarUrl,
     });
 
@@ -142,6 +161,7 @@ export function EditProfileDialog() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setSaving(false);
     setOpen(false);
   };
 
@@ -228,10 +248,13 @@ export function EditProfileDialog() {
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
+                value={currentUser.email || ""}
+                disabled
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground">
+                Your email is your sign-in identity and can't be changed here.
+              </p>
             </div>
           </div>
 
@@ -385,14 +408,13 @@ export function EditProfileDialog() {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} className="flex-1">
-              Save Changes
+            <Button onClick={handleSave} className="flex-1" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
             <Button
               variant="outline"
               onClick={() => {
                 setName(currentUser.name);
-                setEmail(currentUser.email || "");
                 setAvatarUrl(currentUser.avatar || "");
                 setCurrentPassword("");
                 setNewPassword("");

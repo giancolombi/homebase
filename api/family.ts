@@ -1,9 +1,33 @@
 import { Router, type Response } from "express";
 import { requireAuth, type AuthRequest } from "./auth.js";
-import { resolveFamilyId } from "./lib/familyAuth.js";
+import { isFamilyMember, resolveFamilyId } from "./lib/familyAuth.js";
 import pool from "./db.js";
 
 const router = Router();
+
+// Verify the caller belongs to the same family as the target member.
+// Returns the member row (id, family_id, is_owner) or null after sending
+// the error response.
+async function resolveMemberForCaller(
+  req: AuthRequest,
+  res: Response,
+  memberId: string,
+): Promise<{ id: string; family_id: string; is_owner: boolean } | null> {
+  const result = await pool.query(
+    `SELECT id, family_id, is_owner FROM family_members WHERE id = $1`,
+    [memberId],
+  );
+  const member = result.rows[0];
+  if (!member) {
+    res.status(404).json({ error: "Member not found" });
+    return null;
+  }
+  if (!(await isFamilyMember(req.user!.id, member.family_id))) {
+    res.status(403).json({ error: "Not a member of this family" });
+    return null;
+  }
+  return member;
+}
 
 // GET /api/family/members — list members for the authenticated user's family
 router.get("/members", requireAuth, async (req: AuthRequest, res: Response) => {
@@ -80,6 +104,81 @@ router.post(
     } catch (err) {
       console.error("Add member error:", err);
       res.status(500).json({ error: "Failed to add member" });
+    }
+  },
+);
+
+// PATCH /api/family/members/:memberId — update profile fields.
+// Email and role are deliberately not updatable here: the member email is
+// the key that links a member row to a user account (and to invites).
+router.patch(
+  "/members/:memberId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const memberId = req.params.memberId as string;
+    const { name, colorIndex, avatarUrl } = req.body as {
+      name?: string;
+      colorIndex?: number;
+      avatarUrl?: string | null;
+    };
+
+    try {
+      const member = await resolveMemberForCaller(req, res, memberId);
+      if (!member) return;
+
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      if (typeof name === "string" && name.trim()) {
+        values.push(name.trim());
+        sets.push(`name = $${values.length}`);
+      }
+      if (typeof colorIndex === "number") {
+        values.push(colorIndex);
+        sets.push(`color_index = $${values.length}`);
+      }
+      if (avatarUrl !== undefined) {
+        values.push(avatarUrl);
+        sets.push(`avatar_url = $${values.length}`);
+      }
+      if (sets.length === 0) {
+        res.status(400).json({ error: "No updatable fields provided" });
+        return;
+      }
+
+      values.push(memberId);
+      await pool.query(
+        `UPDATE family_members SET ${sets.join(", ")} WHERE id = $${values.length}`,
+        values,
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Update member error:", err);
+      res.status(500).json({ error: "Failed to update member" });
+    }
+  },
+);
+
+// DELETE /api/family/members/:memberId — remove a member from the family
+router.delete(
+  "/members/:memberId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    const memberId = req.params.memberId as string;
+
+    try {
+      const member = await resolveMemberForCaller(req, res, memberId);
+      if (!member) return;
+
+      if (member.is_owner) {
+        res.status(400).json({ error: "The family owner cannot be removed" });
+        return;
+      }
+
+      await pool.query(`DELETE FROM family_members WHERE id = $1`, [memberId]);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Delete member error:", err);
+      res.status(500).json({ error: "Failed to delete member" });
     }
   },
 );

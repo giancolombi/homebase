@@ -4,6 +4,12 @@ import { useEffect } from "react";
 
 const STALE_MINUTES = 15;
 
+// A connection whose sync keeps failing never advances lastSyncedAt, so
+// without an attempt log every connections refetch (window focus, any
+// invalidation) would re-fire a doomed sync POST. Module-level so multiple
+// mounted consumers share it instead of double-syncing.
+const lastAttemptAt = new Map<string, number>();
+
 export function useCalendarConnections(familyId: string | null) {
   return useQuery({
     queryKey: ["calendar-connections", familyId],
@@ -32,7 +38,8 @@ export function useCalendarSync(familyId: string | null) {
   useEffect(() => {
     if (!connections) return;
 
-    const staleThreshold = Date.now() - STALE_MINUTES * 60 * 1000;
+    const now = Date.now();
+    const staleThreshold = now - STALE_MINUTES * 60 * 1000;
 
     for (const conn of connections) {
       // Only sync real OAuth connections (not demo mode toggles)
@@ -46,10 +53,15 @@ export function useCalendarSync(familyId: string | null) {
       const lastSynced = conn.lastSyncedAt
         ? new Date(conn.lastSyncedAt).getTime()
         : 0;
+      if (lastSynced >= staleThreshold) continue;
 
-      if (lastSynced < staleThreshold) {
-        syncMutation.mutate(conn.id);
-      }
+      // Rate-limit attempts per connection so persistently failing syncs
+      // retry on the stale interval instead of on every refetch.
+      const attempted = lastAttemptAt.get(conn.id) ?? 0;
+      if (now - attempted < STALE_MINUTES * 60 * 1000) continue;
+      lastAttemptAt.set(conn.id, now);
+
+      syncMutation.mutate(conn.id);
     }
   }, [connections]); // eslint-disable-line react-hooks/exhaustive-deps
 

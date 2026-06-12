@@ -5,9 +5,9 @@
 // Keychain. See setTokenStorage in app/lib/api.ts.
 //
 // On non-iOS platforms, registerPlugin returns a stub that throws on every
-// call — we feature-detect via Capacitor.isPluginAvailable and fall back to
-// a synchronous in-memory + localStorage adapter so the swap is never a
-// regression on web.
+// call — capacitorBoot feature-detects via isSecureStorageAvailable() and
+// simply never swaps, so the web build keeps the default localStorage
+// adapter from api.ts.
 
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { TokenStorage } from "@/lib/api";
@@ -63,10 +63,16 @@ export const keychainTokenStorage: TokenStorage = {
   get: () => cachedToken,
   set: (token) => {
     cachedToken = token;
-    SecureStorage.set({ key: TOKEN_KEY, value: token }).catch(() => undefined);
+    // A failed Keychain write means the session silently won't survive the
+    // next cold start — log it so that's diagnosable.
+    SecureStorage.set({ key: TOKEN_KEY, value: token }).catch((err) =>
+      console.warn("Keychain write failed; session won't persist:", err),
+    );
   },
   clear: () => {
     cachedToken = null;
-    SecureStorage.remove({ key: TOKEN_KEY }).catch(() => undefined);
+    SecureStorage.remove({ key: TOKEN_KEY }).catch((err) =>
+      console.warn("Keychain remove failed:", err),
+    );
   },
 };
