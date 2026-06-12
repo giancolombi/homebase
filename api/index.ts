@@ -18,7 +18,10 @@ import devicesRouter from "./devices.js";
 import { aasaHandler } from "./lib/aasa.js";
 
 const app = express();
-const PORT = parseInt(process.env.API_PORT || "3001", 10);
+// Railway injects PORT and points its healthcheck/routing at it — honor it
+// first (like serve.ts does), falling back to API_PORT/3001 for local dev
+// and docker-compose.
+const PORT = parseInt(process.env.PORT || process.env.API_PORT || "3001", 10);
 
 // Railway terminates TLS at its proxy; trust one hop so req.ip (used by the
 // auth rate limiter) is the client address, not the proxy's.
