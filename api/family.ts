@@ -1,17 +1,14 @@
 import { Router, type Response } from "express";
 import { requireAuth, type AuthRequest } from "./auth.js";
+import { resolveFamilyId } from "./lib/familyAuth.js";
 import pool from "./db.js";
 
 const router = Router();
 
 // GET /api/family/members — list members for the authenticated user's family
 router.get("/members", requireAuth, async (req: AuthRequest, res: Response) => {
-  const { familyId } = req.query as { familyId: string };
-
-  if (!familyId) {
-    res.status(400).json({ error: "familyId is required" });
-    return;
-  }
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
 
   try {
     const result = await pool.query(
@@ -48,10 +45,12 @@ router.post(
   "/members",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { familyId, name, role, email, colorIndex } = req.body;
+    const { name, role, email, colorIndex } = req.body;
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
 
-    if (!familyId || !name || !role) {
-      res.status(400).json({ error: "familyId, name, and role are required" });
+    if (!name || !role) {
+      res.status(400).json({ error: "name and role are required" });
       return;
     }
 

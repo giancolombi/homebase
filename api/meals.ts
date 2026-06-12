@@ -282,10 +282,15 @@ router.put("/shopping", async (req: AuthRequest, res: Response) => {
     await client.query(`DELETE FROM shopping_list WHERE family_id = $1`, [
       familyId,
     ]);
+    // Return the inserted rows so the client can adopt the server-assigned
+    // ids — later PATCH /shopping/:id calls would otherwise silently match
+    // zero rows.
+    const inserted = [];
     for (const it of items) {
-      await client.query(
+      const result = await client.query(
         `INSERT INTO shopping_list (family_id, name, amount, unit, category, checked)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
+         VALUES ($1,$2,$3,$4,$5,$6)
+         RETURNING id, name, amount, unit, category, checked`,
         [
           familyId,
           it.name ?? "",
@@ -295,9 +300,10 @@ router.put("/shopping", async (req: AuthRequest, res: Response) => {
           !!it.checked,
         ],
       );
+      inserted.push(result.rows[0]);
     }
     await client.query("COMMIT");
-    res.json({ ok: true });
+    res.json({ ok: true, items: inserted });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Update shopping error:", err);

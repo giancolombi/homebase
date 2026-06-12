@@ -4,19 +4,44 @@ import {
   type Response,
   type RequestHandler,
 } from "express";
+import crypto from "node:crypto";
 import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
+import { rateLimit } from "express-rate-limit";
 import pool from "./db.js";
+import { JWT_SECRET, APP_URL } from "./lib/config.js";
 import {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   sendPasswordChangedEmail,
 } from "./lib/email.js";
-const APP_URL = process.env.APP_URL || "http://localhost:8080";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = "7d";
+
+// Brute-force protection for the unauthenticated auth endpoints. Keyed by IP
+// (trust proxy is set in index.ts). Skipped outside production so local dev
+// and the E2E suite — which signs up dozens of users per run from one
+// address — aren't throttled.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== "production",
+  message: { error: "Too many attempts. Please try again later." },
+});
+
+// Reset tokens embed a fingerprint of the current password hash, so they
+// become invalid the moment the password changes — used reset links and
+// stale links issued before a change can't be replayed.
+function passwordFingerprint(passwordHash: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(passwordHash)
+    .digest("hex")
+    .slice(0, 16);
+}
 
 export interface AuthUser {
   id: string;
@@ -40,7 +65,9 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as {
+    const payload = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as {
       sub: string;
       email: string;
       full_name: string | null;
@@ -95,7 +122,7 @@ async function userPayload(user: {
 }
 
 // POST /api/auth/signup
-router.post("/signup", async (req: Request, res: Response) => {
+router.post("/signup", authLimiter, async (req: Request, res: Response) => {
   const { email, password, full_name } = req.body;
   if (!email || !password) {
     res.status(400).json({ error: "Email and password are required" });
@@ -153,7 +180,7 @@ router.post("/signup", async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/signin
-router.post("/signin", async (req: Request, res: Response) => {
+router.post("/signin", authLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
   if (!email || !password) {
     res.status(400).json({ error: "Email and password are required" });
@@ -198,7 +225,9 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
 
   const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as {
+    const payload = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as {
       sub: string;
       email: string;
       full_name: string | null;
@@ -225,13 +254,31 @@ router.post(
   "/update-password",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { password } = req.body;
+    const { currentPassword, password } = req.body;
+    if (!currentPassword) {
+      res.status(400).json({ error: "Current password is required" });
+      return;
+    }
     if (!password || password.length < 8) {
       res.status(400).json({ error: "Password must be at least 8 characters" });
       return;
     }
 
     try {
+      // Re-verify the current password so a stolen session token alone
+      // can't be parlayed into a full account takeover.
+      const userResult = await pool.query(
+        "SELECT password_hash FROM users WHERE id = $1",
+        [req.user!.id],
+      );
+      const currentHash = userResult.rows[0]?.password_hash;
+      const valid =
+        currentHash && (await argon2.verify(currentHash, currentPassword));
+      if (!valid) {
+        res.status(400).json({ error: "Current password is incorrect" });
+        return;
+      }
+
       const passwordHash = await argon2.hash(password);
       await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
         passwordHash,
@@ -253,99 +300,125 @@ router.post(
 // POST /api/auth/request-reset
 // In a real app this would send an email with a reset token.
 // For now, it generates a short-lived JWT that the client can use.
-router.post("/request-reset", async (req: Request, res: Response) => {
-  const { email } = req.body;
-  if (!email) {
-    res.status(400).json({ error: "Email is required" });
-    return;
-  }
+router.post(
+  "/request-reset",
+  authLimiter,
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ error: "Email is required" });
+      return;
+    }
 
-  try {
-    const result = await pool.query(
-      "SELECT id, email, full_name FROM users WHERE email = $1",
-      [email],
-    );
-    // Always return success to prevent email enumeration
-    if (result.rows.length === 0) {
+    try {
+      const result = await pool.query(
+        "SELECT id, email, full_name, password_hash FROM users WHERE email = $1",
+        [email],
+      );
+      // Always return success to prevent email enumeration
+      if (result.rows.length === 0) {
+        res.json({
+          message: "If that email is registered, a reset link has been sent.",
+        });
+        return;
+      }
+
+      const user = result.rows[0];
+      const resetToken = jwt.sign(
+        {
+          sub: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          purpose: "reset",
+          pwh: passwordFingerprint(user.password_hash),
+        },
+        JWT_SECRET,
+        { expiresIn: "1h" },
+      );
+
+      const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`;
+
+      // Try to send the email. If RESEND_API_KEY isn't configured the mailer
+      // falls back to console logging so dev/E2E flows still work. Never log
+      // the URL in production — it contains a live reset token.
+      const { sent } = await sendPasswordResetEmail({ to: email, resetUrl });
+      if (!sent && process.env.NODE_ENV !== "production") {
+        console.log(`Password reset URL for ${email}: ${resetUrl}`);
+      }
+
       res.json({
         message: "If that email is registered, a reset link has been sent.",
+        // Include token in dev (or whenever no real email was sent) so the
+        // app can surface it for testing — do not expose in production once
+        // SMTP/Resend is configured.
+        ...(!sent && process.env.NODE_ENV !== "production" && { resetToken }),
       });
-      return;
+    } catch (err) {
+      console.error("Request reset error:", err);
+      res.status(500).json({ error: "Failed to process reset request" });
     }
-
-    const user = result.rows[0];
-    const resetToken = jwt.sign(
-      {
-        sub: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        purpose: "reset",
-      },
-      JWT_SECRET,
-      { expiresIn: "1h" },
-    );
-
-    const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`;
-
-    // Try to send the email. If RESEND_API_KEY isn't configured the mailer
-    // falls back to console logging so dev/E2E flows still work.
-    const { sent } = await sendPasswordResetEmail({ to: email, resetUrl });
-    if (!sent) {
-      console.log(`Password reset URL for ${email}: ${resetUrl}`);
-    }
-
-    res.json({
-      message: "If that email is registered, a reset link has been sent.",
-      // Include token in dev (or whenever no real email was sent) so the
-      // app can surface it for testing — do not expose in production once
-      // SMTP/Resend is configured.
-      ...(!sent && process.env.NODE_ENV !== "production" && { resetToken }),
-    });
-  } catch (err) {
-    console.error("Request reset error:", err);
-    res.status(500).json({ error: "Failed to process reset request" });
-  }
-});
+  },
+);
 
 // POST /api/auth/reset-password  — use reset token to set new password
-router.post("/reset-password", async (req: Request, res: Response) => {
-  const { token, password } = req.body;
-  if (!token || !password) {
-    res.status(400).json({ error: "Token and password are required" });
-    return;
-  }
-  if (password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
-    return;
-  }
-
-  try {
-    const payload = jwt.verify(token, JWT_SECRET) as {
-      sub: string;
-      purpose?: string;
-    };
-    if (payload.purpose !== "reset") {
-      res.status(400).json({ error: "Invalid reset token" });
+router.post(
+  "/reset-password",
+  authLimiter,
+  async (req: Request, res: Response) => {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      res.status(400).json({ error: "Token and password are required" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters" });
       return;
     }
 
-    const passwordHash = await argon2.hash(password);
-    const updated = await pool.query(
-      "UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING email",
-      [passwordHash, payload.sub],
-    );
+    try {
+      const payload = jwt.verify(token, JWT_SECRET, {
+        algorithms: ["HS256"],
+      }) as {
+        sub: string;
+        purpose?: string;
+        pwh?: string;
+      };
+      if (payload.purpose !== "reset") {
+        res.status(400).json({ error: "Invalid reset token" });
+        return;
+      }
 
-    const updatedEmail = updated.rows[0]?.email;
-    if (updatedEmail) {
-      sendPasswordChangedEmail({ to: updatedEmail }).catch((err) =>
-        console.warn("Password-changed email failed:", err),
+      // The fingerprint pins the token to the password it was issued against —
+      // once the password changes (via this token or any other path), every
+      // outstanding reset token dies.
+      const current = await pool.query(
+        "SELECT password_hash FROM users WHERE id = $1",
+        [payload.sub],
       );
-    }
+      const currentHash = current.rows[0]?.password_hash;
+      if (!currentHash || payload.pwh !== passwordFingerprint(currentHash)) {
+        res.status(400).json({ error: "Invalid or expired reset token" });
+        return;
+      }
 
-    res.json({ message: "Password has been reset. You can now sign in." });
-  } catch {
-    res.status(400).json({ error: "Invalid or expired reset token" });
-  }
-});
+      const passwordHash = await argon2.hash(password);
+      const updated = await pool.query(
+        "UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING email",
+        [passwordHash, payload.sub],
+      );
+
+      const updatedEmail = updated.rows[0]?.email;
+      if (updatedEmail) {
+        sendPasswordChangedEmail({ to: updatedEmail }).catch((err) =>
+          console.warn("Password-changed email failed:", err),
+        );
+      }
+
+      res.json({ message: "Password has been reset. You can now sign in." });
+    } catch {
+      res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+  },
+);
 
 export default router;

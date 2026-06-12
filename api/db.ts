@@ -1,3 +1,4 @@
+import "./lib/env.js";
 import pg from "pg";
 
 const connectionString =

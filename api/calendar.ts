@@ -1,6 +1,9 @@
 import { Router, type Request, type Response } from "express";
+import jwt from "jsonwebtoken";
 import { requireAuth, type AuthRequest } from "./auth.js";
+import { isFamilyMember, resolveFamilyId } from "./lib/familyAuth.js";
 import pool from "./db.js";
+import { JWT_SECRET, APP_URL } from "./lib/config.js";
 import { encrypt, decrypt } from "./lib/encryption.js";
 import {
   createOAuthState,
@@ -15,11 +18,23 @@ import { validateAppleCredentials, fetchAppleEvents } from "./lib/caldav.js";
 import { errorMessage } from "./lib/errors.js";
 
 const router = Router();
-const APP_URL = process.env.APP_URL || "http://localhost:8080";
+
+// POST /api/calendar/oauth-token — mint a 60-second single-purpose token
+// that the OAuth popup passes back as ?token=. The session JWT itself must
+// never travel in a URL (URLs end up in browser history, Referer headers,
+// and server access logs).
+router.post("/oauth-token", requireAuth, (req: AuthRequest, res: Response) => {
+  const token = jwt.sign(
+    { sub: req.user!.id, purpose: "calendar-oauth" },
+    JWT_SECRET,
+    { expiresIn: "60s" },
+  );
+  res.json({ token });
+});
 
 // GET /api/calendar/auth/:provider — redirect to OAuth provider
 // No requireAuth — this is a browser redirect (popup), not XHR.
-// The user's identity is verified via the JWT token passed as a query param.
+// Identity comes from the short-lived purpose token minted by /oauth-token.
 router.get("/auth/:provider", async (req: Request, res: Response) => {
   const provider = req.params.provider as string;
   const { token, familyId, returnTo } = req.query as {
@@ -39,12 +54,16 @@ router.get("/auth/:provider", async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify the JWT to get the user's identity
-    const jwt = await import("jsonwebtoken");
-    const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
-    const payload = jwt.default.verify(token, JWT_SECRET) as {
+    const payload = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as {
       sub: string;
+      purpose?: string;
     };
+    if (payload.purpose !== "calendar-oauth") {
+      res.status(401).json({ error: "Invalid token" });
+      return;
+    }
 
     // Look up the member ID for this user in this family
     const memberResult = await pool.query(
@@ -327,12 +346,8 @@ router.get(
   "/connections",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { familyId } = req.query as { familyId: string };
-
-    if (!familyId) {
-      res.status(400).json({ error: "familyId is required" });
-      return;
-    }
+    const familyId = await resolveFamilyId(req, res);
+    if (!familyId) return;
 
     try {
       const result = await pool.query(
@@ -453,6 +468,21 @@ router.post(
     const connectionId = req.params.connectionId as string;
 
     try {
+      // Only members of the connection's family may trigger a sync (which
+      // refreshes and decrypts the stored provider tokens).
+      const connLookup = await pool.query(
+        `SELECT family_id FROM calendar_connections WHERE id = $1`,
+        [connectionId],
+      );
+      if (connLookup.rows.length === 0) {
+        res.status(404).json({ error: "Connection not found" });
+        return;
+      }
+      if (!(await isFamilyMember(req.user!.id, connLookup.rows[0].family_id))) {
+        res.status(403).json({ error: "Not a member of this family" });
+        return;
+      }
+
       const { accessToken, provider, memberId, familyId, externalEmail } =
         await getValidAccessToken(connectionId);
 
@@ -565,16 +595,16 @@ router.post(
 
 // GET /api/calendar/events — get merged events for a family
 router.get("/events", requireAuth, async (req: AuthRequest, res: Response) => {
-  const { familyId, startDate, endDate } = req.query as {
-    familyId: string;
+  const { startDate, endDate } = req.query as {
     startDate: string;
     endDate: string;
   };
 
-  if (!familyId || !startDate || !endDate) {
-    res
-      .status(400)
-      .json({ error: "familyId, startDate, and endDate are required" });
+  const familyId = await resolveFamilyId(req, res);
+  if (!familyId) return;
+
+  if (!startDate || !endDate) {
+    res.status(400).json({ error: "startDate and endDate are required" });
     return;
   }
 
@@ -650,6 +680,16 @@ router.delete(
         [connectionId],
       );
       const row = lookup.rows[0];
+
+      if (!row) {
+        res.status(404).json({ error: "Connection not found" });
+        return;
+      }
+      // Only members of the connection's family may disconnect it.
+      if (!(await isFamilyMember(req.user!.id, row.family_id))) {
+        res.status(403).json({ error: "Not a member of this family" });
+        return;
+      }
 
       await pool.query(`DELETE FROM calendar_connections WHERE id = $1`, [
         connectionId,

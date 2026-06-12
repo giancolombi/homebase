@@ -1,14 +1,24 @@
 import crypto from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 16;
+// 96-bit IV, the recommended length for GCM. Decrypt reads the IV from the
+// stored message, so payloads written with the previous 16-byte IV still
+// decrypt fine.
+const IV_LENGTH = 12;
+const KEY_LENGTH = 32; // aes-256 = 32-byte key
 
 function getKey(): Buffer {
   const key = process.env.TOKEN_ENCRYPTION_KEY;
   if (!key) {
     throw new Error("TOKEN_ENCRYPTION_KEY environment variable is required");
   }
-  return Buffer.from(key, "hex");
+  const buf = Buffer.from(key, "hex");
+  if (buf.length !== KEY_LENGTH) {
+    throw new Error(
+      `TOKEN_ENCRYPTION_KEY must be ${KEY_LENGTH} bytes (${KEY_LENGTH * 2} hex characters), got ${buf.length} bytes`,
+    );
+  }
+  return buf;
 }
 
 export function encrypt(plaintext: string): string {
@@ -29,7 +39,11 @@ export function encrypt(plaintext: string): string {
 
 export function decrypt(ciphertext: string): string {
   const key = getKey();
-  const [ivB64, authTagB64, encrypted] = ciphertext.split(":");
+  const parts = ciphertext.split(":");
+  if (parts.length !== 3) {
+    throw new Error("Malformed ciphertext: expected iv:authTag:data");
+  }
+  const [ivB64, authTagB64, encrypted] = parts;
 
   const iv = Buffer.from(ivB64, "base64");
   const authTag = Buffer.from(authTagB64, "base64");

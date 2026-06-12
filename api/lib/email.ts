@@ -2,6 +2,18 @@ import { Resend } from "resend";
 
 const FROM_EMAIL = process.env.FROM_EMAIL || "Homebase <onboarding@resend.dev>";
 
+// User-controlled values (names, emails) are interpolated into email HTML
+// that recipients' clients render directly — a member named "<img src=x
+// onerror=...>" must arrive as text, not markup.
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Lazy initialization — don't crash on startup if key is missing
 let resend: Resend | null = null;
 
@@ -44,7 +56,9 @@ export async function sendInviteEmail(options: {
   familyName: string;
   inviteUrl: string;
 }): Promise<{ sent: boolean }> {
-  const { to, inviterName, familyName, inviteUrl } = options;
+  const { to, inviteUrl } = options;
+  const inviterName = escapeHtml(options.inviterName);
+  const familyName = escapeHtml(options.familyName);
 
   return sendOrLog({
     to,
@@ -80,7 +94,9 @@ export async function sendWelcomeEmail(options: {
   appUrl: string;
 }): Promise<{ sent: boolean }> {
   const { to, fullName, appUrl } = options;
-  const greeting = fullName ? `Hi ${fullName.split(" ")[0]},` : "Hi,";
+  const greeting = fullName
+    ? `Hi ${escapeHtml(fullName.split(" ")[0])},`
+    : "Hi,";
 
   return sendOrLog({
     to,
@@ -148,7 +164,10 @@ export async function sendInviteAcceptedEmail(options: {
   inviteeEmail: string;
   familyName: string;
 }): Promise<{ sent: boolean }> {
-  const { to, inviteeName, inviteeEmail, familyName } = options;
+  const { to } = options;
+  const inviteeName = escapeHtml(options.inviteeName);
+  const inviteeEmail = escapeHtml(options.inviteeEmail);
+  const familyName = escapeHtml(options.familyName);
 
   return sendOrLog({
     to,

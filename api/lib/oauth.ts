@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
+import { JWT_SECRET } from "./config.js";
 
 interface OAuthConfig {
   authUrl: string;
@@ -68,7 +67,7 @@ export function verifyOAuthState(state: string): {
   provider: string;
   returnTo?: string;
 } {
-  return jwt.verify(state, JWT_SECRET) as {
+  return jwt.verify(state, JWT_SECRET, { algorithms: ["HS256"] }) as {
     userId: string;
     memberId: string;
     familyId: string;
@@ -155,6 +154,9 @@ export async function getUserEmail(
     const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Google user info: ${res.status}`);
+    }
     const data = (await res.json()) as { email: string };
     return data.email;
   }
@@ -163,6 +165,9 @@ export async function getUserEmail(
     const res = await fetch("https://graph.microsoft.com/v1.0/me", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Microsoft user info: ${res.status}`);
+    }
     const data = (await res.json()) as {
       mail?: string;
       userPrincipalName: string;

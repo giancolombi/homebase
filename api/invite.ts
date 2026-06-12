@@ -1,12 +1,12 @@
 import { Router, type Response } from "express";
 import jwt from "jsonwebtoken";
 import { requireAuth, type AuthRequest } from "./auth.js";
+import { isFamilyMember } from "./lib/familyAuth.js";
 import pool from "./db.js";
+import { JWT_SECRET, APP_URL } from "./lib/config.js";
 import { sendInviteEmail, sendInviteAcceptedEmail } from "./lib/email.js";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
-const APP_URL = process.env.APP_URL || "http://localhost:8080";
 
 // POST /api/invite/send — send an invite email to a family member
 router.post("/send", requireAuth, async (req: AuthRequest, res: Response) => {
@@ -46,6 +46,12 @@ router.post("/send", requireAuth, async (req: AuthRequest, res: Response) => {
 
     const member = memberResult.rows[0];
 
+    // Only members of the target family may send invites for it.
+    if (!(await isFamilyMember(req.user!.id, member.family_id))) {
+      res.status(403).json({ error: "Not a member of this family" });
+      return;
+    }
+
     if (!member.email) {
       res.status(400).json({ error: "Member has no email address" });
       return;
@@ -61,26 +67,11 @@ router.post("/send", requireAuth, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Check that the existing email isn't already registered
-    const existingUser = await pool.query(
-      "SELECT id FROM users WHERE email = $1",
-      [member.email],
-    );
-
-    if (existingUser.rows.length > 0) {
-      // User exists — link them to the family member and mark accepted
-      await pool.query(
-        `UPDATE family_members
-           SET user_id = $1, invite_status = 'accepted'
-           WHERE id = $2`,
-        [existingUser.rows[0].id, member.id],
-      );
-      res.json({
-        message: "User already has an account — linked to family",
-        alreadyAccepted: true,
-      });
-      return;
-    }
+    // Invitees who already have a Homebase account go through the same
+    // email + accept flow as everyone else (the accept page signs them in).
+    // Never auto-link an existing account to a family without that user
+    // explicitly accepting — doing so would let anyone pull an existing
+    // user into their family just by knowing their email.
 
     // Generate invite token (valid 7 days)
     const inviteToken = jwt.sign(
@@ -119,17 +110,22 @@ router.post("/send", requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// POST /api/invite/accept — accept an invite
-router.post("/accept", async (req, res) => {
-  const { token, userId } = req.body;
+// POST /api/invite/accept — accept an invite. Requires authentication: the
+// account being linked is always the caller's own (a body-supplied userId
+// would let whoever holds the token bind an arbitrary account).
+router.post("/accept", requireAuth, async (req: AuthRequest, res: Response) => {
+  const { token } = req.body;
+  const userId = req.user!.id;
 
-  if (!token || !userId) {
-    res.status(400).json({ error: "token and userId are required" });
+  if (!token) {
+    res.status(400).json({ error: "token is required" });
     return;
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as {
+    const payload = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as {
       memberId: string;
       familyId: string;
       email: string;
@@ -137,6 +133,32 @@ router.post("/accept", async (req, res) => {
     };
 
     if (payload.purpose !== "invite") {
+      res.status(400).json({ error: "Invalid invite token" });
+      return;
+    }
+
+    // The invite is addressed to a specific email — only that account may
+    // accept it.
+    if (req.user!.email.toLowerCase() !== payload.email.toLowerCase()) {
+      res
+        .status(403)
+        .json({ error: "This invite was sent to a different email address" });
+      return;
+    }
+
+    // The presented token must still be the live one stored on the member
+    // row (cleared on accept), making invites single-use even though the
+    // JWT itself stays cryptographically valid for 7 days.
+    const memberRow = await pool.query(
+      `SELECT invite_status, invite_token FROM family_members WHERE id = $1`,
+      [payload.memberId],
+    );
+    const invitedMember = memberRow.rows[0];
+    if (invitedMember?.invite_status === "accepted") {
+      res.status(400).json({ error: "Invite already accepted" });
+      return;
+    }
+    if (!invitedMember || invitedMember.invite_token !== token) {
       res.status(400).json({ error: "Invalid invite token" });
       return;
     }
@@ -231,7 +253,9 @@ router.get("/verify", async (req, res) => {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as {
+    const payload = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as {
       memberId: string;
       familyId: string;
       email: string;
